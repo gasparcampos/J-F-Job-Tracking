@@ -250,14 +250,37 @@ export async function POST(request: NextRequest) {
       fs.writeFileSync(filePath, buffer);
     }
 
-    // Extract data using VLM
-    console.log('Extracting data with VLM...');
+    // Extract data using VLM.
+    // The z-ai-web-dev-sdk only works inside the z.ai sandbox; in production
+    // (Firebase) it can't initialize. Degrade gracefully: return empty fields
+    // with a 200 so the upload flow continues and the user fills in manually.
+    const emptyData: ExtractedData = {
+      jobNumber: null,
+      customer: null,
+      poNumber: null,
+      line: null,
+      dwgNumber: null,
+      partNumber: null,
+      dueDate: null,
+    };
+
     let extractedData: ExtractedData;
-    
-    if (isPdf) {
-      extractedData = await extractFromPdfWithVLM(filePath);
-    } else {
-      extractedData = await extractFromImageWithVLM(filePath);
+    try {
+      console.log('Extracting data with VLM...');
+      extractedData = isPdf
+        ? await extractFromPdfWithVLM(filePath)
+        : await extractFromImageWithVLM(filePath);
+    } catch (vlmError) {
+      console.warn(
+        'VLM extraction unavailable, falling back to manual entry:',
+        vlmError instanceof Error ? vlmError.message : vlmError,
+      );
+      return NextResponse.json({
+        success: true,
+        data: emptyData,
+        aiAvailable: false,
+        message: 'AI extraction unavailable; please enter job details manually.',
+      });
     }
 
     console.log('=== EXTRACTION RESULT ===');
@@ -266,17 +289,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: extractedData,
+      aiAvailable: true,
     });
 
   } catch (error) {
     console.error('Error extracting data:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to extract data', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+    // Never hard-fail the upload flow over extraction.
+    return NextResponse.json({
+      success: true,
+      data: {
+        jobNumber: null,
+        customer: null,
+        poNumber: null,
+        line: null,
+        dwgNumber: null,
+        partNumber: null,
+        dueDate: null,
       },
-      { status: 500 }
-    );
+      aiAvailable: false,
+      message: 'AI extraction unavailable; please enter job details manually.',
+    });
   }
 }
