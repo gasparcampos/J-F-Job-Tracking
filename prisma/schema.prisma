@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        String  @id @default(cuid())
+  name      String
+  color     String  @default("#6366f1")
+  order     Int     @default(0)
+  jobs      Job[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("departments")
+}
+
+model Employee {
+  id        String  @id @default(cuid())
+  name      String
+  email     String?
+  avatar    String?
+  isActive   Boolean @default(true)
+  history   JobHistory[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employees")
+}
+
+model Job {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  priority     Int          @default(3)
+  departmentId String
+  department   Department   @relation(fields: [departmentId], references: [id])
+  assignedTo   String?
+  fileUrl      String?
+  fileName     String?
+  notes        String?
+  history      JobHistory[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("jobs")
+}
+
+model JobHistory {
+  id           String   @id @default(cuid())
+  jobId        String
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromDeptId   String?
+  toDeptId     String
+  employeeId   String?
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  notes        String?
+  timestamp    DateTime @default(now())
+
+  @@map("job_history")
+}
