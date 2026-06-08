@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Department, Employee, CreateJobInput } from '@/types';
+import { FilePreview } from './file-preview';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -251,18 +252,26 @@ export function JobFormModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-card-foreground truncate">{uploadedFile.name}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {isExtracting ? '🔄 AI is reading document...' : 
+                      {isExtracting ? '🔄 AI is reading document...' :
                        extractedData ? '✅ Data extracted automatically!' : 'File uploaded'}
                     </p>
                   </div>
                   {isExtracting ? (
                     <Loader2 size={20} className="text-primary animate-spin" />
-                  ) : extractedData ? (
-                    <Check size={20} className="text-emerald-500" />
                   ) : (
                     <Check size={20} className="text-emerald-500" />
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Document Preview */}
+            {uploadedFile && (
+              <div className="mt-3">
+                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
+                  Vista previa
+                </Label>
+                <FilePreview fileUrl={uploadedFile.url} fileName={uploadedFile.name} />
               </div>
             )}
             
