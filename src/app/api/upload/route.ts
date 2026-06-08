@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { bucket } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
+/**
+ * Uploads to Firebase Storage and returns a Firebase download URL.
+ *
+ * Why download tokens instead of signed URLs:
+ * Signed URLs require the runtime service account to have
+ * `iam.serviceAccounts.signBlob` (typically granted via the
+ * "Service Account Token Creator" role). Firebase download tokens
+ * don't need that — the URL is composed of bucket + path + token
+ * and served by the firebasestorage.googleapis.com gateway.
+ */
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -19,29 +31,29 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    const downloadToken = randomUUID();
     const blob = bucket.file(storagePath);
+
     await blob.save(buffer, {
       contentType: file.type || 'application/octet-stream',
       resumable: false,
       metadata: {
         cacheControl: 'public, max-age=31536000, immutable',
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+        },
       },
     });
 
-    // Long-lived signed URL so the client (PDF viewer, image viewer) can
-    // load the file without needing Firebase Auth on the frontend.
-    // 7 days is the maximum for V4 signed URLs.
-    const [signedUrl] = await blob.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      version: 'v4',
-    });
+    const bucketName = bucket.name;
+    const encodedPath = encodeURIComponent(storagePath);
+    const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${downloadToken}`;
 
     const isPdf = file.name.toLowerCase().endsWith('.pdf');
 
     return NextResponse.json({
       success: true,
-      fileUrl: signedUrl,
+      fileUrl,
       storagePath,
       fileName: file.name,
       fileSize: file.size,
@@ -51,7 +63,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      {
+        error: 'Failed to upload file',
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
