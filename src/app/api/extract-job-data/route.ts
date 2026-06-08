@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import ZAI from 'z-ai-web-dev-sdk';
+import type ZAIType from 'z-ai-web-dev-sdk';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy import to keep z-ai-web-dev-sdk out of build-time evaluation.
+type ZAIDefault = typeof ZAIType;
+let ZAI: ZAIDefault | null = null;
+async function loadZAI(): Promise<ZAIDefault> {
+  if (!ZAI) {
+    const mod = await import('z-ai-web-dev-sdk');
+    ZAI = (mod as unknown as { default: ZAIDefault }).default ?? (mod as unknown as ZAIDefault);
+  }
+  return ZAI;
+}
 
 interface ExtractedData {
   jobNumber: string | null;
@@ -14,11 +28,12 @@ interface ExtractedData {
 }
 
 // Initialize ZAI SDK
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+let zaiInstance: Awaited<ReturnType<ZAIDefault['create']>> | null = null;
 
 async function getZai() {
   if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
+    const Z = await loadZAI();
+    zaiInstance = await Z.create();
   }
   return zaiInstance;
 }
