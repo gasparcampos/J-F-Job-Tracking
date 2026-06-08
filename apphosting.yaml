@@ -21,8 +21,12 @@ env:
       - BUILD
       - RUNTIME
 
-  - variable: FIREBASE_STORAGE_BUCKET
-    value: jf-job-tracker.appspot.com
+  # NOTE: App Hosting auto-injects FIREBASE_STORAGE_BUCKET from the
+  # auto-created Firebase Web App config, which uses the legacy
+  # <project>.appspot.com format that does NOT exist for new projects.
+  # We use APP_STORAGE_BUCKET as an override that App Hosting won't touch.
+  - variable: APP_STORAGE_BUCKET
+    value: jf-job-tracker.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME

@@ -85,17 +85,31 @@ export const storage: Storage = new Proxy({} as Storage, {
 
 /**
  * Resolves the storage bucket name. New Firebase projects (post Oct 2024)
- * default to `<project>.firebasestorage.app`, older ones to `<project>.appspot.com`.
- * We prefer the explicit env var; if missing, we guess `.firebasestorage.app`
- * since that's the current default.
+ * default to `<project>.firebasestorage.app`, older ones to `.appspot.com`.
+ *
+ * Priority:
+ *  1. APP_STORAGE_BUCKET — our own override, not touched by App Hosting.
+ *  2. FIREBASE_STORAGE_BUCKET if it ends with `.firebasestorage.app`.
+ *     (App Hosting auto-injects this with the legacy `.appspot.com` value
+ *     from the auto-created Firebase Web App config, which for new
+ *     projects points to a bucket that does not exist — so we ignore it
+ *     unless it already uses the modern domain.)
+ *  3. `<FIREBASE_PROJECT_ID>.firebasestorage.app` — modern default.
  */
 function resolveBucketName(): string {
-  const explicit = process.env.FIREBASE_STORAGE_BUCKET;
-  if (explicit) return explicit.replace(/^gs:\/\//, '');
+  const override = process.env.APP_STORAGE_BUCKET;
+  if (override) return override.replace(/^gs:\/\//, '');
+
+  const fromEnv = process.env.FIREBASE_STORAGE_BUCKET;
+  if (fromEnv && fromEnv.endsWith('.firebasestorage.app')) {
+    return fromEnv.replace(/^gs:\/\//, '');
+  }
+
   const projectId = process.env.FIREBASE_PROJECT_ID;
   if (projectId) return `${projectId}.firebasestorage.app`;
+
   throw new Error(
-    'FIREBASE_STORAGE_BUCKET is not set and FIREBASE_PROJECT_ID is missing',
+    'Cannot resolve storage bucket: set APP_STORAGE_BUCKET or FIREBASE_PROJECT_ID',
   );
 }
 
