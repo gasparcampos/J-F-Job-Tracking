@@ -83,11 +83,27 @@ export const storage: Storage = new Proxy({} as Storage, {
   },
 });
 
+/**
+ * Resolves the storage bucket name. New Firebase projects (post Oct 2024)
+ * default to `<project>.firebasestorage.app`, older ones to `<project>.appspot.com`.
+ * We prefer the explicit env var; if missing, we guess `.firebasestorage.app`
+ * since that's the current default.
+ */
+function resolveBucketName(): string {
+  const explicit = process.env.FIREBASE_STORAGE_BUCKET;
+  if (explicit) return explicit.replace(/^gs:\/\//, '');
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  if (projectId) return `${projectId}.firebasestorage.app`;
+  throw new Error(
+    'FIREBASE_STORAGE_BUCKET is not set and FIREBASE_PROJECT_ID is missing',
+  );
+}
+
 export const bucket: ReturnType<Storage['bucket']> = new Proxy(
   {} as ReturnType<Storage['bucket']>,
   {
     get(_target, prop, receiver) {
-      const real = getStorage(getAdminApp()).bucket();
+      const real = getStorage(getAdminApp()).bucket(resolveBucketName());
       const value = Reflect.get(real, prop, receiver);
       return typeof value === 'function' ? value.bind(real) : value;
     },
