@@ -61,9 +61,11 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   
   const notes = getNotes();
 
-  // Check file types
-  const isPdf = job?.fileUrl?.toLowerCase().endsWith('.pdf');
-  const isImage = job?.fileUrl && /\.(jpg|jpeg|png|gif|webp)$/i.test(job.fileUrl);
+  // Check file types from fileName (clean) — fileUrl may carry a
+  // ?alt=media&token= query string (Firebase Storage) that breaks endsWith.
+  const typeSource = (job?.fileName || job?.fileUrl?.split('?')[0] || '').toLowerCase();
+  const isPdf = typeSource.endsWith('.pdf');
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
   // Convert PDF to images using PDF.js
   const convertPdfToImages = useCallback(async () => {

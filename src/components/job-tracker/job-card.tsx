@@ -49,10 +49,11 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
     5: 'bg-emerald-500 text-white',
   };
 
-  // Check if file is PDF
-  const isPdf = job.fileUrl?.toLowerCase().endsWith('.pdf');
-  // Check if file is image
-  const isImage = job.fileUrl && /\.(jpg|jpeg|png|gif|webp)$/i.test(job.fileUrl);
+  // Check file types from fileName (clean) — fileUrl may carry a
+  // ?alt=media&token= query string (Firebase Storage) that breaks endsWith.
+  const typeSource = (job.fileName || job.fileUrl?.split('?')[0] || '').toLowerCase();
+  const isPdf = typeSource.endsWith('.pdf');
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
   const isInProgress = job.inProgress;
 

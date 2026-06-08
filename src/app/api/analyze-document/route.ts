@@ -28,11 +28,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'fileUrl is required' }, { status: 400 });
     }
 
-    // Check file type
-    const isPdf = fileUrl.toLowerCase().endsWith('.pdf');
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
-    
-    console.log('File type:', { isPdf, isImage, fileUrl });
+    // Detect type from fileName (clean) — fileUrl may carry a ?alt=media&token=
+    // query string (Firebase Storage) that breaks an endsWith('.pdf') check.
+    const typeSource = (fileName || fileUrl.split('?')[0]).toLowerCase();
+    const isPdf = typeSource.endsWith('.pdf');
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
+
+    console.log('File type:', { isPdf, isImage, typeSource, fileUrl });
     
     if (!isPdf && !isImage) {
       return NextResponse.json({ 
