@@ -7,6 +7,7 @@ import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Pl
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
+import { FilePreview } from './file-preview';
 
 interface JobCardProps {
   job: Job;
@@ -154,49 +155,16 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         </p>
       )}
 
-      {/* PDF File Indicator - Simplified */}
-      {job.fileUrl && isPdf && (
-        <div className="mb-3 ml-6">
-          <button
+      {/* Document preview (renders inline, click to open full viewer) */}
+      {job.fileUrl && (isPdf || isImage) && (
+        <div className="mb-3 ml-6" onPointerDown={(e) => e.stopPropagation()}>
+          <FilePreview
+            fileUrl={job.fileUrl}
+            fileName={job.fileName}
+            thumbnail
+            maxHeightClass="max-h-48"
             onClick={() => onViewPdf?.(job)}
-            className="flex items-center gap-3 w-full p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors group/pdf"
-          >
-            <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className={`text-xs font-semibold ${isInProgress ? 'text-orange-100' : 'text-card-foreground'}`}>
-                {job.fileName || 'documento.pdf'}
-              </p>
-              <p className={`text-[10px] ${isInProgress ? 'text-orange-200/60' : 'text-muted-foreground'}`}>
-                Click para ver PDF
-              </p>
-            </div>
-            <ZoomIn size={16} className="text-muted-foreground group-hover/pdf:text-primary transition-colors" />
-          </button>
-        </div>
-      )}
-
-      {/* Image File Indicator */}
-      {job.fileUrl && isImage && (
-        <div className="mb-3 ml-6">
-          <button
-            onClick={() => onViewPdf?.(job)}
-            className="flex items-center gap-3 w-full p-3 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors group/img"
-          >
-            <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <FileImage className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className={`text-xs font-semibold ${isInProgress ? 'text-orange-100' : 'text-card-foreground'}`}>
-                {job.fileName || 'imagen'}
-              </p>
-              <p className={`text-[10px] ${isInProgress ? 'text-orange-200/60' : 'text-muted-foreground'}`}>
-                Click para ver imagen
-              </p>
-            </div>
-            <ZoomIn size={16} className="text-muted-foreground group-hover/img:text-primary transition-colors" />
-          </button>
+          />
         </div>
       )}
 

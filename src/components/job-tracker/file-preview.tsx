@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, FileText, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 
 interface FilePreviewProps {
   fileUrl: string;
   fileName?: string;
   className?: string;
+  /** Render only the first page, no pager — for compact card thumbnails. */
+  thumbnail?: boolean;
+  /** Max height of the preview area (Tailwind class). */
+  maxHeightClass?: string;
+  /** Click handler (e.g. open the full-screen viewer). Adds a hover hint. */
+  onClick?: () => void;
 }
 
 /**
@@ -15,7 +21,14 @@ interface FilePreviewProps {
  * - Images are shown directly.
  * Used inside the New Job form so the user sees the document right after upload.
  */
-export function FilePreview({ fileUrl, fileName, className }: FilePreviewProps) {
+export function FilePreview({
+  fileUrl,
+  fileName,
+  className,
+  thumbnail = false,
+  maxHeightClass,
+  onClick,
+}: FilePreviewProps) {
   const [images, setImages] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -42,9 +55,11 @@ export function FilePreview({ fileUrl, fileName, className }: FilePreviewProps) 
 
       const doc = await pdfjsLib.getDocument(fileUrl).promise;
       const out: string[] = [];
-      for (let i = 1; i <= doc.numPages; i++) {
+      // Thumbnails only need the first page; full preview renders all.
+      const lastPage = thumbnail ? 1 : doc.numPages;
+      for (let i = 1; i <= lastPage; i++) {
         const pageObj = await doc.getPage(i);
-        const viewport = pageObj.getViewport({ scale: 1.5 });
+        const viewport = pageObj.getViewport({ scale: thumbnail ? 1 : 1.5 });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
@@ -60,48 +75,65 @@ export function FilePreview({ fileUrl, fileName, className }: FilePreviewProps) 
     } finally {
       if (myReq === reqId.current) setLoading(false);
     }
-  }, [fileUrl, isPdf]);
+  }, [fileUrl, isPdf, thumbnail]);
 
   useEffect(() => {
     if (isPdf) renderPdf();
   }, [isPdf, renderPdf]);
 
-  const box = `rounded-xl border border-border bg-muted/30 overflow-hidden ${className ?? ''}`;
+  const clickable = typeof onClick === 'function';
+  const box =
+    `relative rounded-xl border border-border bg-muted/30 overflow-hidden ` +
+    `${clickable ? 'cursor-pointer hover:border-primary/60 transition-colors group/preview ' : ''}` +
+    `${className ?? ''}`;
+  const imgHeight = maxHeightClass ?? (thumbnail ? 'max-h-40' : 'max-h-[420px]');
+
+  // Small magnifier hint shown on hover when clickable.
+  const clickHint = clickable ? (
+    <div className="absolute top-2 right-2 bg-background/90 backdrop-blur rounded-full p-1.5 border border-border shadow opacity-0 group-hover/preview:opacity-100 transition-opacity">
+      <ZoomIn size={14} className="text-primary" />
+    </div>
+  ) : null;
 
   if (isImage) {
     return (
-      <div className={box}>
+      <div className={box} onClick={onClick}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fileUrl}
           alt={fileName || 'preview'}
-          className="w-full max-h-[420px] object-contain bg-black/20"
+          className={`w-full ${imgHeight} object-contain bg-black/20`}
         />
+        {clickHint}
       </div>
     );
   }
 
   if (!isPdf) {
     return (
-      <div className={`${box} flex flex-col items-center justify-center py-10 text-muted-foreground`}>
+      <div
+        className={`${box} flex flex-col items-center justify-center py-10 text-muted-foreground`}
+        onClick={onClick}
+      >
         <FileText size={32} className="mb-2 text-primary" />
         <p className="text-xs">{fileName || 'Archivo'}</p>
         <p className="text-[10px]">Sin vista previa disponible</p>
+        {clickHint}
       </div>
     );
   }
 
   return (
-    <div className={box}>
+    <div className={box} onClick={onClick}>
       {loading && (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <div className={`flex flex-col items-center justify-center text-muted-foreground ${thumbnail ? 'py-8' : 'py-12'}`}>
           <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
           <p className="text-xs">Cargando vista previa…</p>
         </div>
       )}
 
       {error && !loading && (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <div className={`flex flex-col items-center justify-center text-muted-foreground ${thumbnail ? 'py-8' : 'py-12'}`}>
           <FileText size={32} className="mb-2 text-primary" />
           <p className="text-xs">{error}</p>
         </div>
@@ -113,9 +145,10 @@ export function FilePreview({ fileUrl, fileName, className }: FilePreviewProps) 
           <img
             src={images[page]}
             alt={`${fileName || 'PDF'} página ${page + 1}`}
-            className="w-full max-h-[420px] object-contain bg-black/20"
+            className={`w-full ${imgHeight} object-contain bg-black/20`}
           />
-          {images.length > 1 && (
+          {clickHint}
+          {!thumbnail && images.length > 1 && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/90 backdrop-blur rounded-full px-2 py-1 border border-border shadow">
               <button
                 type="button"
