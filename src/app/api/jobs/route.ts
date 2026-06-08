@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jobsDB, seedDB } from '@/lib/json-db';
 
+export const runtime = 'nodejs';
+
 // GET all jobs
 export async function GET() {
   try {
-    seedDB();
-    const jobs = jobsDB.findAll();
+    await seedDB();
+    const jobs = await jobsDB.findAll();
     return NextResponse.json(jobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
@@ -20,8 +22,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    const job = jobsDB.create({
+
+    const job = await jobsDB.create({
       title: body.title,
       description: body.description,
       priority: body.priority,
@@ -32,7 +34,6 @@ export async function POST(request: NextRequest) {
       previewUrl: body.previewUrl,
       pageCount: body.pageCount,
       notes: body.notes,
-      // New fields
       jobNumber: body.jobNumber,
       customer: body.customer,
       poNumber: body.poNumber,
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       partNumber: body.partNumber,
       dueDate: body.dueDate,
     });
-    
+
     return NextResponse.json(job);
   } catch (error) {
     console.error('Error creating job:', error);
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
 // DELETE all jobs
 export async function DELETE() {
   try {
-    jobsDB.deleteAll();
+    await jobsDB.deleteAll();
     return NextResponse.json({ message: 'All jobs deleted' });
   } catch (error) {
     console.error('Error deleting jobs:', error);

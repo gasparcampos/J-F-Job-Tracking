@@ -1,10 +1,17 @@
-import fs from 'fs';
-import path from 'path';
+/**
+ * Firestore-backed data layer.
+ *
+ * Keeps the same public API as the previous JSON-file implementation
+ * (jobsDB / departmentsDB / employeesDB / seedDB / resetDepartments) so
+ * existing API routes only need to `await` the calls.
+ */
 
-// Simple JSON file-based storage for jobs
-const DB_PATH = path.join('/tmp', 'jobtracker.json');
+import { firestore } from './firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-interface StoredJob {
+// ---------- Types ----------
+
+export interface StoredJob {
   id: string;
   title: string;
   description?: string;
@@ -19,7 +26,6 @@ interface StoredJob {
   notes?: string;
   inProgress: boolean;
   inProgressAt?: string;
-  // New fields for job tracking
   jobNumber?: string;
   customer?: string;
   poNumber?: string;
@@ -41,7 +47,7 @@ interface StoredJob {
   updatedAt: string;
 }
 
-interface StoredDepartment {
+export interface StoredDepartment {
   id: string;
   name: string;
   color: string;
@@ -49,7 +55,7 @@ interface StoredDepartment {
   defaultEmployee?: string;
 }
 
-interface StoredEmployee {
+export interface StoredEmployee {
   id: string;
   name: string;
   email?: string;
@@ -57,107 +63,130 @@ interface StoredEmployee {
   isActive: boolean;
 }
 
-interface Database {
-  jobs: StoredJob[];
-  departments: StoredDepartment[];
-  employees: StoredEmployee[];
-}
+// ---------- Collections ----------
 
-function loadDB(): Database {
-  try {
-    if (fs.existsSync(DB_PATH)) {
-      const data = fs.readFileSync(DB_PATH, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading database:', error);
-  }
-  
-  // Return and save default data
-  const defaultData: Database = {
-    jobs: [],
-    departments: [
-      { id: 'd1', name: 'NEW MATERIAL', color: '#f59e0b', order: 0, defaultEmployee: 'Gaspar' },
-      { id: 'd2', name: 'Cut Saw (Segueta)', color: '#ef4444', order: 1, defaultEmployee: 'Gaspar' },
-      { id: 'd3', name: 'WOOD PALLET', color: '#8b5cf6', order: 2, defaultEmployee: 'All' },
-      { id: 'd4', name: 'Night shift', color: '#1e293b', order: 3, defaultEmployee: 'Aldo' },
-      { id: 'd5', name: 'BLUE PALLET', color: '#3b82f6', order: 4, defaultEmployee: 'All' },
-      { id: 'd6', name: 'ARTURO', color: '#10b981', order: 5, defaultEmployee: 'Arturo' },
-      { id: 'd7', name: 'GERMAN', color: '#f97316', order: 6, defaultEmployee: 'German' },
-      { id: 'd8', name: 'ROMULO', color: '#06b6d4', order: 7, defaultEmployee: 'Romulo' },
-      { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'Meno' },
-      { id: 'd10', name: 'LATHE INSPECTION', color: '#eab308', order: 9, defaultEmployee: 'Estrada' },
-      { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
-      { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
-      { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
-      { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
-      { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
-      { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
-      { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: '' },
-    ],
-    employees: [
-      { id: 'e1', name: 'Gaspar', isActive: true },
-      { id: 'e2', name: 'Aldo', isActive: true },
-      { id: 'e3', name: 'Mazo', isActive: true },
-      { id: 'e4', name: 'Arturo', isActive: true },
-      { id: 'e5', name: 'German', isActive: true },
-      { id: 'e6', name: 'Romulo', isActive: true },
-      { id: 'e7', name: 'Meno', isActive: true },
-      { id: 'e8', name: 'Estrada', isActive: true },
-      { id: 'e9', name: 'JR', isActive: true },
-      { id: 'e10', name: 'Daniel', isActive: true },
-      { id: 'e11', name: 'Fedex', isActive: true },
-      { id: 'e12', name: 'Chito', isActive: true },
-      { id: 'e13', name: 'All', isActive: true },
-    ],
-  };
-  
-  // Save default data to disk
-  saveDB(defaultData);
-  
-  return defaultData;
-}
+const JOBS = 'jobs';
+const DEPARTMENTS = 'departments';
+const EMPLOYEES = 'employees';
 
-function saveDB(data: Database): void {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving database:', error);
-  }
-}
+const jobsCol = () => firestore.collection(JOBS);
+const deptsCol = () => firestore.collection(DEPARTMENTS);
+const empsCol = () => firestore.collection(EMPLOYEES);
 
-// Generate unique ID
+// ---------- Defaults / Seed data ----------
+
+const DEFAULT_DEPARTMENTS: StoredDepartment[] = [
+  { id: 'd1', name: 'NEW MATERIAL', color: '#f59e0b', order: 0, defaultEmployee: 'Gaspar' },
+  { id: 'd2', name: 'Cut Saw (Segueta)', color: '#ef4444', order: 1, defaultEmployee: 'Gaspar' },
+  { id: 'd3', name: 'WOOD PALLET', color: '#8b5cf6', order: 2, defaultEmployee: 'All' },
+  { id: 'd4', name: 'Night shift', color: '#1e293b', order: 3, defaultEmployee: 'Aldo' },
+  { id: 'd5', name: 'BLUE PALLET', color: '#3b82f6', order: 4, defaultEmployee: 'All' },
+  { id: 'd6', name: 'ARTURO', color: '#10b981', order: 5, defaultEmployee: 'Arturo' },
+  { id: 'd7', name: 'GERMAN', color: '#f97316', order: 6, defaultEmployee: 'German' },
+  { id: 'd8', name: 'ROMULO', color: '#06b6d4', order: 7, defaultEmployee: 'Romulo' },
+  { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'Meno' },
+  { id: 'd10', name: 'LATHE INSPECTION', color: '#eab308', order: 9, defaultEmployee: 'Estrada' },
+  { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
+  { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
+  { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
+  { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
+  { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
+  { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
+  { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: '' },
+];
+
+const DEFAULT_EMPLOYEES: StoredEmployee[] = [
+  { id: 'e1', name: 'Gaspar', isActive: true },
+  { id: 'e2', name: 'Aldo', isActive: true },
+  { id: 'e3', name: 'Mazo', isActive: true },
+  { id: 'e4', name: 'Arturo', isActive: true },
+  { id: 'e5', name: 'German', isActive: true },
+  { id: 'e6', name: 'Romulo', isActive: true },
+  { id: 'e7', name: 'Meno', isActive: true },
+  { id: 'e8', name: 'Estrada', isActive: true },
+  { id: 'e9', name: 'JR', isActive: true },
+  { id: 'e10', name: 'Daniel', isActive: true },
+  { id: 'e11', name: 'Fedex', isActive: true },
+  { id: 'e12', name: 'Chito', isActive: true },
+  { id: 'e13', name: 'All', isActive: true },
+];
+
+// ---------- Helpers ----------
+
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
-// Get next order number for a department
-function getNextOrder(deptId: string): number {
-  const db = loadDB();
-  const deptJobs = db.jobs.filter(j => j.departmentId === deptId);
-  if (deptJobs.length === 0) return 0;
-  return Math.max(...deptJobs.map(j => j.order ?? 0)) + 1;
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out as T;
 }
 
-// Jobs database operations
+function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
+  return {
+    id,
+    title: data.title ?? '',
+    description: data.description,
+    priority: data.priority ?? 3,
+    departmentId: data.departmentId,
+    order: data.order ?? 0,
+    assignedTo: data.assignedTo,
+    fileUrl: data.fileUrl,
+    fileName: data.fileName,
+    previewUrl: data.previewUrl,
+    pageCount: data.pageCount,
+    notes: data.notes,
+    inProgress: data.inProgress ?? false,
+    inProgressAt: data.inProgressAt,
+    jobNumber: data.jobNumber,
+    customer: data.customer,
+    poNumber: data.poNumber,
+    line: data.line,
+    dwgNumber: data.dwgNumber,
+    partNumber: data.partNumber,
+    dueDate: data.dueDate,
+    history: Array.isArray(data.history) ? data.history : [],
+    createdAt: data.createdAt ?? new Date().toISOString(),
+    updatedAt: data.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+async function getNextOrder(deptId: string): Promise<number> {
+  const snap = await jobsCol().where('departmentId', '==', deptId).get();
+  if (snap.empty) return 0;
+  let max = -1;
+  snap.forEach((d) => {
+    const o = (d.data().order as number) ?? 0;
+    if (o > max) max = o;
+  });
+  return max + 1;
+}
+
+// ---------- jobsDB ----------
+
 export const jobsDB = {
-  findAll: (): StoredJob[] => {
-    const db = loadDB();
-    return db.jobs.sort((a, b) => {
-      // First sort by department order, then by job order within department
+  async findAll(): Promise<StoredJob[]> {
+    const snap = await jobsCol().get();
+    const jobs: StoredJob[] = [];
+    snap.forEach((d) => jobs.push(docToJob(d.id, d.data())));
+    return jobs.sort((a, b) => {
       if (a.departmentId !== b.departmentId) {
         return a.departmentId.localeCompare(b.departmentId);
       }
       return (a.order ?? 0) - (b.order ?? 0);
     });
   },
-  
-  findById: (id: string): StoredJob | null => {
-    const db = loadDB();
-    return db.jobs.find(j => j.id === id) || null;
+
+  async findById(id: string): Promise<StoredJob | null> {
+    const doc = await jobsCol().doc(id).get();
+    if (!doc.exists) return null;
+    return docToJob(doc.id, doc.data()!);
   },
-  
-  create: (data: {
+
+  async create(data: {
     title: string;
     description?: string;
     priority?: number;
@@ -168,7 +197,6 @@ export const jobsDB = {
     previewUrl?: string;
     pageCount?: number;
     notes?: string;
-    // New fields
     jobNumber?: string;
     customer?: string;
     poNumber?: string;
@@ -176,11 +204,11 @@ export const jobsDB = {
     dwgNumber?: string;
     partNumber?: string;
     dueDate?: string;
-  }): StoredJob => {
-    const db = loadDB();
+  }): Promise<StoredJob> {
     const id = generateId();
-    const order = getNextOrder(data.departmentId);
-    
+    const order = await getNextOrder(data.departmentId);
+    const now = new Date().toISOString();
+
     const job: StoredJob = {
       id,
       title: data.title,
@@ -195,7 +223,6 @@ export const jobsDB = {
       pageCount: data.pageCount,
       notes: data.notes,
       inProgress: false,
-      // New fields
       jobNumber: data.jobNumber,
       customer: data.customer,
       poNumber: data.poNumber,
@@ -203,76 +230,88 @@ export const jobsDB = {
       dwgNumber: data.dwgNumber,
       partNumber: data.partNumber,
       dueDate: data.dueDate,
-      history: [{
-        id: generateId(),
-        jobId: id,
-        toDeptId: data.departmentId,
-        notes: '📄 Trabajo creado',
-        timestamp: new Date().toISOString(),
-      }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      history: [
+        {
+          id: generateId(),
+          jobId: id,
+          toDeptId: data.departmentId,
+          notes: '📄 Trabajo creado',
+          timestamp: now,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
     };
-    db.jobs.push(job);
-    saveDB(db);
+
+    await jobsCol().doc(id).set(stripUndefined(job as unknown as Record<string, unknown>));
     return job;
   },
-  
-  update: (id: string, data: Partial<StoredJob>): StoredJob | null => {
-    const db = loadDB();
-    const index = db.jobs.findIndex(j => j.id === id);
-    if (index === -1) return null;
-    
-    db.jobs[index] = {
-      ...db.jobs[index],
-      ...data,
-      updatedAt: new Date().toISOString(),
-    };
-    saveDB(db);
-    return db.jobs[index];
+
+  async update(id: string, data: Partial<StoredJob>): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+
+    const patch = stripUndefined({ ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>);
+    await ref.update(patch);
+
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
   },
-  
-  reorder: (jobId: string, targetDeptId: string, newOrder: number): StoredJob | null => {
-    const db = loadDB();
-    const job = db.jobs.find(j => j.id === jobId);
-    if (!job) return null;
-    
-    // Get all jobs in the target department
-    const deptJobs = db.jobs
-      .filter(j => j.departmentId === targetDeptId && j.id !== jobId)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    
-    // Update the moved job
-    job.departmentId = targetDeptId;
-    job.order = newOrder;
-    job.updatedAt = new Date().toISOString();
-    
-    // Reorder all jobs in the department
-    let currentOrder = 0;
-    for (const j of deptJobs) {
-      if (currentOrder === newOrder) {
-        currentOrder++;
+
+  async reorder(jobId: string, targetDeptId: string, newOrder: number): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(jobId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+
+    // Re-number every job in the target department so orders stay contiguous.
+    const deptSnap = await jobsCol().where('departmentId', '==', targetDeptId).get();
+    const others: { id: string; order: number }[] = [];
+    deptSnap.forEach((d) => {
+      if (d.id !== jobId) {
+        others.push({ id: d.id, order: (d.data().order as number) ?? 0 });
       }
-      j.order = currentOrder;
+    });
+    others.sort((a, b) => a.order - b.order);
+
+    const batch = firestore.batch();
+    const now = new Date().toISOString();
+
+    batch.update(ref, {
+      departmentId: targetDeptId,
+      order: newOrder,
+      updatedAt: now,
+    });
+
+    let currentOrder = 0;
+    for (const o of others) {
+      if (currentOrder === newOrder) currentOrder++;
+      if (o.order !== currentOrder) {
+        batch.update(jobsCol().doc(o.id), { order: currentOrder, updatedAt: now });
+      }
       currentOrder++;
     }
-    
-    saveDB(db);
-    return job;
+
+    await batch.commit();
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
   },
-  
-  addHistory: (jobId: string, entry: {
-    fromDeptId?: string;
-    toDeptId: string;
-    employeeId?: string;
-    employeeName?: string;
-    notes?: string;
-  }): StoredJob | null => {
-    const db = loadDB();
-    const job = db.jobs.find(j => j.id === jobId);
-    if (!job) return null;
-    
-    job.history.push({
+
+  async addHistory(
+    jobId: string,
+    entry: {
+      fromDeptId?: string;
+      toDeptId: string;
+      employeeId?: string;
+      employeeName?: string;
+      notes?: string;
+    },
+  ): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(jobId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+
+    const historyEntry = stripUndefined({
       id: generateId(),
       jobId,
       fromDeptId: entry.fromDeptId,
@@ -281,162 +320,213 @@ export const jobsDB = {
       employeeName: entry.employeeName,
       notes: entry.notes,
       timestamp: new Date().toISOString(),
+    } as Record<string, unknown>);
+
+    await ref.update({
+      history: FieldValue.arrayUnion(historyEntry),
+      updatedAt: new Date().toISOString(),
     });
-    job.updatedAt = new Date().toISOString();
-    saveDB(db);
-    return job;
+
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
   },
-  
-  addAnnotation: (jobId: string, annotation: string): StoredJob | null => {
-    const db = loadDB();
-    const job = db.jobs.find(j => j.id === jobId);
-    if (!job) return null;
-    
-    job.history.push({
+
+  async addAnnotation(jobId: string, annotation: string): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(jobId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+
+    const historyEntry = {
       id: generateId(),
       jobId,
-      toDeptId: job.departmentId,
+      toDeptId: data.departmentId,
       notes: annotation,
       timestamp: new Date().toISOString(),
+    };
+
+    await ref.update({
+      history: FieldValue.arrayUnion(historyEntry),
+      updatedAt: new Date().toISOString(),
     });
-    job.updatedAt = new Date().toISOString();
-    saveDB(db);
-    return job;
+
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
   },
-  
-  toggleInProgress: (jobId: string): StoredJob | null => {
-    const db = loadDB();
-    const job = db.jobs.find(j => j.id === jobId);
-    if (!job) return null;
-    
-    job.inProgress = !job.inProgress;
-    job.inProgressAt = job.inProgress ? new Date().toISOString() : undefined;
-    
-    // Add history entry
-    job.history.push({
+
+  async toggleInProgress(jobId: string): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(jobId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+
+    const inProgress = !(data.inProgress ?? false);
+    const now = new Date().toISOString();
+    const historyEntry = {
       id: generateId(),
       jobId,
-      toDeptId: job.departmentId,
-      notes: job.inProgress ? '🔥 In Progress iniciado' : '⏸️ In Progress detenido',
-      timestamp: new Date().toISOString(),
-    });
-    
-    job.updatedAt = new Date().toISOString();
-    saveDB(db);
-    return job;
+      toDeptId: data.departmentId,
+      notes: inProgress ? '🔥 In Progress iniciado' : '⏸️ In Progress detenido',
+      timestamp: now,
+    };
+
+    const patch: Record<string, unknown> = {
+      inProgress,
+      updatedAt: now,
+      history: FieldValue.arrayUnion(historyEntry),
+    };
+    if (inProgress) {
+      patch.inProgressAt = now;
+    } else {
+      patch.inProgressAt = FieldValue.delete();
+    }
+
+    await ref.update(patch);
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
   },
-  
-  delete: (id: string): boolean => {
-    const db = loadDB();
-    const index = db.jobs.findIndex(j => j.id === id);
-    if (index === -1) return false;
-    db.jobs.splice(index, 1);
-    saveDB(db);
+
+  async delete(id: string): Promise<boolean> {
+    const ref = jobsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return false;
+    await ref.delete();
     return true;
   },
-  
-  deleteAll: (): void => {
-    const db = loadDB();
-    db.jobs = [];
-    saveDB(db);
+
+  async deleteAll(): Promise<void> {
+    const snap = await jobsCol().get();
+    // Firestore batch limit is 500. Chunk just in case.
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 450) {
+      const batch = firestore.batch();
+      docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
   },
 };
 
-// Departments operations
+// ---------- departmentsDB ----------
+
 export const departmentsDB = {
-  findAll: (): StoredDepartment[] => {
-    const db = loadDB();
-    return db.departments.sort((a, b) => a.order - b.order);
-  },
-  
-  update: (id: string, data: Partial<StoredDepartment>): StoredDepartment | null => {
-    const db = loadDB();
-    const index = db.departments.findIndex(d => d.id === id);
-    if (index === -1) return null;
-    db.departments[index] = { ...db.departments[index], ...data };
-    saveDB(db);
-    return db.departments[index];
-  },
-};
-
-// Employees operations
-export const employeesDB = {
-  findAll: (): StoredEmployee[] => {
-    const db = loadDB();
-    return db.employees.filter(e => e.isActive).sort((a, b) => a.name.localeCompare(b.name));
-  },
-  
-  findById: (id: string): StoredEmployee | null => {
-    const db = loadDB();
-    return db.employees.find(e => e.id === id) || null;
-  },
-};
-
-// Seed default data
-export const seedDB = (): void => {
-  if (!fs.existsSync(DB_PATH)) {
-    saveDB({
-      jobs: [],
-      departments: [
-        { id: 'd1', name: 'NEW MATERIAL', color: '#f59e0b', order: 0, defaultEmployee: 'Gaspar' },
-        { id: 'd2', name: 'Cut Saw (Segueta)', color: '#ef4444', order: 1, defaultEmployee: 'Gaspar' },
-        { id: 'd3', name: 'WOOD PALLET', color: '#8b5cf6', order: 2, defaultEmployee: 'All' },
-        { id: 'd4', name: 'Night shift', color: '#1e293b', order: 3, defaultEmployee: 'Aldo' },
-        { id: 'd5', name: 'BLUE PALLET', color: '#3b82f6', order: 4, defaultEmployee: 'All' },
-        { id: 'd6', name: 'ARTURO', color: '#10b981', order: 5, defaultEmployee: 'Arturo' },
-        { id: 'd7', name: 'GERMAN', color: '#f97316', order: 6, defaultEmployee: 'German' },
-        { id: 'd8', name: 'ROMULO', color: '#06b6d4', order: 7, defaultEmployee: 'Romulo' },
-        { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'Meno' },
-        { id: 'd10', name: 'LATHE INSPECTION', color: '#eab308', order: 9, defaultEmployee: 'Estrada' },
-        { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
-        { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
-        { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
-        { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
-        { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
-        { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
-        { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: '' },
-      ],
-      employees: [
-        { id: 'e1', name: 'Gaspar', isActive: true },
-        { id: 'e2', name: 'Aldo', isActive: true },
-        { id: 'e3', name: 'Mazo', isActive: true },
-        { id: 'e4', name: 'Arturo', isActive: true },
-        { id: 'e5', name: 'German', isActive: true },
-        { id: 'e6', name: 'Romulo', isActive: true },
-        { id: 'e7', name: 'Meno', isActive: true },
-        { id: 'e8', name: 'Estrada', isActive: true },
-        { id: 'e9', name: 'JR', isActive: true },
-        { id: 'e10', name: 'Daniel', isActive: true },
-        { id: 'e11', name: 'Fedex', isActive: true },
-        { id: 'e12', name: 'Chito', isActive: true },
-        { id: 'e13', name: 'All', isActive: true },
-      ],
+  async findAll(): Promise<StoredDepartment[]> {
+    const snap = await deptsCol().get();
+    const out: StoredDepartment[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      out.push({
+        id: d.id,
+        name: data.name,
+        color: data.color,
+        order: data.order ?? 0,
+        defaultEmployee: data.defaultEmployee ?? '',
+      });
     });
-  }
+    return out.sort((a, b) => a.order - b.order);
+  },
+
+  async update(id: string, data: Partial<StoredDepartment>): Promise<StoredDepartment | null> {
+    const ref = deptsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    await ref.update(stripUndefined(data as Record<string, unknown>));
+    const updated = await ref.get();
+    const d = updated.data()!;
+    return {
+      id: updated.id,
+      name: d.name,
+      color: d.color,
+      order: d.order ?? 0,
+      defaultEmployee: d.defaultEmployee ?? '',
+    };
+  },
 };
 
-// Reset departments to default
-export const resetDepartments = (): StoredDepartment[] => {
-  const db = loadDB();
-  db.departments = [
-    { id: 'd1', name: 'NEW MATERIAL', color: '#f59e0b', order: 0, defaultEmployee: 'Gaspar' },
-    { id: 'd2', name: 'Cut Saw (Segueta)', color: '#ef4444', order: 1, defaultEmployee: 'Gaspar' },
-    { id: 'd3', name: 'WOOD PALLET', color: '#8b5cf6', order: 2, defaultEmployee: 'All' },
-    { id: 'd4', name: 'Night shift', color: '#1e293b', order: 3, defaultEmployee: 'Aldo' },
-    { id: 'd5', name: 'BLUE PALLET', color: '#3b82f6', order: 4, defaultEmployee: 'All' },
-    { id: 'd6', name: 'ARTURO', color: '#10b981', order: 5, defaultEmployee: 'Arturo' },
-    { id: 'd7', name: 'GERMAN', color: '#f97316', order: 6, defaultEmployee: 'German' },
-    { id: 'd8', name: 'ROMULO', color: '#06b6d4', order: 7, defaultEmployee: 'Romulo' },
-    { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'Meno' },
-    { id: 'd10', name: 'LATHE INSPECTION', color: '#eab308', order: 9, defaultEmployee: 'Estrada' },
-    { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
-    { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
-    { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
-    { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
-    { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
-    { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
-    { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: '' },
-  ];
-  saveDB(db);
-  return db.departments;
+// ---------- employeesDB ----------
+
+export const employeesDB = {
+  async findAll(): Promise<StoredEmployee[]> {
+    const snap = await empsCol().get();
+    const out: StoredEmployee[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data.isActive === false) return;
+      out.push({
+        id: d.id,
+        name: data.name,
+        email: data.email,
+        avatar: data.avatar,
+        isActive: data.isActive ?? true,
+      });
+    });
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  async findById(id: string): Promise<StoredEmployee | null> {
+    const doc = await empsCol().doc(id).get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      name: data.name,
+      email: data.email,
+      avatar: data.avatar,
+      isActive: data.isActive ?? true,
+    };
+  },
 };
+
+// ---------- Seed / reset ----------
+
+/**
+ * Seeds defaults if collections are empty. Safe to call on every request —
+ * it bails out quickly when data already exists.
+ */
+export async function seedDB(): Promise<void> {
+  const [deptsSnap, empsSnap] = await Promise.all([
+    deptsCol().limit(1).get(),
+    empsCol().limit(1).get(),
+  ]);
+
+  const tasks: Promise<unknown>[] = [];
+
+  if (deptsSnap.empty) {
+    const batch = firestore.batch();
+    for (const d of DEFAULT_DEPARTMENTS) {
+      const { id, ...rest } = d;
+      batch.set(deptsCol().doc(id), rest);
+    }
+    tasks.push(batch.commit());
+  }
+
+  if (empsSnap.empty) {
+    const batch = firestore.batch();
+    for (const e of DEFAULT_EMPLOYEES) {
+      const { id, ...rest } = e;
+      batch.set(empsCol().doc(id), rest);
+    }
+    tasks.push(batch.commit());
+  }
+
+  if (tasks.length) await Promise.all(tasks);
+}
+
+/**
+ * Wipes departments and re-seeds them with defaults. Mirrors the previous
+ * `resetDepartments` behavior used by the /api/seed route.
+ */
+export async function resetDepartments(): Promise<StoredDepartment[]> {
+  const existing = await deptsCol().get();
+  if (!existing.empty) {
+    const batch = firestore.batch();
+    existing.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  const batch = firestore.batch();
+  for (const d of DEFAULT_DEPARTMENTS) {
+    const { id, ...rest } = d;
+    batch.set(deptsCol().doc(id), rest);
+  }
+  await batch.commit();
+  return [...DEFAULT_DEPARTMENTS].sort((a, b) => a.order - b.order);
+}

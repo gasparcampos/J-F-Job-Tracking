@@ -1,0 +1,41 @@
+# Firebase App Hosting configuration
+# Docs: https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  # Min/max instances. Free tier covers low traffic comfortably.
+  minInstances: 0
+  maxInstances: 2
+  # Concurrent requests per instance.
+  concurrency: 80
+  # Memory and CPU.
+  cpu: 1
+  memoryMiB: 1024
+
+# Environment variables available at build- AND run-time.
+# Sensitive values should be marked `secret: true` and stored in Secret Manager
+# via the Firebase console or `firebase apphosting:secrets:set`.
+env:
+  - variable: FIREBASE_PROJECT_ID
+    value: jf-job-tracker
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: FIREBASE_STORAGE_BUCKET
+    value: jf-job-tracker.appspot.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Set these as secrets in Firebase (do NOT commit values):
+  #   firebase apphosting:secrets:set FIREBASE_CLIENT_EMAIL
+  #   firebase apphosting:secrets:set FIREBASE_PRIVATE_KEY
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+    availability:
+      - RUNTIME
+
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+    availability:
+      - RUNTIME

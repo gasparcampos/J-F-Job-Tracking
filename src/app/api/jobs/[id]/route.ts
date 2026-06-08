@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jobsDB, employeesDB, departmentsDB } from '@/lib/json-db';
 
+export const runtime = 'nodejs';
+
 // GET single job
 export async function GET(
   request: NextRequest,
@@ -8,19 +10,18 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const job = jobsDB.findById(id);
-    
+    const job = await jobsDB.findById(id);
+
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
-    
-    // Enrich with department info
-    const departments = departmentsDB.findAll();
+
+    const departments = await departmentsDB.findAll();
     const jobWithDept = {
       ...job,
-      department: departments.find(d => d.id === job.departmentId),
+      department: departments.find((d) => d.id === job.departmentId),
     };
-    
+
     return NextResponse.json(jobWithDept);
   } catch (error) {
     console.error('Error fetching job:', error);
@@ -39,42 +40,41 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    
+
     // If adding annotation
     if (body.annotation) {
-      const job = jobsDB.addAnnotation(id, body.annotation);
+      const job = await jobsDB.addAnnotation(id, body.annotation);
       if (!job) {
         return NextResponse.json({ error: 'Job not found' }, { status: 404 });
       }
       return NextResponse.json(job);
     }
-    
+
     // If moving to a new department
     if (body.targetDeptId) {
-      const currentJob = jobsDB.findById(id);
+      const currentJob = await jobsDB.findById(id);
       if (!currentJob) {
         return NextResponse.json({ error: 'Job not found' }, { status: 404 });
       }
-      
+
       // Get employee name
       let employeeName = body.employeeName || '';
       if (body.employeeId && !employeeName) {
-        const employee = employeesDB.findById(body.employeeId);
+        const employee = await employeesDB.findById(body.employeeId);
         if (employee) {
           employeeName = employee.name;
         }
       }
-      
+
       // Update job department
-      const updatedJob = jobsDB.update(id, {
+      const updatedJob = await jobsDB.update(id, {
         departmentId: body.targetDeptId,
         assignedTo: employeeName || currentJob.assignedTo,
         notes: body.notes,
       });
-      
+
       if (updatedJob) {
-        // Add history entry
-        jobsDB.addHistory(id, {
+        await jobsDB.addHistory(id, {
           fromDeptId: currentJob.departmentId,
           toDeptId: body.targetDeptId,
           employeeId: body.employeeId,
@@ -82,19 +82,18 @@ export async function PUT(
           notes: body.notes,
         });
       }
-      
-      // Return updated job
-      const finalJob = jobsDB.findById(id);
+
+      const finalJob = await jobsDB.findById(id);
       return NextResponse.json(finalJob);
     }
-    
+
     // Regular update
-    const job = jobsDB.update(id, body);
-    
+    const job = await jobsDB.update(id, body);
+
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
-    
+
     return NextResponse.json(job);
   } catch (error) {
     console.error('Error updating job:', error);
@@ -112,12 +111,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const success = jobsDB.delete(id);
-    
+    const success = await jobsDB.delete(id);
+
     if (!success) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
-    
+
     return NextResponse.json({ message: 'Job deleted' });
   } catch (error) {
     console.error('Error deleting job:', error);

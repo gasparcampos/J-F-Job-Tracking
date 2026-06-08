@@ -1,40 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { bucket } from '@/lib/firebase-admin';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-    
+    const file = formData.get('file') as File | null;
+
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Generate unique filename
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `${timestamp}_${originalName}`;
-    const filePath = path.join(uploadsDir, fileName);
+    const storagePath = `uploads/${timestamp}_${originalName}`;
 
-    // Save the file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    fs.writeFileSync(filePath, buffer);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const fileUrl = `/uploads/${fileName}`;
+    const blob = bucket.file(storagePath);
+    await blob.save(buffer, {
+      contentType: file.type || 'application/octet-stream',
+      resumable: false,
+      metadata: {
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
+    });
+
+    // Long-lived signed URL so the client (PDF viewer, image viewer) can
+    // load the file without needing Firebase Auth on the frontend.
+    // 7 days is the maximum for V4 signed URLs.
+    const [signedUrl] = await blob.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      version: 'v4',
+    });
+
     const isPdf = file.name.toLowerCase().endsWith('.pdf');
 
-    // For PDFs, we'll generate preview on demand in the viewer
     return NextResponse.json({
       success: true,
-      fileUrl,
+      fileUrl: signedUrl,
+      storagePath,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,

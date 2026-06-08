@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { employeesDB, seedDB } from '@/lib/json-db';
 
-// GET all employees
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
-    seedDB();
-    const employees = employeesDB.findAll();
+    await seedDB();
+    const employees = await employeesDB.findAll();
     return NextResponse.json(employees);
   } catch (error) {
     console.error('Error fetching employees:', error);
