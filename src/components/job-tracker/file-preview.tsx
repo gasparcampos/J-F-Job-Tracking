@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
+import { contrastToBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -77,7 +78,9 @@ export function FilePreview({
           viewport,
           background: '#ffffff',
         }).promise;
-        out.push(canvas.toDataURL('image/jpeg', 0.9));
+        // Apply the same default levels boost as the viewer for legible previews.
+        const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        out.push(levelsToDataUrl(raw, contrastToBlack(1.3)));
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {
@@ -98,8 +101,6 @@ export function FilePreview({
     `${clickable ? 'cursor-pointer hover:border-primary/60 transition-colors group/preview ' : ''}` +
     `${className ?? ''}`;
   const imgHeight = maxHeightClass ?? (thumbnail ? 'max-h-40' : 'max-h-[420px]');
-  // Mild fixed contrast boost so faint scans read better in previews.
-  const previewFilter = 'contrast(1.3) brightness(0.97)';
 
   // Small magnifier hint shown on hover when clickable.
   const clickHint = clickable ? (
@@ -116,7 +117,6 @@ export function FilePreview({
           src={src}
           alt={fileName || 'preview'}
           className={`w-full ${imgHeight} object-contain bg-black/20`}
-          style={{ filter: previewFilter }}
         />
         {clickHint}
       </div>
@@ -160,7 +160,6 @@ export function FilePreview({
             src={images[page]}
             alt={`${fileName || 'PDF'} página ${page + 1}`}
             className={`w-full ${imgHeight} object-contain bg-black/20`}
-            style={{ filter: previewFilter }}
           />
           {clickHint}
           {!thumbnail && images.length > 1 && (

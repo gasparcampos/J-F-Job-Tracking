@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Job } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
+import { contrastToBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -33,6 +34,8 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
+  // Raw rendered pixels per page, kept so contrast can be re-applied live.
+  const rawPagesRef = useRef<ImageData[]>([]);
 
   // Dynamically load PDF.js only on client side
   useEffect(() => {
@@ -70,10 +73,16 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const isPdf = typeSource.endsWith('.pdf');
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
-  // CSS filter that darkens faint scans as contrast increases.
-  const filterStyle = `contrast(${contrast}) brightness(${(1 - (contrast - 1) * 0.1).toFixed(2)})`;
   const adjustContrast = (delta: number) =>
-    setContrast((c) => Math.min(3, Math.max(0.8, +(c + delta).toFixed(2))));
+    setContrast((c) => Math.min(3, Math.max(1, +(c + delta).toFixed(2))));
+
+  // Re-apply levels from the stored raw pixels whenever contrast changes
+  // (instant, no PDF re-fetch). Images themselves stay opaque, so no CSS filter.
+  useEffect(() => {
+    if (!rawPagesRef.current.length) return;
+    const black = contrastToBlack(contrast);
+    setPdfImages(rawPagesRef.current.map((raw) => levelsToDataUrl(raw, black)));
+  }, [contrast]);
 
   // Convert PDF to images using PDF.js
   const convertPdfToImages = useCallback(async () => {
@@ -91,7 +100,8 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       const loadingTask = pdfjsLib.getDocument(toProxyUrl(job.fileUrl));
       const pdfDocument = await loadingTask.promise;
       const images: string[] = [];
-      
+      const rawPages: ImageData[] = [];
+
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
         // Scale 2 keeps drawings crisp (zoom is available) while keeping the
@@ -119,11 +129,13 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
           background: '#ffffff',
         }).promise;
 
-        // Contrast is applied live via a CSS filter on the <img> (adjustable
-        // with the +/- buttons), so no heavy per-pixel processing here.
-        // JPEG at high quality keeps an opaque white background and smaller size.
-        images.push(canvas.toDataURL('image/jpeg', 0.92));
+        // Keep the raw pixels so the +/- buttons can re-apply levels live,
+        // then emit the page with the current contrast baked in.
+        const raw = context.getImageData(0, 0, canvas.width, canvas.height);
+        rawPages.push(raw);
+        images.push(levelsToDataUrl(raw, contrastToBlack(contrast)));
       }
+      rawPagesRef.current = rawPages;
       
       setPdfImages(images);
     } catch (error) {
@@ -303,7 +315,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                         src={toProxyUrl(job.fileUrl)}
                         alt={job.fileName || 'Imagen'}
                         className="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                        style={{ transform: `rotate(${rotation}deg)`, filter: filterStyle }}
+                        style={{ transform: `rotate(${rotation}deg)`, filter: `contrast(${contrast})` }}
                       />
                     </TransformComponent>
                   </>
@@ -416,7 +428,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                             src={pdfImages[currentPage]}
                             alt={`Página ${currentPage + 1}`}
                             className="max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                            style={{ transform: `rotate(${rotation}deg)`, filter: filterStyle }}
+                            style={{ transform: `rotate(${rotation}deg)` }}
                           />
                         </TransformComponent>
                       </>
