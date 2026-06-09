@@ -22,8 +22,9 @@ interface PdfViewerModalProps {
 
 export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModalProps) {
   const [rotation, setRotation] = useState(0);
-  // Live contrast adjustment (CSS filter) for faint scans. 1 = original.
-  const [contrast, setContrast] = useState(1.3);
+  // Live contrast adjustment for faint scans. 1 = original; default boosts
+  // legibility of typical shop scans out of the box.
+  const [contrast, setContrast] = useState(1.7);
   const [newAnnotation, setNewAnnotation] = useState('');
   const [showAnnotationForm, setShowAnnotationForm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -389,7 +390,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                                 <Minus size={10} />
                               </div>
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => setContrast(1.3)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer contraste">
+                            <Button variant="outline" size="sm" onClick={() => setContrast(1.7)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer contraste">
                               RESET
                             </Button>
                           </div>

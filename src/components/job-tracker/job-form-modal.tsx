@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { X, Upload, Wrench, Loader2, FileText, Check, Sparkles } from 'lucide-react';
+import { X, Upload, Wrench, Loader2, FileText, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,16 +24,6 @@ interface JobFormModalProps {
   employees: Employee[];
 }
 
-interface ExtractedData {
-  jobNumber: string | null;
-  customer: string | null;
-  poNumber: string | null;
-  line: string | null;
-  dwgNumber: string | null;
-  partNumber: string | null;
-  dueDate: string | null;
-}
-
 export function JobFormModal({
   isOpen,
   onClose,
@@ -48,8 +38,6 @@ export function JobFormModal({
   const [assignedTo, setAssignedTo] = useState('__none__');
   const [notes, setNotes] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [uploadedFile, setUploadedFile] = useState<{
     url: string;
     name: string;
@@ -86,58 +74,13 @@ export function JobFormModal({
       
       if (uploadData.success) {
         const isPdf = uploadData.isPdf || file.name.toLowerCase().endsWith('.pdf');
-        
+
         setUploadedFile({
           url: uploadData.fileUrl,
           name: uploadData.fileName,
           isPdf: isPdf,
         });
-        
-        // Extract data with VLM
-        setIsExtracting(true);
-        try {
-          console.log('Calling VLM extraction for:', uploadData.fileUrl);
-          
-          const extractRes = await fetch('/api/extract-job-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              fileUrl: uploadData.fileUrl, 
-              fileName: uploadData.fileName 
-            }),
-          });
 
-          const extractResult = await extractRes.json();
-          console.log('VLM extraction result:', extractResult);
-          
-          if (extractResult.success && extractResult.data) {
-            setExtractedData(extractResult.data);
-            
-            // Auto-fill form fields
-            if (extractResult.data.jobNumber) setJobNumber(extractResult.data.jobNumber);
-            if (extractResult.data.customer) setCustomer(extractResult.data.customer);
-            if (extractResult.data.poNumber) setPoNumber(extractResult.data.poNumber);
-            if (extractResult.data.line) setLine(extractResult.data.line);
-            if (extractResult.data.dwgNumber) setDwgNumber(extractResult.data.dwgNumber);
-            if (extractResult.data.partNumber) setPartNumber(extractResult.data.partNumber);
-            if (extractResult.data.dueDate) setDueDate(extractResult.data.dueDate);
-            
-            // Auto-fill title
-            if (extractResult.data.jobNumber || extractResult.data.partNumber) {
-              const titleParts = [];
-              if (extractResult.data.jobNumber) titleParts.push(extractResult.data.jobNumber);
-              if (extractResult.data.partNumber) titleParts.push(extractResult.data.partNumber);
-              setTitle(titleParts.join(' - '));
-            }
-            
-            console.log('✅ Form auto-filled successfully!');
-          }
-        } catch (extractError) {
-          console.error('VLM extraction error:', extractError);
-        } finally {
-          setIsExtracting(false);
-        }
-        
         return uploadData;
       }
       return null;
@@ -151,7 +94,6 @@ export function JobFormModal({
 
   const handleFileChange = () => {
     setUploadedFile(null);
-    setExtractedData(null);
     setTimeout(() => handleFileUpload(), 100);
   };
 
@@ -188,7 +130,6 @@ export function JobFormModal({
     setAssignedTo('__none__');
     setNotes('');
     setUploadedFile(null);
-    setExtractedData(null);
     setJobNumber('');
     setCustomer('');
     setPoNumber('');
@@ -225,7 +166,7 @@ export function JobFormModal({
           {/* File Upload */}
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
-              📄 Upload Document - AI extracts data automatically
+              📄 Subir documento (PDF o imagen)
             </Label>
             <div className="flex items-center gap-3">
               <input
@@ -236,12 +177,6 @@ export function JobFormModal({
                 onChange={handleFileChange}
               />
               {isUploading && <Loader2 className="w-5 h-5 animate-spin text-primary" />}
-              {isExtracting && (
-                <div className="flex items-center gap-2 text-orange-500">
-                  <Sparkles className="w-5 h-5 animate-pulse" />
-                  <span className="text-xs">AI reading...</span>
-                </div>
-              )}
             </div>
             
             {/* File Info */}
@@ -251,16 +186,9 @@ export function JobFormModal({
                   <FileText size={24} className="text-primary" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-card-foreground truncate">{uploadedFile.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {isExtracting ? '🔄 AI is reading document...' :
-                       extractedData ? '✅ Data extracted automatically!' : 'File uploaded'}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground">Archivo subido</p>
                   </div>
-                  {isExtracting ? (
-                    <Loader2 size={20} className="text-primary animate-spin" />
-                  ) : (
-                    <Check size={20} className="text-emerald-500" />
-                  )}
+                  <Check size={20} className="text-emerald-500" />
                 </div>
               </div>
             )}
@@ -272,25 +200,6 @@ export function JobFormModal({
                   Vista previa
                 </Label>
                 <FilePreview fileUrl={uploadedFile.url} fileName={uploadedFile.name} />
-              </div>
-            )}
-            
-            {/* Extracted Data Preview */}
-            {extractedData && (
-              <div className="mt-3 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold text-emerald-600">✨ AI Extracted:</span>
-                </div>
-                <div className="grid grid-cols-4 gap-2 text-[10px]">
-                  {extractedData.jobNumber && <div><span className="text-muted-foreground">JOB#:</span> <span className="font-bold text-card-foreground">{extractedData.jobNumber}</span></div>}
-                  {extractedData.customer && <div><span className="text-muted-foreground">Customer:</span> <span className="font-bold text-card-foreground">{extractedData.customer}</span></div>}
-                  {extractedData.poNumber && <div><span className="text-muted-foreground">PO#:</span> <span className="font-bold text-card-foreground">{extractedData.poNumber}</span></div>}
-                  {extractedData.partNumber && <div><span className="text-muted-foreground">Part#:</span> <span className="font-bold text-card-foreground">{extractedData.partNumber}</span></div>}
-                  {extractedData.dwgNumber && <div><span className="text-muted-foreground">DWG#:</span> <span className="font-bold text-card-foreground">{extractedData.dwgNumber}</span></div>}
-                  {extractedData.line && <div><span className="text-muted-foreground">Line:</span> <span className="font-bold text-card-foreground">{extractedData.line}</span></div>}
-                  {extractedData.dueDate && <div><span className="text-muted-foreground">Due:</span> <span className="font-bold text-card-foreground">{extractedData.dueDate}</span></div>}
-                </div>
               </div>
             )}
           </div>
@@ -391,8 +300,8 @@ export function JobFormModal({
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
-          <Button type="submit" disabled={isUploading || isExtracting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
-            {isUploading || isExtracting ? (
+          <Button type="submit" disabled={isUploading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
+            {isUploading ? (
               <><Loader2 size={16} className="mr-2 animate-spin" />Processing...</>
             ) : (
               <><Upload size={16} className="mr-2" />Create Job</>

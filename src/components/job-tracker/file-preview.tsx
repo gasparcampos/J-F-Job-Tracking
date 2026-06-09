@@ -80,7 +80,7 @@ export function FilePreview({
         }).promise;
         // Apply the same default levels boost as the viewer for legible previews.
         const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        out.push(levelsToDataUrl(raw, contrastToBlack(1.3)));
+        out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {
