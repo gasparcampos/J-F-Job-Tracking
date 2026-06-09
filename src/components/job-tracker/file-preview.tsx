@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { FileText, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
 
@@ -39,6 +40,33 @@ export function FilePreview({
 
   // Same-origin proxy avoids Firebase Storage CORS issues.
   const src = toProxyUrl(fileUrl);
+
+  // For the card thumbnail iframe, size the box to the page's real aspect
+  // ratio so it ends right where the PDF ends (no empty space below).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pageAspect, setPageAspect] = useState(8.5 / 11); // letter default (w/h)
+
+  useEffect(() => {
+    if (!thumbnail || !isPdf || !src) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        const doc = await pdfjsLib.getDocument(src).promise;
+        const page = await doc.getPage(1);
+        const vp = page.getViewport({ scale: 1 });
+        if (!cancelled && vp.width && vp.height) {
+          setPageAspect(vp.width / vp.height);
+        }
+      } catch {
+        /* keep default aspect */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [thumbnail, isPdf, src]);
 
   const clickable = typeof onClick === 'function';
   const box =
@@ -91,14 +119,20 @@ export function FilePreview({
   // loading="lazy" keeps it cheap with many cards.
   if (thumbnail) {
     return (
-      <div className={box} onClick={onClick}>
+      <div
+        ref={containerRef}
+        className={box}
+        onClick={onClick}
+        // Box height follows the page's real aspect ratio -> no empty space.
+        style={{ aspectRatio: String(pageAspect) }}
+      >
         <iframe
           src={`${src}#toolbar=0&navpanes=0&statusbar=0&messages=0&view=FitH`}
           title={fileName || 'PDF'}
           loading="lazy"
           tabIndex={-1}
-          className="w-full bg-white"
-          style={{ height: '560px', border: 'none', pointerEvents: 'none' }}
+          className="w-full h-full bg-white"
+          style={{ border: 'none', pointerEvents: 'none' }}
         />
         {/* Transparent click layer (iframe swallows clicks otherwise) */}
         {clickable && <div className="absolute inset-0" onClick={onClick} />}
