@@ -1,6 +1,7 @@
 'use client';
 
-import { FileText, ZoomIn } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Loader2, FileText, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
 
 interface FilePreviewProps {
@@ -18,11 +19,11 @@ interface FilePreviewProps {
 /**
  * Document preview.
  *
- * - Card thumbnails (`thumbnail`): a single first-page raster via PDF.js on a
- *   white background. No tone processing — faithful to the file, just small.
- * - Form preview (default): the actual PDF in a native <iframe>, so it looks
- *   EXACTLY like the original (all dimensions, the route sheet, everything),
- *   with the browser's own zoom. Images render with <img>.
+ * - Card thumbnails (`thumbnail`): first page rasterized via PDF.js at high
+ *   resolution on a white background — faithful to the file (no tone curve),
+ *   so the print and route sheet read at the large card size.
+ * - Form preview (default): the actual PDF in a native <iframe>.
+ * - Images render with <img>.
  */
 export function FilePreview({
   fileUrl,
@@ -32,6 +33,11 @@ export function FilePreview({
   maxHeightClass,
   onClick,
 }: FilePreviewProps) {
+  const [thumbSrc, setThumbSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reqId = useRef(0);
+
   // Detect type from clean name (fileUrl may have ?alt=media&token=).
   const typeSource = (fileName || fileUrl.split('?')[0] || '').toLowerCase();
   const isPdf = typeSource.endsWith('.pdf');
@@ -39,6 +45,47 @@ export function FilePreview({
 
   // Same-origin proxy avoids Firebase Storage CORS issues.
   const src = toProxyUrl(fileUrl);
+
+  const renderThumb = useCallback(async () => {
+    if (!src || !isPdf) return;
+    const myReq = ++reqId.current;
+    setLoading(true);
+    setError(null);
+    setThumbSrc(null);
+    try {
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+      const doc = await pdfjsLib.getDocument(src).promise;
+      const pageObj = await doc.getPage(1);
+      // High scale so fine print (dimensions + route sheet) keeps enough
+      // detail to read at the large card size.
+      const viewport = pageObj.getViewport({ scale: 4 });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await pageObj.render({
+        canvasContext: ctx,
+        viewport,
+        background: '#ffffff',
+      }).promise;
+      // Faithful PNG (no tone processing) — same as the viewer renders it.
+      const url = canvas.toDataURL('image/png');
+      if (myReq === reqId.current) setThumbSrc(url);
+    } catch (e) {
+      console.error('PDF thumbnail error:', e);
+      if (myReq === reqId.current) setError('No se pudo cargar la vista previa');
+    } finally {
+      if (myReq === reqId.current) setLoading(false);
+    }
+  }, [src, isPdf]);
+
+  useEffect(() => {
+    if (thumbnail && isPdf) renderThumb();
+  }, [thumbnail, isPdf, renderThumb]);
 
   const clickable = typeof onClick === 'function';
   const box =
@@ -83,20 +130,33 @@ export function FilePreview({
     );
   }
 
-  // ---- PDF thumbnail (card): native browser render (same fidelity as the
-  // viewer, so the route sheet stays readable). The iframe is non-interactive
-  // (pointer-events: none) so clicking the card opens the full viewer. ----
+  // ---- PDF thumbnail (card): faithful high-res raster ----
   if (thumbnail) {
     return (
       <div className={box} onClick={onClick}>
-        <iframe
-          src={`${src}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-          title={fileName || 'PDF'}
-          className="w-full bg-white"
-          style={{ height: '540px', border: 'none', pointerEvents: 'none' }}
-          tabIndex={-1}
-        />
-        {clickHint}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
+            <p className="text-xs">Cargando…</p>
+          </div>
+        )}
+        {error && !loading && (
+          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+            <FileText size={28} className="mb-2 text-primary" />
+            <p className="text-[11px]">{error}</p>
+          </div>
+        )}
+        {thumbSrc && !loading && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbSrc}
+              alt={fileName || 'PDF'}
+              className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
+            />
+            {clickHint}
+          </>
+        )}
       </div>
     );
   }
