@@ -87,23 +87,32 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
-        const scale = 2; // Higher scale for better quality
+        // Render at higher resolution for crisp technical drawings.
+        const scale = 3;
         const viewport = page.getViewport({ scale, rotation: 0 });
-        
+
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        
+
         if (!context) continue;
-        
+
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        
+
+        // Paint a solid white background first. PDFs usually have no opaque
+        // background, so without this the "paper" stays transparent and the
+        // drawing looks washed-out/faint over the dark UI.
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
         await page.render({
           canvasContext: context,
           viewport: viewport,
+          background: '#ffffff',
         }).promise;
-        
-        images.push(canvas.toDataURL('image/png'));
+
+        // JPEG at high quality keeps an opaque white background and smaller size.
+        images.push(canvas.toDataURL('image/jpeg', 0.92));
       }
       
       setPdfImages(images);

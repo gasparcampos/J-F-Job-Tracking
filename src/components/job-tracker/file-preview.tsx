@@ -63,14 +63,21 @@ export function FilePreview({
       const lastPage = thumbnail ? 1 : doc.numPages;
       for (let i = 1; i <= lastPage; i++) {
         const pageObj = await doc.getPage(i);
-        const viewport = pageObj.getViewport({ scale: thumbnail ? 1 : 1.5 });
+        const viewport = pageObj.getViewport({ scale: thumbnail ? 1.5 : 2.5 });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await pageObj.render({ canvasContext: ctx, viewport }).promise;
-        out.push(canvas.toDataURL('image/png'));
+        // Solid white background so transparent PDF pages don't look washed out.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await pageObj.render({
+          canvasContext: ctx,
+          viewport,
+          background: '#ffffff',
+        }).promise;
+        out.push(canvas.toDataURL('image/jpeg', 0.9));
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {
