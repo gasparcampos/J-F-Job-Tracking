@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
+import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -57,8 +58,8 @@ export function FilePreview({
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
       const doc = await pdfjsLib.getDocument(src).promise;
       const pageObj = await doc.getPage(1);
-      // Render well above display size so the small thumbnail stays crisp.
-      const scale = 3;
+      // Render above display size so the small thumbnail stays crisp.
+      const scale = 2.5;
       const viewport = pageObj.getViewport({ scale });
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -72,8 +73,10 @@ export function FilePreview({
         viewport,
         background: '#ffffff',
       }).promise;
-      // PNG keeps fine linework sharp (no JPEG smearing) for the thumbnail.
-      const url = canvas.toDataURL('image/png');
+      // Auto-levels darkens faint linework so it reads at small size; PNG keeps
+      // it sharp. (First page only, so the cost stays modest per card.)
+      const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const url = levelsToDataUrl(raw, computeAutoBlack(raw), 240, 1);
       if (myReq === reqId.current) setThumbSrc(url);
     } catch (e) {
       console.error('PDF thumbnail error:', e);
@@ -153,7 +156,6 @@ export function FilePreview({
               src={thumbSrc}
               alt={fileName || 'PDF'}
               className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
-              style={{ filter: 'contrast(1.2)' }}
             />
             {clickHint}
           </>
