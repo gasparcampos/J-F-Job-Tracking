@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { X, ZoomIn, ZoomOut, RotateCw, FileText, Save, Clock, Plus, Move, Maximize2, Download, ExternalLink, Loader2, ChevronLeft, ChevronRight, File } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCw, FileText, Save, Clock, Plus, Minus, Contrast, Move, Maximize2, Download, ExternalLink, Loader2, ChevronLeft, ChevronRight, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Job } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
-import { enhanceScan } from '@/lib/image-enhance';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -22,6 +21,8 @@ interface PdfViewerModalProps {
 
 export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModalProps) {
   const [rotation, setRotation] = useState(0);
+  // Live contrast adjustment (CSS filter) for faint scans. 1 = original.
+  const [contrast, setContrast] = useState(1.3);
   const [newAnnotation, setNewAnnotation] = useState('');
   const [showAnnotationForm, setShowAnnotationForm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,11 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const isPdf = typeSource.endsWith('.pdf');
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
+  // CSS filter that darkens faint scans as contrast increases.
+  const filterStyle = `contrast(${contrast}) brightness(${(1 - (contrast - 1) * 0.1).toFixed(2)})`;
+  const adjustContrast = (delta: number) =>
+    setContrast((c) => Math.min(3, Math.max(0.8, +(c + delta).toFixed(2))));
+
   // Convert PDF to images using PDF.js
   const convertPdfToImages = useCallback(async () => {
     if (!job?.fileUrl || !isPdf || !pdfJsLoaded) return;
@@ -113,9 +119,8 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
           background: '#ffffff',
         }).promise;
 
-        // Boost contrast so faint grey scans (e.g. the Route Sheet) become legible.
-        enhanceScan(context, canvas.width, canvas.height);
-
+        // Contrast is applied live via a CSS filter on the <img> (adjustable
+        // with the +/- buttons), so no heavy per-pixel processing here.
         // JPEG at high quality keeps an opaque white background and smaller size.
         images.push(canvas.toDataURL('image/jpeg', 0.92));
       }
@@ -298,7 +303,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                         src={toProxyUrl(job.fileUrl)}
                         alt={job.fileName || 'Imagen'}
                         className="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                        style={{ transform: `rotate(${rotation}deg)` }}
+                        style={{ transform: `rotate(${rotation}deg)`, filter: filterStyle }}
                       />
                     </TransformComponent>
                   </>
@@ -355,6 +360,26 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                             <Button variant="outline" size="sm" onClick={() => resetTransform()} className="w-10 h-10 p-0">
                               <Maximize2 size={18} />
                             </Button>
+                            <div className="w-full h-px bg-border my-1" />
+                            {/* Contrast controls for faint scans */}
+                            <Button variant="outline" size="sm" onClick={() => adjustContrast(0.2)} className="w-10 h-10 p-0" title="Más contraste">
+                              <div className="flex items-center">
+                                <Contrast size={14} />
+                                <Plus size={10} />
+                              </div>
+                            </Button>
+                            <div className="text-center text-[9px] font-bold text-muted-foreground">
+                              {Math.round(contrast * 100)}%
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => adjustContrast(-0.2)} className="w-10 h-10 p-0" title="Menos contraste">
+                              <div className="flex items-center">
+                                <Contrast size={14} />
+                                <Minus size={10} />
+                              </div>
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setContrast(1.3)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer contraste">
+                              RESET
+                            </Button>
                           </div>
                           <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-3 py-2 shadow-lg">
                             <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -387,11 +412,11 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                             justifyContent: 'center'
                           }}
                         >
-                          <img 
-                            src={pdfImages[currentPage]} 
-                            alt={`Página ${currentPage + 1}`} 
+                          <img
+                            src={pdfImages[currentPage]}
+                            alt={`Página ${currentPage + 1}`}
                             className="max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                            style={{ transform: `rotate(${rotation}deg)` }}
+                            style={{ transform: `rotate(${rotation}deg)`, filter: filterStyle }}
                           />
                         </TransformComponent>
                       </>
