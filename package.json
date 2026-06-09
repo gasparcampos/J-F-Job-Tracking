@@ -3,7 +3,8 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 --webpack",
+    "dev": "node scripts/copy-pdf-worker.mjs && next dev -p 3000 --webpack",
+    "prebuild": "node scripts/copy-pdf-worker.mjs",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint ."
