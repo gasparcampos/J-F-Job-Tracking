@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
+import { enhanceScan } from '@/lib/image-enhance';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -77,6 +78,8 @@ export function FilePreview({
           viewport,
           background: '#ffffff',
         }).promise;
+        // Boost contrast so faint grey scans become legible.
+        enhanceScan(ctx, canvas.width, canvas.height);
         out.push(canvas.toDataURL('image/jpeg', 0.9));
       }
       if (myReq === reqId.current) setImages(out);

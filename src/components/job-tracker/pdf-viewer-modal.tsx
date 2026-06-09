@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Job } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
+import { enhanceScan } from '@/lib/image-enhance';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -110,6 +111,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
           viewport: viewport,
           background: '#ffffff',
         }).promise;
+
+        // Boost contrast so faint grey scans (e.g. the Route Sheet) become legible.
+        enhanceScan(context, canvas.width, canvas.height);
 
         // JPEG at high quality keeps an opaque white background and smaller size.
         images.push(canvas.toDataURL('image/jpeg', 0.92));
