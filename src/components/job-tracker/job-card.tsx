@@ -62,9 +62,11 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden ${
-        isInProgress 
-          ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg' 
+      {...attributes}
+      {...listeners}
+      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden touch-none ${
+        isInProgress
+          ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
           : 'bg-card border border-border hover:border-primary/50'
       } ${isDragging ? 'opacity-40 shadow-2xl scale-105 border-primary ring-2 ring-primary/50 z-50' : ''}`}
     >
@@ -75,15 +77,14 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-start gap-2 flex-1">
-          <button
-            {...attributes}
-            {...listeners}
-            className={`mt-1 transition-colors cursor-grab ${
-              isInProgress ? 'text-orange-300 hover:text-orange-100' : 'text-muted-foreground hover:text-primary'
+          <span
+            className={`mt-1 transition-colors ${
+              isInProgress ? 'text-orange-300' : 'text-muted-foreground'
             }`}
+            aria-hidden="true"
           >
             <GripVertical size={16} />
-          </button>
+          </span>
           <h4 className={`font-semibold text-sm truncate pr-2 flex-1 leading-tight ${
             isInProgress ? 'text-orange-100' : 'text-card-foreground'
           }`}>
@@ -192,6 +193,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         </span>
         <button
           onClick={() => onViewHistory(job)}
+          onPointerDown={(e) => e.stopPropagation()}
           className={`flex items-center gap-1 transition-colors ${
             isInProgress ? 'hover:text-orange-100' : 'hover:text-primary'
           }`}
@@ -214,7 +216,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap" onPointerDown={(e) => e.stopPropagation()}>
         {/* In Progress Button */}
         <Button
           onClick={() => onToggleInProgress?.(job)}
