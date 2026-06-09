@@ -158,12 +158,12 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
 
       {/* Document preview (renders inline, click to open full viewer) */}
       {job.fileUrl && (isPdf || isImage) && (
-        <div className="mb-3 ml-6" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="mb-3" onPointerDown={(e) => e.stopPropagation()}>
           <FilePreview
             fileUrl={job.fileUrl}
             fileName={job.fileName}
             thumbnail
-            maxHeightClass="max-h-48"
+            maxHeightClass="max-h-[600px]"
             onClick={() => onViewPdf?.(job)}
           />
         </div>

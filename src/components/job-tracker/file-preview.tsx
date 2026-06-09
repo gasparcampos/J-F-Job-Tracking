@@ -58,8 +58,9 @@ export function FilePreview({
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
       const doc = await pdfjsLib.getDocument(src).promise;
       const pageObj = await doc.getPage(1);
-      // Render above display size so the small thumbnail stays crisp.
-      const scale = 2.5;
+      // Render well above display size so the card thumbnail stays crisp
+      // enough to read the print (dimensions, title block) without zooming.
+      const scale = 3;
       const viewport = pageObj.getViewport({ scale });
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
