@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, FileText, ZoomIn } from 'lucide-react';
+import { FileText, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
 
 interface FilePreviewProps {
@@ -33,11 +32,6 @@ export function FilePreview({
   maxHeightClass,
   onClick,
 }: FilePreviewProps) {
-  const [thumbSrc, setThumbSrc] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const reqId = useRef(0);
-
   // Detect type from clean name (fileUrl may have ?alt=media&token=).
   const typeSource = (fileName || fileUrl.split('?')[0] || '').toLowerCase();
   const isPdf = typeSource.endsWith('.pdf');
@@ -45,48 +39,6 @@ export function FilePreview({
 
   // Same-origin proxy avoids Firebase Storage CORS issues.
   const src = toProxyUrl(fileUrl);
-
-  const renderThumb = useCallback(async () => {
-    if (!src || !isPdf) return;
-    const myReq = ++reqId.current;
-    setLoading(true);
-    setError(null);
-    setThumbSrc(null);
-    try {
-      const pdfjsLib = await import('pdfjs-dist');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-      const doc = await pdfjsLib.getDocument(src).promise;
-      const pageObj = await doc.getPage(1);
-      // Scale 2.5 keeps the drawing crisp at the large card size while staying
-      // light enough for many cards. (Higher scale doesn't help the route-sheet
-      // scan, which PDF.js renders faint regardless.)
-      const viewport = pageObj.getViewport({ scale: 2.5 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await pageObj.render({
-        canvasContext: ctx,
-        viewport,
-        background: '#ffffff',
-      }).promise;
-      // Faithful PNG (no tone processing) — same as the viewer renders it.
-      const url = canvas.toDataURL('image/png');
-      if (myReq === reqId.current) setThumbSrc(url);
-    } catch (e) {
-      console.error('PDF thumbnail error:', e);
-      if (myReq === reqId.current) setError('No se pudo cargar la vista previa');
-    } finally {
-      if (myReq === reqId.current) setLoading(false);
-    }
-  }, [src, isPdf]);
-
-  useEffect(() => {
-    if (thumbnail && isPdf) renderThumb();
-  }, [thumbnail, isPdf, renderThumb]);
 
   const clickable = typeof onClick === 'function';
   const box =
@@ -131,33 +83,26 @@ export function FilePreview({
     );
   }
 
-  // ---- PDF thumbnail (card): faithful high-res raster ----
+  // ---- PDF thumbnail (card): native browser render ----
+  // PDF.js can't decode some scanned route-sheet images (renders them blank),
+  // but the browser's own PDF engine can. Use a native <iframe>, same as the
+  // viewer, so the WHOLE print (drawing + route sheet) shows on the card. The
+  // iframe is non-interactive; a transparent overlay handles the click, and
+  // loading="lazy" keeps it cheap with many cards.
   if (thumbnail) {
     return (
       <div className={box} onClick={onClick}>
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
-            <p className="text-xs">Cargando…</p>
-          </div>
-        )}
-        {error && !loading && (
-          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <FileText size={28} className="mb-2 text-primary" />
-            <p className="text-[11px]">{error}</p>
-          </div>
-        )}
-        {thumbSrc && !loading && (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbSrc}
-              alt={fileName || 'PDF'}
-              className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
-            />
-            {clickHint}
-          </>
-        )}
+        <iframe
+          src={`${src}#toolbar=0&navpanes=0&statusbar=0&messages=0&view=FitH`}
+          title={fileName || 'PDF'}
+          loading="lazy"
+          tabIndex={-1}
+          className="w-full bg-white"
+          style={{ height: '560px', border: 'none', pointerEvents: 'none' }}
+        />
+        {/* Transparent click layer (iframe swallows clicks otherwise) */}
+        {clickable && <div className="absolute inset-0" onClick={onClick} />}
+        {clickHint}
       </div>
     );
   }
