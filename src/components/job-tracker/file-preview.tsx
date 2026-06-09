@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
+import { toProxyUrl } from '@/lib/file-url';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -40,8 +41,11 @@ export function FilePreview({
   const isPdf = typeSource.endsWith('.pdf');
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
+  // Load through our same-origin proxy to avoid Firebase Storage CORS issues.
+  const src = toProxyUrl(fileUrl);
+
   const renderPdf = useCallback(async () => {
-    if (!fileUrl || !isPdf) return;
+    if (!src || !isPdf) return;
     const myReq = ++reqId.current;
     setLoading(true);
     setError(null);
@@ -53,7 +57,7 @@ export function FilePreview({
       // Use the worker shipped in /public (same as the full-screen viewer).
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-      const doc = await pdfjsLib.getDocument(fileUrl).promise;
+      const doc = await pdfjsLib.getDocument(src).promise;
       const out: string[] = [];
       // Thumbnails only need the first page; full preview renders all.
       const lastPage = thumbnail ? 1 : doc.numPages;
@@ -75,7 +79,7 @@ export function FilePreview({
     } finally {
       if (myReq === reqId.current) setLoading(false);
     }
-  }, [fileUrl, isPdf, thumbnail]);
+  }, [src, isPdf, thumbnail]);
 
   useEffect(() => {
     if (isPdf) renderPdf();
@@ -100,7 +104,7 @@ export function FilePreview({
       <div className={box} onClick={onClick}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={fileUrl}
+          src={src}
           alt={fileName || 'preview'}
           className={`w-full ${imgHeight} object-contain bg-black/20`}
         />

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Job } from '@/types';
+import { toProxyUrl } from '@/lib/file-url';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -80,7 +81,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       // Dynamic import
       const pdfjsLib = await import('pdfjs-dist');
       
-      const loadingTask = pdfjsLib.getDocument(job.fileUrl);
+      const loadingTask = pdfjsLib.getDocument(toProxyUrl(job.fileUrl));
       const pdfDocument = await loadingTask.promise;
       const images: string[] = [];
       
@@ -279,9 +280,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                         transition: 'transform 0.3s ease'
                       }}
                     >
-                      <img 
-                        src={job.fileUrl} 
-                        alt={job.fileName || 'Imagen'} 
+                      <img
+                        src={toProxyUrl(job.fileUrl)}
+                        alt={job.fileName || 'Imagen'}
                         className="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-lg"
                         style={{ transform: `rotate(${rotation}deg)` }}
                       />
