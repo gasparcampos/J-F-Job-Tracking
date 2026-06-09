@@ -57,7 +57,9 @@ export function FilePreview({
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
       const doc = await pdfjsLib.getDocument(src).promise;
       const pageObj = await doc.getPage(1);
-      const viewport = pageObj.getViewport({ scale: 1.2 });
+      // Render well above display size so the small thumbnail stays crisp.
+      const scale = 3;
+      const viewport = pageObj.getViewport({ scale });
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -70,7 +72,8 @@ export function FilePreview({
         viewport,
         background: '#ffffff',
       }).promise;
-      const url = canvas.toDataURL('image/jpeg', 0.85);
+      // PNG keeps fine linework sharp (no JPEG smearing) for the thumbnail.
+      const url = canvas.toDataURL('image/png');
       if (myReq === reqId.current) setThumbSrc(url);
     } catch (e) {
       console.error('PDF thumbnail error:', e);
@@ -150,6 +153,7 @@ export function FilePreview({
               src={thumbSrc}
               alt={fileName || 'PDF'}
               className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
+              style={{ filter: 'contrast(1.2)' }}
             />
             {clickHint}
           </>
