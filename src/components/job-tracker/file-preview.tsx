@@ -57,9 +57,10 @@ export function FilePreview({
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
       const doc = await pdfjsLib.getDocument(src).promise;
       const pageObj = await doc.getPage(1);
-      // High scale so fine print (dimensions + route sheet) keeps enough
-      // detail to read at the large card size.
-      const viewport = pageObj.getViewport({ scale: 4 });
+      // Scale 2.5 keeps the drawing crisp at the large card size while staying
+      // light enough for many cards. (Higher scale doesn't help the route-sheet
+      // scan, which PDF.js renders faint regardless.)
+      const viewport = pageObj.getViewport({ scale: 2.5 });
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
