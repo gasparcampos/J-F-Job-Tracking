@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
-import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -74,12 +73,10 @@ export function FilePreview({
         viewport,
         background: '#ffffff',
       }).promise;
-      // Auto-levels, biased darker, so BOTH the faint drawing lines and the
-      // grey route-sheet block read at card size without zooming. (First page
-      // only, so the cost stays modest per card.)
-      const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const black = Math.min(170, computeAutoBlack(raw) + 35);
-      const url = levelsToDataUrl(raw, black, 235, 1);
+      // Faithful render (same as the native viewer) — no tone processing, so
+      // the route-sheet block keeps its real contrast and stays readable at
+      // the large card size. PNG keeps fine linework/text sharp.
+      const url = canvas.toDataURL('image/png');
       if (myReq === reqId.current) setThumbSrc(url);
     } catch (e) {
       console.error('PDF thumbnail error:', e);
