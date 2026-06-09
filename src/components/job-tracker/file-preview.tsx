@@ -64,7 +64,9 @@ export function FilePreview({
       const lastPage = thumbnail ? 1 : doc.numPages;
       for (let i = 1; i <= lastPage; i++) {
         const pageObj = await doc.getPage(i);
-        const viewport = pageObj.getViewport({ scale: thumbnail ? 1.5 : 2.5 });
+        // Low scale for thumbnails keeps the levels pass cheap (≈1/6 the pixels)
+        // so it doesn't jank the board even with many cards.
+        const viewport = pageObj.getViewport({ scale: thumbnail ? 1 : 2.5 });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
@@ -78,15 +80,9 @@ export function FilePreview({
           viewport,
           background: '#ffffff',
         }).promise;
-        if (thumbnail) {
-          // Card thumbnails: keep it cheap (no getImageData) to avoid jank when
-          // many cards mount. A light CSS filter on the <img> adds a little pop.
-          out.push(canvas.toDataURL('image/jpeg', 0.85));
-        } else {
-          // Form preview: full levels boost for a legible, accurate preview.
-          const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
-        }
+        // Levels boost (darkens faint linework correctly, unlike CSS contrast).
+        const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {
@@ -107,8 +103,6 @@ export function FilePreview({
     `${clickable ? 'cursor-pointer hover:border-primary/60 transition-colors group/preview ' : ''}` +
     `${className ?? ''}`;
   const imgHeight = maxHeightClass ?? (thumbnail ? 'max-h-40' : 'max-h-[420px]');
-  // Cheap CSS pop for thumbnails (full preview/viewer bake real levels instead).
-  const thumbFilter = thumbnail ? 'contrast(1.35) brightness(0.96)' : undefined;
 
   // Small magnifier hint shown on hover when clickable.
   const clickHint = clickable ? (
@@ -125,7 +119,6 @@ export function FilePreview({
           src={src}
           alt={fileName || 'preview'}
           className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
-          style={{ filter: thumbFilter }}
         />
         {clickHint}
       </div>
@@ -169,7 +162,6 @@ export function FilePreview({
             src={images[page]}
             alt={`${fileName || 'PDF'} página ${page + 1}`}
             className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
-            style={{ filter: thumbFilter }}
           />
           {clickHint}
           {!thumbnail && images.length > 1 && (
