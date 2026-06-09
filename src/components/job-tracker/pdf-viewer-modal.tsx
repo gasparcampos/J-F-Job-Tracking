@@ -88,8 +88,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
-        // Render at higher resolution for crisp technical drawings.
-        const scale = 3;
+        // Scale 2 keeps drawings crisp (zoom is available) while keeping the
+        // canvas small enough that the contrast pass doesn't freeze the UI.
+        const scale = 2;
         const viewport = page.getViewport({ scale, rotation: 0 });
 
         const canvas = document.createElement('canvas');
