@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileText, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { toProxyUrl } from '@/lib/file-url';
-import { contrastToBlack, levelsToDataUrl } from '@/lib/image-enhance';
+import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 interface FilePreviewProps {
   fileUrl: string;
@@ -80,9 +80,9 @@ export function FilePreview({
           viewport,
           background: '#ffffff',
         }).promise;
-        // Levels boost (darkens faint linework correctly, unlike CSS contrast).
+        // Auto-levels: adapt the boost to each scan so it looks right by default.
         const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
+        out.push(levelsToDataUrl(raw, computeAutoBlack(raw)));
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {

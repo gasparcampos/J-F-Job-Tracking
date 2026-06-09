@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Job } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
-import { contrastToBlack, levelsToDataUrl } from '@/lib/image-enhance';
+import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -22,9 +22,9 @@ interface PdfViewerModalProps {
 
 export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModalProps) {
   const [rotation, setRotation] = useState(0);
-  // Live contrast adjustment for faint scans. 1 = original; default boosts
-  // legibility of typical shop scans out of the box.
-  const [contrast, setContrast] = useState(1.7);
+  // Extra darkening offset on top of the auto-detected level (0 = auto).
+  // The +/- buttons nudge this when a scan needs more/less than auto.
+  const [extraBlack, setExtraBlack] = useState(0);
   const [newAnnotation, setNewAnnotation] = useState('');
   const [showAnnotationForm, setShowAnnotationForm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,8 +35,10 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
-  // Raw rendered pixels per page, kept so contrast can be re-applied live.
+  // Raw rendered pixels per page + their auto-detected black points, kept so
+  // contrast can be re-applied live without re-fetching the PDF.
   const rawPagesRef = useRef<ImageData[]>([]);
+  const autoBlacksRef = useRef<number[]>([]);
 
   // Dynamically load PDF.js only on client side
   useEffect(() => {
@@ -75,15 +77,21 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
   const adjustContrast = (delta: number) =>
-    setContrast((c) => Math.min(3, Math.max(1, +(c + delta).toFixed(2))));
+    setExtraBlack((e) => Math.min(120, Math.max(-80, e + delta)));
 
-  // Re-apply levels from the stored raw pixels whenever contrast changes
-  // (instant, no PDF re-fetch). Images themselves stay opaque, so no CSS filter.
+  // Re-apply levels from the stored raw pixels whenever the offset changes
+  // (instant, no PDF re-fetch). Each page uses its own auto level + offset.
   useEffect(() => {
     if (!rawPagesRef.current.length) return;
-    const black = contrastToBlack(contrast);
-    setPdfImages(rawPagesRef.current.map((raw) => levelsToDataUrl(raw, black)));
-  }, [contrast]);
+    setPdfImages(
+      rawPagesRef.current.map((raw, i) =>
+        levelsToDataUrl(
+          raw,
+          Math.min(230, Math.max(0, (autoBlacksRef.current[i] ?? 0) + extraBlack)),
+        ),
+      ),
+    );
+  }, [extraBlack]);
 
   // Convert PDF to images using PDF.js
   const convertPdfToImages = useCallback(async () => {
@@ -102,6 +110,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       const pdfDocument = await loadingTask.promise;
       const images: string[] = [];
       const rawPages: ImageData[] = [];
+      const autoBlacks: number[] = [];
 
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
@@ -130,13 +139,16 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
           background: '#ffffff',
         }).promise;
 
-        // Keep the raw pixels so the +/- buttons can re-apply levels live,
-        // then emit the page with the current contrast baked in.
+        // Keep raw pixels + the auto-detected black point so the +/- buttons
+        // can re-apply levels live, then emit the page at the auto level.
         const raw = context.getImageData(0, 0, canvas.width, canvas.height);
+        const autoBlack = computeAutoBlack(raw);
         rawPages.push(raw);
-        images.push(levelsToDataUrl(raw, contrastToBlack(contrast)));
+        autoBlacks.push(autoBlack);
+        images.push(levelsToDataUrl(raw, autoBlack + extraBlack));
       }
       rawPagesRef.current = rawPages;
+      autoBlacksRef.current = autoBlacks;
       
       setPdfImages(images);
     } catch (error) {
@@ -316,7 +328,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                         src={toProxyUrl(job.fileUrl)}
                         alt={job.fileName || 'Imagen'}
                         className="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                        style={{ transform: `rotate(${rotation}deg)`, filter: `contrast(${contrast})` }}
+                        style={{ transform: `rotate(${rotation}deg)`, filter: `contrast(${(1 + extraBlack / 100).toFixed(2)})` }}
                       />
                     </TransformComponent>
                   </>
@@ -374,24 +386,24 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                               <Maximize2 size={18} />
                             </Button>
                             <div className="w-full h-px bg-border my-1" />
-                            {/* Contrast controls for faint scans */}
-                            <Button variant="outline" size="sm" onClick={() => adjustContrast(0.2)} className="w-10 h-10 p-0" title="Más contraste">
+                            {/* Contrast controls (auto by default; nudge if needed) */}
+                            <Button variant="outline" size="sm" onClick={() => adjustContrast(20)} className="w-10 h-10 p-0" title="Más contraste">
                               <div className="flex items-center">
                                 <Contrast size={14} />
                                 <Plus size={10} />
                               </div>
                             </Button>
                             <div className="text-center text-[9px] font-bold text-muted-foreground">
-                              {Math.round(contrast * 100)}%
+                              {extraBlack === 0 ? 'AUTO' : (extraBlack > 0 ? `+${extraBlack}` : extraBlack)}
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => adjustContrast(-0.2)} className="w-10 h-10 p-0" title="Menos contraste">
+                            <Button variant="outline" size="sm" onClick={() => adjustContrast(-20)} className="w-10 h-10 p-0" title="Menos contraste">
                               <div className="flex items-center">
                                 <Contrast size={14} />
                                 <Minus size={10} />
                               </div>
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => setContrast(1.7)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer contraste">
-                              RESET
+                            <Button variant="outline" size="sm" onClick={() => setExtraBlack(0)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer a automático">
+                              AUTO
                             </Button>
                           </div>
                           <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-3 py-2 shadow-lg">

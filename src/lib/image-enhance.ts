@@ -14,13 +14,46 @@ export function contrastToBlack(contrast: number): number {
 }
 
 /**
+ * Auto-detect a good black point for a rendered page by looking at its tone
+ * histogram. Paper scans are mostly bright; the darkest few percent of pixels
+ * are the linework/text. We put the black point just below that so faint grey
+ * lines map to black while the paper stays white — adapting per document so a
+ * light scan gets a strong boost and an already-dark one gets a mild one.
+ */
+export function computeAutoBlack(
+  raw: ImageData,
+  clip = 0.006,
+  cap = 190,
+): number {
+  const d = raw.data;
+  const hist = new Uint32Array(256);
+  let total = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    hist[d[i]]++; // red channel ≈ luminance for grayscale scans
+    total++;
+  }
+  const need = total * clip;
+  let acc = 0;
+  let black = 0;
+  for (let v = 0; v < 256; v++) {
+    acc += hist[v];
+    if (acc >= need) {
+      black = v;
+      break;
+    }
+  }
+  // Pull back a touch so we don't clip the lightest real linework to pure black.
+  return Math.min(cap, Math.max(0, black - 10));
+}
+
+/**
  * Apply a levels stretch to raw ImageData and return a JPEG data URL.
  * Pixels <= black -> 0, >= white -> 255, linear in between.
  */
 export function levelsToDataUrl(
   raw: ImageData,
   black: number,
-  white = 245,
+  white = 240,
   quality = 0.9,
 ): string {
   const range = Math.max(1, white - black);
