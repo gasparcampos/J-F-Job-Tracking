@@ -159,11 +159,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
     }
   }, [job?.fileUrl, isPdf, pdfJsLoaded]);
 
-  useEffect(() => {
-    if (isPdf && job?.fileUrl && pdfJsLoaded) {
-      convertPdfToImages();
-    }
-  }, [isPdf, job?.fileUrl, convertPdfToImages, pdfJsLoaded]);
+  // PDFs are now shown via a native <iframe>; no canvas conversion needed.
+  // (convertPdfToImages is retained but intentionally not invoked.)
+  void convertPdfToImages;
 
   if (!job || !job.fileUrl) return null;
 
@@ -335,125 +333,13 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                 )}
               </TransformWrapper>
             ) : isPdf ? (
-              /* PDF viewer - converted to images */
-              <div className="w-full h-full flex items-center justify-center">
-                {isLoadingPdf || !pdfJsLoaded ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Convirtiendo PDF a imagen...</p>
-                  </div>
-                ) : pdfError ? (
-                  <div className="flex flex-col items-center justify-center p-8 bg-card rounded-xl border border-border">
-                    <FileText size={64} className="text-red-400 mb-4" />
-                    <p className="text-lg font-bold text-card-foreground mb-2">{pdfError}</p>
-                    <p className="text-sm text-muted-foreground mb-4">Intenta descargar el PDF directamente</p>
-                    <div className="flex gap-3">
-                      <Button onClick={handleDownload} className="gap-2">
-                        <Download size={16} />
-                        Descargar
-                      </Button>
-                      <Button variant="outline" onClick={() => window.open(job.fileUrl!, '_blank')} className="gap-2">
-                        <ExternalLink size={16} />
-                        Abrir en nueva pestaña
-                      </Button>
-                    </div>
-                  </div>
-                ) : pdfImages.length > 0 ? (
-                  /* Show PDF page as image with zoom */
-                  <TransformWrapper
-                    initialScale={1}
-                    minScale={0.3}
-                    maxScale={5}
-                    centerOnInit={true}
-                    limitToBounds={false}
-                  >
-                    {({ zoomIn, zoomOut, resetTransform, scale }) => (
-                      <>
-                        {/* Zoom controls overlay */}
-                        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                          <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl p-2 flex flex-col gap-2 shadow-lg">
-                            <Button variant="outline" size="sm" onClick={() => zoomIn()} className="w-10 h-10 p-0">
-                              <ZoomIn size={18} />
-                            </Button>
-                            <div className="text-center text-[10px] font-bold text-muted-foreground">
-                              {Math.round(scale * 100)}%
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => zoomOut()} className="w-10 h-10 p-0">
-                              <ZoomOut size={18} />
-                            </Button>
-                            <div className="w-full h-px bg-border my-1" />
-                            <Button variant="outline" size="sm" onClick={() => resetTransform()} className="w-10 h-10 p-0">
-                              <Maximize2 size={18} />
-                            </Button>
-                            <div className="w-full h-px bg-border my-1" />
-                            {/* Contrast controls (auto by default; nudge if needed) */}
-                            <Button variant="outline" size="sm" onClick={() => adjustContrast(20)} className="w-10 h-10 p-0" title="Más contraste">
-                              <div className="flex items-center">
-                                <Contrast size={14} />
-                                <Plus size={10} />
-                              </div>
-                            </Button>
-                            <div className="text-center text-[9px] font-bold text-muted-foreground">
-                              {extraBlack === 0 ? 'AUTO' : (extraBlack > 0 ? `+${extraBlack}` : extraBlack)}
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => adjustContrast(-20)} className="w-10 h-10 p-0" title="Menos contraste">
-                              <div className="flex items-center">
-                                <Contrast size={14} />
-                                <Minus size={10} />
-                              </div>
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => setExtraBlack(0)} className="w-10 h-10 p-0 text-[8px] font-bold" title="Restablecer a automático">
-                              AUTO
-                            </Button>
-                          </div>
-                          <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-3 py-2 shadow-lg">
-                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                              <Move size={12} />
-                              Arrastra para mover
-                            </p>
-                          </div>
-                          {pdfImages.length > 1 && (
-                            <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl p-2 shadow-lg">
-                              <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0} className="h-8 w-8 p-0">
-                                  <ChevronLeft size={14} />
-                                </Button>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {currentPage + 1}/{pdfImages.length}
-                                </span>
-                                <Button variant="outline" size="sm" onClick={nextPage} disabled={currentPage === pdfImages.length - 1} className="h-8 w-8 p-0">
-                                  <ChevronRight size={14} />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <TransformComponent
-                          wrapperStyle={{ width: '100%', height: '100%' }}
-                          contentStyle={{ 
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <img
-                            src={pdfImages[currentPage]}
-                            alt={`Página ${currentPage + 1}`}
-                            className="max-h-[90vh] object-contain shadow-2xl rounded-lg"
-                            style={{ transform: `rotate(${rotation}deg)` }}
-                          />
-                        </TransformComponent>
-                      </>
-                    )}
-                  </TransformWrapper>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <File size={64} className="text-muted-foreground" />
-                    <p className="text-muted-foreground">No se pudieron cargar las páginas</p>
-                  </div>
-                )}
-              </div>
+              /* PDF viewer - native browser renderer (true to the original) */
+              <iframe
+                src={`${toProxyUrl(job.fileUrl)}#toolbar=1&navpanes=0&view=FitH`}
+                title={job.fileName || 'PDF'}
+                className="w-full h-full bg-white"
+                style={{ border: 'none' }}
+              />
             ) : (
               /* Other files */
               <div className="flex flex-col items-center justify-center p-8 bg-card rounded-xl border border-border">
