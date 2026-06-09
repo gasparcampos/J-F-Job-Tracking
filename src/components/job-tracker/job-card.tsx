@@ -237,7 +237,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           )}
         </Button>
         
-        {/* Move to Any Department Button - Only for CUT SAW, WOOD PALLET, BLUE PALLET */}
+        {/* Move to Any Department Button - available on every job */}
         {canMoveToAnyDept && (
           <Button
             onClick={() => onMoveToAnyDept?.(job)}

@@ -55,9 +55,6 @@ export default function Home() {
   // Move to any department modal state
   const [moveToAnyJob, setMoveToAnyJob] = useState<Job | null>(null);
 
-  // Departments that can move to any area
-  const canMoveToAnyDeptIds = ['d2', 'd3', 'd5']; // CUT SAW, WOOD PALLET, BLUE PALLET
-
   // Sensors for drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -531,7 +528,7 @@ export default function Home() {
                     onViewPdf={setPdfJob}
                     onToggleInProgress={handleToggleInProgress}
                     onMoveToAnyDept={setMoveToAnyJob}
-                    canMoveToAnyDept={canMoveToAnyDeptIds.includes(dept.id)}
+                    canMoveToAnyDept={true}
                   />
                 );
               })}
