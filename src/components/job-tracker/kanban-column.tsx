@@ -38,7 +38,7 @@ export function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`bg-muted/30 rounded-xl p-3 flex flex-col min-w-[420px] max-w-[420px] h-full border-t-[4px] transition-all duration-300 backdrop-blur-sm ${
+      className={`bg-muted/30 rounded-xl p-3 flex flex-col min-w-[420px] max-w-[420px] h-full border-x border-b border-border/40 border-t-[4px] transition-all duration-300 backdrop-blur-sm ${
         isOver ? 'bg-primary/10 shadow-lg shadow-primary/20 ring-2 ring-primary/50' : ''
       }`}
       style={{ borderTopColor: department.color }}

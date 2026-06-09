@@ -431,9 +431,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
-      <nav className="bg-card border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-lg">
+      <nav className="bg-card border-b border-border px-6 py-4 flex items-center justify-between z-40 shadow-lg flex-shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -501,7 +501,7 @@ export default function Home() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 overflow-hidden">
+      <main className="flex-1 min-h-0 p-4 overflow-hidden">
         {viewMode === 'kanban' ? (
           <DndContext
             sensors={sensors}
@@ -558,8 +558,8 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-card border-t border-border px-6 py-4">
+      {/* Footer (fixed at bottom) */}
+      <footer className="bg-card border-t border-border px-6 py-4 flex-shrink-0 z-40 shadow-[0_-2px_8px_rgba(0,0,0,0.15)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Wrench size={14} className="text-primary" />
