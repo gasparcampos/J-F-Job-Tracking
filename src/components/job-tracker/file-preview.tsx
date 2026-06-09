@@ -78,9 +78,15 @@ export function FilePreview({
           viewport,
           background: '#ffffff',
         }).promise;
-        // Apply the same default levels boost as the viewer for legible previews.
-        const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
+        if (thumbnail) {
+          // Card thumbnails: keep it cheap (no getImageData) to avoid jank when
+          // many cards mount. A light CSS filter on the <img> adds a little pop.
+          out.push(canvas.toDataURL('image/jpeg', 0.85));
+        } else {
+          // Form preview: full levels boost for a legible, accurate preview.
+          const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          out.push(levelsToDataUrl(raw, contrastToBlack(1.7)));
+        }
       }
       if (myReq === reqId.current) setImages(out);
     } catch (e) {
@@ -101,6 +107,8 @@ export function FilePreview({
     `${clickable ? 'cursor-pointer hover:border-primary/60 transition-colors group/preview ' : ''}` +
     `${className ?? ''}`;
   const imgHeight = maxHeightClass ?? (thumbnail ? 'max-h-40' : 'max-h-[420px]');
+  // Cheap CSS pop for thumbnails (full preview/viewer bake real levels instead).
+  const thumbFilter = thumbnail ? 'contrast(1.35) brightness(0.96)' : undefined;
 
   // Small magnifier hint shown on hover when clickable.
   const clickHint = clickable ? (
@@ -116,7 +124,8 @@ export function FilePreview({
         <img
           src={src}
           alt={fileName || 'preview'}
-          className={`w-full ${imgHeight} object-contain bg-black/20`}
+          className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
+          style={{ filter: thumbFilter }}
         />
         {clickHint}
       </div>
@@ -159,7 +168,8 @@ export function FilePreview({
           <img
             src={images[page]}
             alt={`${fileName || 'PDF'} página ${page + 1}`}
-            className={`w-full ${imgHeight} object-contain bg-black/20`}
+            className={`mx-auto block max-w-full ${imgHeight} object-contain bg-black/20`}
+            style={{ filter: thumbFilter }}
           />
           {clickHint}
           {!thumbnail && images.length > 1 && (
