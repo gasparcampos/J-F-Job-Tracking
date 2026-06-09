@@ -74,10 +74,12 @@ export function FilePreview({
         viewport,
         background: '#ffffff',
       }).promise;
-      // Auto-levels darkens faint linework so it reads at small size; PNG keeps
-      // it sharp. (First page only, so the cost stays modest per card.)
+      // Auto-levels, biased darker, so BOTH the faint drawing lines and the
+      // grey route-sheet block read at card size without zooming. (First page
+      // only, so the cost stays modest per card.)
       const raw = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const url = levelsToDataUrl(raw, computeAutoBlack(raw), 240, 1);
+      const black = Math.min(170, computeAutoBlack(raw) + 35);
+      const url = levelsToDataUrl(raw, black, 235, 1);
       if (myReq === reqId.current) setThumbSrc(url);
     } catch (e) {
       console.error('PDF thumbnail error:', e);
