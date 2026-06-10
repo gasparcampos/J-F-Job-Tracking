@@ -109,9 +109,16 @@ export function JobFormModal({
             if (d.dwgNumber) setDwgNumber((v) => v || d.dwgNumber);
             if (d.partNumber) setPartNumber((v) => v || d.partNumber);
             if (d.dueDate) setDueDate((v) => v || d.dueDate);
-            // Default the title to Job# - Part# if still empty.
-            if (d.jobNumber || d.partNumber) {
-              setTitle((v) => v || [d.jobNumber, d.partNumber].filter(Boolean).join(' - '));
+            // Default the title to "Job# / Quantity / Due Date" if still empty.
+            const duePretty = d.dueDate
+              ? (() => {
+                  const m = String(d.dueDate).match(/(\d{4})-(\d{2})-(\d{2})/);
+                  return m ? `${m[2]}/${m[3]}/${m[1]}` : d.dueDate;
+                })()
+              : null;
+            const titleParts = [d.jobNumber, d.quantity, duePretty].filter(Boolean);
+            if (titleParts.length) {
+              setTitle((v) => v || titleParts.join(' / '));
             }
           }
         } catch (exErr) {
