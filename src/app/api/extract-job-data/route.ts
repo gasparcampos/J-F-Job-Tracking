@@ -74,7 +74,10 @@ function parseRouteSheet(text: string): ExtractedData {
   m = text.match(/([A-Z0-9-]{4,})\s*\n?\s*P\.?\s*O\.?\s*#/i);
   if (m) poCands.push(m[1]);
   poCands.sort((a, b) => b.length - a.length);
-  const poNumber = poCands[0] || null;
+  // Business rule: a PO is a 10-digit number starting with 45 — match that
+  // first (most reliable), then fall back to label proximity.
+  const poStrict = text.match(/(?<!\d)(45\d{8})(?!\d)/);
+  const poNumber = poStrict ? poStrict[1] : poCands[0] || null;
 
   // Quantity: a number directly above/next to the item description (e.g. "2 CASE", "37\nPLUG").
   const qtyM = text.match(
@@ -100,11 +103,16 @@ function parseRouteSheet(text: string): ExtractedData {
 
   const dueM = text.match(/Due\s*Date[.:]*\s*\n?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i);
 
+  // Business rule: a Job# is a 5-digit number starting with 43 — match that
+  // first, then fall back to label proximity.
+  const jobStrict = text.match(/(?<!\d)(43\d{3})(?!\d)/);
+  const jobNumber = jobStrict ? jobStrict[1] : valByLabel(/^Job\s*#?/i);
+
   return {
     customer,
     customerRaw,
     poNumber,
-    jobNumber: valByLabel(/^Job\s*#?/i),
+    jobNumber,
     line: valByLabel(/^Line\s*Item\s*#?/i),
     quantity: qtyM ? qtyM[1] : null,
     dwgNumber: valByLabel(/^Dwg\s*#?/i, true),
