@@ -43,25 +43,25 @@ export function JobsTable({
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Trabajo
+              Job
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Estado
+              Status
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Prioridad
+              Priority
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Asignado
+              Assigned
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Archivo
+              File
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Notas
+              Notes
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-right">
-              Acciones
+              Actions
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -116,7 +116,7 @@ export function JobsTable({
                     className="flex items-center gap-2 text-primary hover:bg-primary/10"
                   >
                     <Eye size={14} />
-                    Ver
+                    View
                   </Button>
                 ) : (
                   <span className="text-muted-foreground">—</span>
@@ -156,7 +156,7 @@ export function JobsTable({
         <div className="p-20 text-center">
           <FileText size={48} className="mx-auto mb-4 text-muted-foreground opacity-30" />
           <p className="font-semibold uppercase text-[11px] tracking-widest text-muted-foreground">
-            Sin trabajos
+            No jobs
           </p>
         </div>
       )}

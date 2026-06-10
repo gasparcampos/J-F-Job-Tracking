@@ -87,10 +87,10 @@ export function KanbanColumn({
             <div className="flex flex-col items-center justify-center py-16 opacity-40 border-2 border-dashed border-border rounded-xl">
               <FileText size={28} className="text-muted-foreground mb-2" />
               <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
-                Sin trabajos
+                No jobs
               </p>
               <p className="text-[9px] text-muted-foreground mt-1">
-                Arrastra aquí para agregar
+                Drag here to add
               </p>
             </div>
           )}
@@ -101,7 +101,7 @@ export function KanbanColumn({
       {isOver && jobs.length > 0 && (
         <div className="mt-2 border-2 border-dashed border-primary/50 rounded-xl p-3 bg-primary/5">
           <p className="text-[10px] text-primary text-center font-medium">
-            Soltar aquí
+            Drop here
           </p>
         </div>
       )}

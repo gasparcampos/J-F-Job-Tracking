@@ -86,7 +86,7 @@ export default function Home() {
       console.error('Error fetching data:', error);
       toast({
         title: 'Error',
-        description: 'No se pudieron cargar los datos',
+        description: 'Could not load data',
         variant: 'destructive',
       });
     } finally {
@@ -212,14 +212,14 @@ export default function Home() {
       const newJob = await res.json();
       setJobs((prev) => [newJob, ...prev]);
       toast({
-        title: 'Éxito',
-        description: 'Trabajo creado correctamente',
+        title: 'Success',
+        description: 'Job created successfully',
       });
     } catch (error) {
       console.error('Error creating job:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo crear el trabajo',
+        description: 'Could not create job',
         variant: 'destructive',
       });
     }
@@ -247,14 +247,14 @@ export default function Home() {
       setMovingJob(null);
       setTargetDepartment(null);
       toast({
-        title: 'Éxito',
-        description: 'Trabajo movido correctamente',
+        title: 'Success',
+        description: 'Job moved successfully',
       });
     } catch (error) {
       console.error('Error moving job:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo mover el trabajo',
+        description: 'Could not move job',
         variant: 'destructive',
       });
     }
@@ -279,28 +279,28 @@ export default function Home() {
       await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
       setJobs((prev) => prev.filter((j) => j.id !== jobId));
       toast({
-        title: 'Éxito',
-        description: 'Trabajo eliminado',
+        title: 'Success',
+        description: 'Job deleted',
       });
     } catch (error) {
       console.error('Error deleting job:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el trabajo',
+        description: 'Could not delete job',
         variant: 'destructive',
       });
     }
   };
 
   const handleClearAll = async () => {
-    if (!confirm('¿Eliminar todos los trabajos?')) return;
+    if (!confirm('Delete all jobs?')) return;
 
     try {
       await fetch('/api/jobs', { method: 'DELETE' });
       setJobs([]);
       toast({
-        title: 'Éxito',
-        description: 'Todos los trabajos eliminados',
+        title: 'Success',
+        description: 'All jobs deleted',
       });
     } catch (error) {
       console.error('Error clearing jobs:', error);
@@ -341,14 +341,14 @@ export default function Home() {
         prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
       );
       toast({
-        title: 'Éxito',
+        title: 'Success',
         description: 'Nota guardada correctamente',
       });
     } catch (error) {
       console.error('Error saving annotation:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo guardar la nota',
+        description: 'Could not save note',
         variant: 'destructive',
       });
     }
@@ -366,15 +366,15 @@ export default function Home() {
       toast({
         title: updatedJob.inProgress ? 'En Progreso' : 'Detenido',
         description: updatedJob.inProgress 
-          ? '🔥 Trabajo marcado como en progreso' 
-          : '⏸️ Trabajo detenido',
+          ? '🔥 Job marked in progress' 
+          : '⏸️ Job stopped',
         className: updatedJob.inProgress ? 'bg-orange-600 text-white' : undefined,
       });
     } catch (error) {
       console.error('Error toggling in-progress:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo cambiar el estado',
+        description: 'Could not change status',
         variant: 'destructive',
       });
     }
@@ -401,14 +401,14 @@ export default function Home() {
 
       setMoveToAnyJob(null);
       toast({
-        title: 'Éxito',
-        description: 'Trabajo movido al área seleccionada',
+        title: 'Success',
+        description: 'Job moved to the selected area',
       });
     } catch (error) {
       console.error('Error moving job:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo mover el trabajo',
+        description: 'Could not move job',
         variant: 'destructive',
       });
     }
@@ -424,7 +424,7 @@ export default function Home() {
             </div>
           </div>
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          <p className="text-muted-foreground font-medium">Cargando sistema...</p>
+          <p className="text-muted-foreground font-medium">Loading system...</p>
         </div>
       </div>
     );
@@ -541,7 +541,7 @@ export default function Home() {
                     {activeJob.title}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Moviendo...
+                    Moving...
                   </p>
                 </div>
               )}
@@ -568,9 +568,9 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span>{jobs.length} trabajos</span>
-            <span>{departments.length} etapas</span>
-            <span>{employees.length} empleados</span>
+            <span>{jobs.length} jobs</span>
+            <span>{departments.length} stages</span>
+            <span>{employees.length} employees</span>
           </div>
         </div>
       </footer>

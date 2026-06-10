@@ -14,16 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Tracker - Sistema de Gestión de Taller",
-  description: "Sistema profesional de seguimiento de trabajos para talleres. Gestiona tus trabajos con tablero Kanban, drag & drop y tracking completo.",
-  keywords: ["Job Tracker", "Taller", "Kanban", "Gestión", "Tracking", "Trabajos"],
-  authors: [{ name: "Tu Nombre" }],
+  title: "Job Tracker - Machine Shop Management System",
+  description: "Professional job tracking system for machine shops. Manage your jobs with a Kanban board, drag & drop, and full tracking.",
+  keywords: ["Job Tracker", "Machine Shop", "Kanban", "Management", "Tracking", "Jobs"],
+  authors: [{ name: "J&F Machine Shop" }],
   icons: {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "Job Tracker - Sistema de Gestión de Taller",
-    description: "Gestiona tus trabajos con tablero Kanban y tracking completo",
+    title: "Job Tracker - Machine Shop Management System",
+    description: "Manage your jobs with a Kanban board and full tracking",
     type: "website",
   },
 };

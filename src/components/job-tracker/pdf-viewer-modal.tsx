@@ -50,7 +50,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
         setPdfJsLoaded(true);
       }).catch((err) => {
         console.error('Failed to load PDF.js:', err);
-        setPdfError('No se pudo cargar el visor de PDF');
+        setPdfError('Could not load the PDF viewer');
       });
     }
   }, []);
@@ -153,7 +153,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
       setPdfImages(images);
     } catch (error) {
       console.error('Error converting PDF:', error);
-      setPdfError('No se pudo convertir el PDF');
+      setPdfError('Could not convert the PDF');
     } finally {
       setIsLoadingPdf(false);
     }
@@ -178,7 +178,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = job.fileUrl!;
-    link.download = job.fileName || 'documento';
+    link.download = job.fileName || 'document';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -220,7 +220,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
             )}
             {isPdf && (
               <div className="ml-4 bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase">
-                PDF - {pdfImages.length > 0 ? `${currentPage + 1}/${pdfImages.length} páginas` : 'Cargando...'}
+                PDF - {pdfImages.length > 0 ? `${currentPage + 1}/${pdfImages.length} pages` : 'Loading...'}
               </div>
             )}
           </div>
@@ -261,7 +261,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               className={`gap-1 ml-2 ${showAnnotationForm ? 'bg-primary text-primary-foreground' : ''}`}
             >
               <Plus size={16} />
-              Nota
+              Note
             </Button>
             <button
               onClick={onClose}
@@ -310,7 +310,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                       <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-3 py-2 shadow-lg">
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Move size={12} />
-                          Arrastra para mover
+                          Drag to move
                         </p>
                       </div>
                     </div>
@@ -344,15 +344,15 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               /* Other files */
               <div className="flex flex-col items-center justify-center p-8 bg-card rounded-xl border border-border">
                 <FileText size={64} className="text-primary mb-4" />
-                <p className="text-lg font-bold text-card-foreground mb-2">Archivo no visualizable</p>
+                <p className="text-lg font-bold text-card-foreground mb-2">File cannot be displayed</p>
                 <div className="flex gap-3 mt-4">
                   <Button onClick={handleDownload} className="gap-2">
                     <Download size={16} />
-                    Descargar
+                    Download
                   </Button>
                   <Button variant="outline" onClick={() => window.open(job.fileUrl!, '_blank')} className="gap-2">
                     <ExternalLink size={16} />
-                    Abrir
+                    Open
                   </Button>
                 </div>
               </div>
@@ -366,7 +366,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               <div className="p-4 border-b border-border bg-muted/50">
                 <h4 className="text-sm font-bold text-card-foreground mb-2 flex items-center gap-2">
                   <Plus size={14} className="text-primary" />
-                  Agregar Nota
+                  Add Note
                 </h4>
                 <Textarea
                   value={newAnnotation}
@@ -380,7 +380,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                   size="sm"
                 >
                   <Save size={14} />
-                  Guardar Nota
+                  Save Note
                 </Button>
               </div>
             )}
@@ -390,7 +390,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               <div className="p-4 border-b border-border">
                 <h4 className="text-sm font-bold text-card-foreground mb-3 flex items-center gap-2">
                   <FileText size={14} className="text-yellow-500" />
-                  Notas
+                  Notes
                 </h4>
                 <div className="space-y-2">
                   {notes.map((note) => (
@@ -410,7 +410,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               <div className="p-4 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Clock size={16} className="text-primary" />
-                  <h4 className="text-sm font-bold text-card-foreground">Historial de Movimientos</h4>
+                  <h4 className="text-sm font-bold text-card-foreground">Movement History</h4>
                 </div>
               </div>
               
@@ -448,7 +448,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                     ))
                   ) : (
                     <p className="text-xs text-muted-foreground text-center py-4">
-                      Sin historial
+                      No history
                     </p>
                   )}
                 </div>

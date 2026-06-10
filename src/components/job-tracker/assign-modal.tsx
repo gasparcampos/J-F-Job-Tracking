@@ -66,7 +66,7 @@ export function AssignModal({
         <div className="bg-primary px-6 py-5 flex justify-between items-center text-primary-foreground">
           <div className="flex items-center gap-2">
             <User size={18} />
-            <h3 className="font-bold text-sm">Asignar Siguiente Etapa</h3>
+            <h3 className="font-bold text-sm">Assign Next Stage</h3>
           </div>
           <button
             onClick={onCancel}
@@ -80,7 +80,7 @@ export function AssignModal({
           {/* Job info */}
           <div className="bg-muted/50 p-3 rounded-xl border border-border">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-              Trabajo
+              Job
             </p>
             <p className="font-semibold text-card-foreground text-sm">
               {job.title}
@@ -90,7 +90,7 @@ export function AssignModal({
           {/* Target department */}
           <div className="text-center bg-muted/50 py-4 rounded-xl border border-border">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-              Mover a
+              Move to
             </p>
             <div className="flex items-center justify-center gap-2">
               <div 
@@ -106,21 +106,21 @@ export function AssignModal({
             </div>
             {targetDepartment.defaultEmployee && (
               <p className="text-[10px] text-muted-foreground mt-2">
-                Asignado por defecto: <span className="font-bold text-primary">{targetDepartment.defaultEmployee}</span>
+                Default assignee: <span className="font-bold text-primary">{targetDepartment.defaultEmployee}</span>
               </p>
             )}
           </div>
 
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
-              ¿Quién procesa este trabajo?
+              Who processes this job?
             </Label>
             <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
               <SelectTrigger className="w-full rounded-lg h-11 bg-background border-border">
-                <SelectValue placeholder="Seleccionar empleado" />
+                <SelectValue placeholder="Select employee" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                <SelectItem value="__none__" className="hover:bg-muted">Sin asignar</SelectItem>
+                <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">
                     {emp.name}
@@ -132,12 +132,12 @@ export function AssignModal({
 
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
-              Notas del proceso
+              Process notes
             </Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Agregar actualizaciones o instrucciones..."
+              placeholder="Add updates or instructions..."
               className="rounded-lg h-24 bg-background border-border resize-none"
             />
           </div>
@@ -148,14 +148,14 @@ export function AssignModal({
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30"
             >
               <ArrowRight size={16} className="mr-2" />
-              Confirmar y Mover
+              Confirm and Move
             </Button>
             <Button
               variant="outline"
               onClick={onCancel}
               className="w-full h-11 rounded-lg font-semibold uppercase tracking-wider border-border"
             >
-              Cancelar
+              Cancel
             </Button>
           </div>
         </div>

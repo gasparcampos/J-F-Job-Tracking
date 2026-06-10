@@ -23,7 +23,7 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
               <Clock size={18} className="text-primary-foreground" />
             </div>
             <div>
-              <h3 className="font-bold text-card-foreground">Historial Completo</h3>
+              <h3 className="font-bold text-card-foreground">Full History</h3>
               <p className="text-[10px] text-muted-foreground">{job.title}</p>
             </div>
           </div>
@@ -78,7 +78,7 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
                       <div className="mt-3 pt-3 border-t border-border">
                         <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
                           <FileText size={10} />
-                          <p className="text-[9px] font-semibold uppercase tracking-widest">Nota</p>
+                          <p className="text-[9px] font-semibold uppercase tracking-widest">Note</p>
                         </div>
                         <p className="text-xs text-muted-foreground">{log.notes}</p>
                       </div>
@@ -96,7 +96,7 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
             onClick={onClose}
             className="w-full"
           >
-            Cerrar
+            Close
           </Button>
         </div>
       </div>

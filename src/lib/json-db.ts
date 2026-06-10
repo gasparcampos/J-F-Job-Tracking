@@ -239,7 +239,7 @@ export const jobsDB = {
           id: generateId(),
           jobId: id,
           toDeptId: data.departmentId,
-          notes: '📄 Trabajo creado',
+          notes: '📄 Job created',
           timestamp: now,
         },
       ],
@@ -370,7 +370,7 @@ export const jobsDB = {
       id: generateId(),
       jobId,
       toDeptId: data.departmentId,
-      notes: inProgress ? '🔥 In Progress iniciado' : '⏸️ In Progress detenido',
+      notes: inProgress ? '🔥 In Progress started' : '⏸️ In Progress stopped',
       timestamp: now,
     };
 

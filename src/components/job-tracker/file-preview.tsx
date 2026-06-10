@@ -105,7 +105,7 @@ export function FilePreview({
       >
         <FileText size={32} className="mb-2 text-primary" />
         <p className="text-xs">{fileName || 'Archivo'}</p>
-        <p className="text-[10px]">Sin vista previa disponible</p>
+        <p className="text-[10px]">No preview available</p>
         {clickHint}
       </div>
     );

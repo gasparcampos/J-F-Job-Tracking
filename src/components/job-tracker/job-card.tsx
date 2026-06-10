@@ -183,7 +183,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         }`}>
           <div className="flex items-center gap-1.5 mb-1">
             <File size={10} />
-            <span className="text-[9px] font-semibold uppercase tracking-widest">Notas</span>
+            <span className="text-[9px] font-semibold uppercase tracking-widest">Notes</span>
           </div>
           <p className="text-[11px] line-clamp-2">
             {job.notes}
@@ -195,7 +195,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         isInProgress ? 'text-orange-200/60' : 'text-muted-foreground'
       }`}>
         <span className="truncate max-w-[120px]">
-          {job.assignedTo || 'Sin asignar'}
+          {job.assignedTo || 'Unassigned'}
         </span>
         <button
           onClick={() => onViewHistory(job)}
@@ -205,7 +205,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           }`}
         >
           <Clock size={12} />
-          Historial
+          History
         </button>
       </div>
 
@@ -213,7 +213,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       {isInProgress && job.inProgressAt && (
         <div className="flex items-center gap-2 mb-3 ml-6 text-[10px] text-orange-300">
           <Flame size={12} className="animate-pulse" />
-          <span>En proceso desde: {new Date(job.inProgressAt).toLocaleString('es-ES', {
+          <span>In progress since: {new Date(job.inProgressAt).toLocaleString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
             day: '2-digit',
@@ -234,19 +234,19 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           }`}
         >
           {isInProgress ? (
-            <><Pause size={12} className="mr-1" />Detener</>
+            <><Pause size={12} className="mr-1" />Stop</>
           ) : (
             <><Play size={12} className="mr-1" />Progress</>
           )}
         </Button>
 
-        {/* Completar */}
+        {/* Complete */}
         <Button
           onClick={() => onMarkDone(job)}
           className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20"
         >
           <Check size={12} className="mr-1" />
-          Completar
+          Complete
         </Button>
 
         {/* Move to Any Department (right) */}
@@ -256,7 +256,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white shadow-lg shadow-orange-500/20"
           >
             <ArrowRightLeft size={12} className="mr-1" />
-            Mover
+            Move
           </Button>
         )}
       </div>
