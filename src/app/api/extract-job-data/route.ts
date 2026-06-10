@@ -49,24 +49,48 @@ function toISODate(s: string | null): string | null {
 }
 
 function parseRouteSheet(text: string): ExtractedData {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const STOP = /^(P\.?\s*O|Job|Dwg|Part|Due|Line|W\.?\s*O|Order|Buyer|\d)/i;
   const pick = (re: RegExp): string | null => {
     const m = text.match(re);
     return m ? m[1].replace(/\s+/g, ' ').trim() : null;
   };
 
-  const customerRaw = pick(/Customer:?\s*([A-Za-z][A-Za-z .,&'-]+?)\s*(?:P\.?\s*O\.?|Job|\n)/i);
+  // Customer can span the line after "Customer:" (e.g. "HALLI" / "HALLIBURTON ENERGY").
+  let customerRaw: string | null = null;
+  const ci = lines.findIndex((l) => /^Customer[:\s]/i.test(l));
+  if (ci >= 0) {
+    const parts = [lines[ci].replace(/^Customer[:\s]*/i, '').trim()].filter(Boolean);
+    for (let j = ci + 1; j < Math.min(ci + 3, lines.length); j++) {
+      if (/^[A-Za-z][A-Za-z .,&'-]+$/.test(lines[j]) && !STOP.test(lines[j])) parts.push(lines[j]);
+      else break;
+    }
+    customerRaw = parts.join(' ').replace(/\s+/g, ' ').trim() || null;
+  }
   const { value: customer } = mapCustomer(customerRaw);
+
+  // PO value can sit before OR after the "P.O. #:" label; take the longest match.
+  const poCands: string[] = [];
+  let m = text.match(/P\.?\s*O\.?\s*#?[.:]*\s*\n?\s*([A-Z0-9-]{4,})/i);
+  if (m) poCands.push(m[1]);
+  m = text.match(/([A-Z0-9-]{4,})\s*\n?\s*P\.?\s*O\.?\s*#/i);
+  if (m) poCands.push(m[1]);
+  poCands.sort((a, b) => b.length - a.length);
+  const poNumber = poCands[0] || null;
+
+  // Quantity: a small number on its own line above the item description (e.g. "2"/"CASE").
+  const qtyM = text.match(/(?:^|\n)\s*(\d{1,4})\s*\n\s*[A-Z][A-Z]{2,}\b/);
 
   const data: ExtractedData = {
     customer,
     customerRaw,
-    poNumber: pick(/P\.?\s*O\.?\s*#?\.?:?\s*([A-Z0-9-]+)/i),
-    jobNumber: pick(/Job\s*#?\.?:?\s*([A-Z0-9-]{3,})/i),
-    line: pick(/Line\s*Item\s*#?\.?:?\s*([A-Z0-9-]+)/i),
-    quantity: pick(/(?:^|\n)\s*(\d+)\s*-\s*[A-Za-z]/),
-    dwgNumber: pick(/Dwg\s*#?\.?:?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
-    partNumber: pick(/Part\s*#?\.?:?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
-    dueDate: toISODate(pick(/Due\s*Date:?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)),
+    poNumber,
+    jobNumber: pick(/Job\s*#?[.:]*\s*\n?\s*([A-Z0-9-]{3,})/i),
+    line: pick(/Line\s*Item\s*#?[.:]*\s*\n?\s*([A-Z0-9-]+)/i),
+    quantity: qtyM ? qtyM[1] : null,
+    dwgNumber: pick(/Dwg\s*#?[.:]*\s*\n?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
+    partNumber: pick(/Part\s*#?[.:]*\s*\n?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
+    dueDate: toISODate(pick(/Due\s*Date[.:]*\s*\n?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)),
   };
   return data;
 }
