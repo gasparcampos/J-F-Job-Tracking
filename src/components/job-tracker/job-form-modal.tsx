@@ -38,6 +38,7 @@ export function JobFormModal({
   const [assignedTo, setAssignedTo] = useState('__none__');
   const [notes, setNotes] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{
     url: string;
     name: string;
@@ -84,6 +85,40 @@ export function JobFormModal({
           name: uploadData.fileName,
           isPdf: isPdf,
         });
+
+        // Auto-fill Job Details from the route sheet (OCR). Best-effort:
+        // only fills empty fields so it never clobbers what you typed.
+        setIsExtracting(true);
+        try {
+          const exRes = await fetch('/api/extract-job-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileUrl: uploadData.fileUrl, fileName: uploadData.fileName }),
+          });
+          const ex = await exRes.json();
+          const d = ex?.data;
+          if (d) {
+            if (d.customer) {
+              setCustomer(d.customer);
+              if (d.customer === 'Other' && d.customerRaw) setCustomerOther(d.customerRaw);
+            }
+            if (d.poNumber) setPoNumber((v) => v || d.poNumber);
+            if (d.line) setLine((v) => v || d.line);
+            if (d.jobNumber) setJobNumber((v) => v || d.jobNumber);
+            if (d.quantity) setQuantity((v) => v || d.quantity);
+            if (d.dwgNumber) setDwgNumber((v) => v || d.dwgNumber);
+            if (d.partNumber) setPartNumber((v) => v || d.partNumber);
+            if (d.dueDate) setDueDate((v) => v || d.dueDate);
+            // Default the title to Job# - Part# if still empty.
+            if (d.jobNumber || d.partNumber) {
+              setTitle((v) => v || [d.jobNumber, d.partNumber].filter(Boolean).join(' - '));
+            }
+          }
+        } catch (exErr) {
+          console.warn('Auto-fill (OCR) failed:', exErr);
+        } finally {
+          setIsExtracting(false);
+        }
 
         return uploadData;
       }
@@ -187,6 +222,12 @@ export function JobFormModal({
                 onChange={handleFileChange}
               />
               {isUploading && <Loader2 className="w-5 h-5 animate-spin text-primary" />}
+              {isExtracting && (
+                <span className="flex items-center gap-1.5 text-[11px] text-primary whitespace-nowrap">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Reading document…
+                </span>
+              )}
             </div>
             
             {/* File Info */}
@@ -341,8 +382,8 @@ export function JobFormModal({
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
-          <Button type="submit" disabled={isUploading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
-            {isUploading ? (
+          <Button type="submit" disabled={isUploading || isExtracting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
+            {isUploading || isExtracting ? (
               <><Loader2 size={16} className="mr-2 animate-spin" />Processing...</>
             ) : (
               <><Upload size={16} className="mr-2" />Create Job</>

@@ -1,313 +1,159 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import type ZAIType from 'z-ai-web-dev-sdk';
+import { bucket } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Lazy import to keep z-ai-web-dev-sdk out of build-time evaluation.
-type ZAIDefault = typeof ZAIType;
-let ZAI: ZAIDefault | null = null;
-async function loadZAI(): Promise<ZAIDefault> {
-  if (!ZAI) {
-    const mod = await import('z-ai-web-dev-sdk');
-    ZAI = (mod as unknown as { default: ZAIDefault }).default ?? (mod as unknown as ZAIDefault);
-  }
-  return ZAI;
-}
-
 interface ExtractedData {
-  jobNumber: string | null;
   customer: string | null;
+  customerRaw: string | null;
   poNumber: string | null;
+  jobNumber: string | null;
   line: string | null;
+  quantity: string | null;
   dwgNumber: string | null;
   partNumber: string | null;
-  dueDate: string | null;
+  dueDate: string | null; // YYYY-MM-DD for <input type=date>
 }
 
-// Initialize ZAI SDK
-let zaiInstance: Awaited<ReturnType<ZAIDefault['create']>> | null = null;
+const EMPTY: ExtractedData = {
+  customer: null,
+  customerRaw: null,
+  poNumber: null,
+  jobNumber: null,
+  line: null,
+  quantity: null,
+  dwgNumber: null,
+  partNumber: null,
+  dueDate: null,
+};
 
-async function getZai() {
-  if (!zaiInstance) {
-    const Z = await loadZAI();
-    zaiInstance = await Z.create();
-  }
-  return zaiInstance;
+/** Map an OCR'd customer name to one of the dropdown options. */
+function mapCustomer(raw: string | null): { value: string | null; raw: string | null } {
+  if (!raw) return { value: null, raw: null };
+  const u = raw.toUpperCase();
+  if (u.includes('HALLIBURTON')) return { value: 'Halliburton', raw };
+  if (u.includes('LIBERTY')) return { value: 'Liberty', raw };
+  if (u.includes('BAKER')) return { value: 'Baker', raw };
+  return { value: 'Other', raw };
 }
 
-async function extractFromPdfWithVLM(pdfPath: string): Promise<ExtractedData> {
-  const zai = await getZai();
-  
-  // Read PDF and convert to base64
-  const pdfBuffer = fs.readFileSync(pdfPath);
-  const base64Pdf = pdfBuffer.toString('base64');
-  const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
-
-  const prompt = `Analyze this PDF document and extract the following information in JSON format:
-{
-  "jobNumber": "JOB# or Job Number if found",
-  "customer": "Customer name if found",
-  "poNumber": "PO# or Purchase Order number if found",
-  "line": "Line number if found",
-  "dwgNumber": "DWG# or Drawing number if found",
-  "partNumber": "Part# or Part Number if found",
-  "dueDate": "Due date if found (in YYYY-MM-DD format if possible)"
+/** MM/DD/YYYY (or M/D/YY) -> YYYY-MM-DD */
+function toISODate(s: string | null): string | null {
+  if (!s) return null;
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (!m) return null;
+  let [, mm, dd, yy] = m;
+  if (yy.length === 2) yy = '20' + yy;
+  return `${yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
-IMPORTANT:
-- Look carefully at ALL text in the document
-- Extract values that are clearly visible
-- If a field is not found, use null for that field
-- Look for labels like: JOB#, CUSTOMER, PO#, LINE, DWG#, PART#, DUE DATE
-- Look for header information, title blocks, or form fields
-- Return ONLY valid JSON, no other text
-- Be precise with the values extracted`;
-
-  const response = await zai.chat.completions.createVision({
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: prompt
-          },
-          {
-            type: 'image_url',
-            image_url: { url: dataUrl }
-          }
-        ]
-      }
-    ],
-    thinking: { type: 'disabled' }
-  });
-
-  const responseText = response.choices[0]?.message?.content || '';
-  console.log('VLM Response:', responseText);
-
-  // Parse the JSON response
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        jobNumber: parsed.jobNumber || null,
-        customer: parsed.customer || null,
-        poNumber: parsed.poNumber || null,
-        line: parsed.line || null,
-        dwgNumber: parsed.dwgNumber || null,
-        partNumber: parsed.partNumber || null,
-        dueDate: parsed.dueDate || null,
-      };
-    }
-  } catch (e) {
-    console.error('Failed to parse VLM response:', e);
-  }
-
-  return {
-    jobNumber: null,
-    customer: null,
-    poNumber: null,
-    line: null,
-    dwgNumber: null,
-    partNumber: null,
-    dueDate: null,
+function parseRouteSheet(text: string): ExtractedData {
+  const pick = (re: RegExp): string | null => {
+    const m = text.match(re);
+    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
   };
-}
 
-async function extractFromImageWithVLM(imagePath: string): Promise<ExtractedData> {
-  const zai = await getZai();
-  
-  // Read image and convert to base64
-  const imageBuffer = fs.readFileSync(imagePath);
-  const base64Image = imageBuffer.toString('base64');
-  const mimeType = imagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-  const dataUrl = `data:${mimeType};base64,${base64Image}`;
+  const customerRaw = pick(/Customer:?\s*([A-Za-z][A-Za-z .,&'-]+?)\s*(?:P\.?\s*O\.?|Job|\n)/i);
+  const { value: customer } = mapCustomer(customerRaw);
 
-  const prompt = `Analyze this document image and extract the following information in JSON format:
-{
-  "jobNumber": "JOB# or Job Number if found",
-  "customer": "Customer name if found",
-  "poNumber": "PO# or Purchase Order number if found",
-  "line": "Line number if found",
-  "dwgNumber": "DWG# or Drawing number if found",
-  "partNumber": "Part# or Part Number if found",
-  "dueDate": "Due date if found (in YYYY-MM-DD format if possible)"
-}
-
-IMPORTANT:
-- Look carefully at ALL text in the document
-- Extract values that are clearly visible
-- If a field is not found, use null for that field
-- Return ONLY valid JSON, no other text`;
-
-  const response = await zai.chat.completions.createVision({
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: prompt
-          },
-          {
-            type: 'image_url',
-            image_url: { url: dataUrl }
-          }
-        ]
-      }
-    ],
-    thinking: { type: 'disabled' }
-  });
-
-  const responseText = response.choices[0]?.message?.content || '';
-  console.log('VLM Response:', responseText);
-
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        jobNumber: parsed.jobNumber || null,
-        customer: parsed.customer || null,
-        poNumber: parsed.poNumber || null,
-        line: parsed.line || null,
-        dwgNumber: parsed.dwgNumber || null,
-        partNumber: parsed.partNumber || null,
-        dueDate: parsed.dueDate || null,
-      };
-    }
-  } catch (e) {
-    console.error('Failed to parse VLM response:', e);
-  }
-
-  return {
-    jobNumber: null,
-    customer: null,
-    poNumber: null,
-    line: null,
-    dwgNumber: null,
-    partNumber: null,
-    dueDate: null,
+  const data: ExtractedData = {
+    customer,
+    customerRaw,
+    poNumber: pick(/P\.?\s*O\.?\s*#?\.?:?\s*([A-Z0-9-]+)/i),
+    jobNumber: pick(/Job\s*#?\.?:?\s*([A-Z0-9-]{3,})/i),
+    line: pick(/Line\s*Item\s*#?\.?:?\s*([A-Z0-9-]+)/i),
+    quantity: pick(/(?:^|\n)\s*(\d+)\s*-\s*[A-Za-z]/),
+    dwgNumber: pick(/Dwg\s*#?\.?:?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
+    partNumber: pick(/Part\s*#?\.?:?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
+    dueDate: toISODate(pick(/Due\s*Date:?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)),
   };
+  return data;
+}
+
+/** Extract the storage path from a Firebase download URL or accept a raw path. */
+function storagePathFromUrl(fileUrl: string): string | null {
+  if (!fileUrl) return null;
+  if (fileUrl.startsWith('uploads/')) return fileUrl;
+  const m = fileUrl.match(/\/o\/([^?]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return null;
 }
 
 export async function POST(request: NextRequest) {
-  console.log('=== EXTRACT JOB DATA API (VLM) ===');
-  
   try {
     const body = await request.json();
-    const { fileUrl, fileName } = body;
-
-    console.log('Request body:', { fileUrl, fileName });
+    const { fileUrl, fileName } = body as { fileUrl?: string; fileName?: string };
 
     if (!fileUrl) {
-      return NextResponse.json({ error: 'fileUrl is required' }, { status: 400 });
+      return NextResponse.json({ success: false, data: EMPTY, error: 'fileUrl required' }, { status: 400 });
     }
 
-    // Detect type from fileName (clean) — fileUrl may carry a ?alt=media&token=
-    // query string (Firebase Storage) that breaks an endsWith('.pdf') check.
-    const typeSource = (fileName || fileUrl.split('?')[0]).toLowerCase();
-    const isPdf = typeSource.endsWith('.pdf');
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
-
-    console.log('File type check:', { isPdf, isImage, typeSource, fileUrl });
-    
+    const isPdf = (fileName || fileUrl).toLowerCase().split('?')[0].endsWith('.pdf');
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test((fileName || fileUrl).toLowerCase().split('?')[0]);
     if (!isPdf && !isImage) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'Unsupported file type. Please upload a PDF or image file.',
-        data: {
-          jobNumber: null,
-          customer: null,
-          poNumber: null,
-          line: null,
-          dwgNumber: null,
-          partNumber: null,
-          dueDate: null,
-        }
-      }, { status: 400 });
+      return NextResponse.json({ success: true, data: EMPTY, aiAvailable: false });
     }
 
-    let filePath: string;
-    
-    if (fileUrl.startsWith('/uploads/')) {
-      filePath = path.join(process.cwd(), 'public', fileUrl);
-      console.log('Reading file from:', filePath);
-      if (!fs.existsSync(filePath)) {
-        console.log('File not found:', filePath);
-        return NextResponse.json({ error: 'File not found' }, { status: 404 });
-      }
+    // Download the file bytes from Storage (server-side, no CORS).
+    const path = storagePathFromUrl(fileUrl);
+    let buffer: Buffer;
+    if (path) {
+      const [buf] = await bucket.file(path).download();
+      buffer = buf;
     } else {
-      console.log('Downloading from URL:', fileUrl);
-      const response = await fetch(fileUrl);
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      filePath = path.join('/tmp', `temp_${Date.now()}${isPdf ? '.pdf' : '.png'}`);
-      fs.writeFileSync(filePath, buffer);
+      const res = await fetch(fileUrl);
+      buffer = Buffer.from(await res.arrayBuffer());
     }
 
-    // Extract data using VLM.
-    // The z-ai-web-dev-sdk only works inside the z.ai sandbox; in production
-    // (Firebase) it can't initialize. Degrade gracefully: return empty fields
-    // with a 200 so the upload flow continues and the user fills in manually.
-    const emptyData: ExtractedData = {
-      jobNumber: null,
-      customer: null,
-      poNumber: null,
-      line: null,
-      dwgNumber: null,
-      partNumber: null,
-      dueDate: null,
-    };
-
-    let extractedData: ExtractedData;
-    try {
-      console.log('Extracting data with VLM...');
-      extractedData = isPdf
-        ? await extractFromPdfWithVLM(filePath)
-        : await extractFromImageWithVLM(filePath);
-    } catch (vlmError) {
-      console.warn(
-        'VLM extraction unavailable, falling back to manual entry:',
-        vlmError instanceof Error ? vlmError.message : vlmError,
-      );
-      return NextResponse.json({
-        success: true,
-        data: emptyData,
-        aiAvailable: false,
-        message: 'AI extraction unavailable; please enter job details manually.',
-      });
-    }
-
-    console.log('=== EXTRACTION RESULT ===');
-    console.log(JSON.stringify(extractedData, null, 2));
-
-    return NextResponse.json({
-      success: true,
-      data: extractedData,
-      aiAvailable: true,
+    // OCR with Google Cloud Vision (decodes the scanned route sheet).
+    const visionMod = await import('@google-cloud/vision');
+    const Client = visionMod.default.ImageAnnotatorClient;
+    const client = new Client({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      credentials:
+        process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY
+          ? {
+              client_email: process.env.FIREBASE_CLIENT_EMAIL,
+              private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            }
+          : undefined,
     });
 
-  } catch (error) {
-    console.error('Error extracting data:', error);
-    // Never hard-fail the upload flow over extraction.
+    let fullText = '';
+    if (isPdf) {
+      const [result] = await client.batchAnnotateFiles({
+        requests: [
+          {
+            inputConfig: { mimeType: 'application/pdf', content: buffer },
+            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+            pages: [1],
+          },
+        ],
+      });
+      fullText =
+        result.responses?.[0]?.responses?.[0]?.fullTextAnnotation?.text ?? '';
+    } else {
+      const [result] = await client.documentTextDetection({ image: { content: buffer } });
+      fullText = result.fullTextAnnotation?.text ?? '';
+    }
+
+    const data = parseRouteSheet(fullText);
+
     return NextResponse.json({
       success: true,
-      data: {
-        jobNumber: null,
-        customer: null,
-        poNumber: null,
-        line: null,
-        dwgNumber: null,
-        partNumber: null,
-        dueDate: null,
-      },
+      aiAvailable: true,
+      data,
+      rawText: fullText.slice(0, 2000),
+    });
+  } catch (error) {
+    console.error('OCR extract error:', error);
+    // Never block the upload flow — return empty so the user fills manually.
+    return NextResponse.json({
+      success: true,
       aiAvailable: false,
-      message: 'AI extraction unavailable; please enter job details manually.',
+      data: EMPTY,
+      message: error instanceof Error ? error.message : 'OCR unavailable',
     });
   }
 }
