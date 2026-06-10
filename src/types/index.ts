@@ -46,6 +46,7 @@ export interface Job {
   customer?: string;
   poNumber?: string;
   line?: string;
+  quantity?: string;
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
@@ -71,6 +72,7 @@ export interface CreateJobInput {
   customer?: string;
   poNumber?: string;
   line?: string;
+  quantity?: string;
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;

@@ -30,6 +30,7 @@ export interface StoredJob {
   customer?: string;
   poNumber?: string;
   line?: string;
+  quantity?: string;
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
@@ -145,6 +146,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     customer: data.customer,
     poNumber: data.poNumber,
     line: data.line,
+    quantity: data.quantity,
     dwgNumber: data.dwgNumber,
     partNumber: data.partNumber,
     dueDate: data.dueDate,
@@ -201,6 +203,7 @@ export const jobsDB = {
     customer?: string;
     poNumber?: string;
     line?: string;
+    quantity?: string;
     dwgNumber?: string;
     partNumber?: string;
     dueDate?: string;
@@ -227,6 +230,7 @@ export const jobsDB = {
       customer: data.customer,
       poNumber: data.poNumber,
       line: data.line,
+      quantity: data.quantity,
       dwgNumber: data.dwgNumber,
       partNumber: data.partNumber,
       dueDate: data.dueDate,

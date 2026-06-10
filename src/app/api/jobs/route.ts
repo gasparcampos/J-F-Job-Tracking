@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       customer: body.customer,
       poNumber: body.poNumber,
       line: body.line,
+      quantity: body.quantity,
       dwgNumber: body.dwgNumber,
       partNumber: body.partNumber,
       dueDate: body.dueDate,

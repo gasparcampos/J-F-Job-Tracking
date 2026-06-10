@@ -99,16 +99,10 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       </div>
 
       {/* Job Details Grid - Extracted Fields */}
-      {(job.jobNumber || job.customer || job.poNumber || job.partNumber || job.dueDate) && (
+      {(job.jobNumber || job.customer || job.poNumber || job.partNumber || job.quantity || job.dueDate) && (
         <div className={`mb-3 ml-6 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] ${
           isInProgress ? 'text-orange-200/80' : 'text-muted-foreground'
         }`}>
-          {job.jobNumber && (
-            <div className="flex gap-1">
-              <span className="font-semibold">JOB#:</span>
-              <span>{job.jobNumber}</span>
-            </div>
-          )}
           {job.customer && (
             <div className="flex gap-1">
               <span className="font-semibold">Customer:</span>
@@ -121,16 +115,28 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
               <span>{job.poNumber}</span>
             </div>
           )}
+          {job.line && (
+            <div className="flex gap-1">
+              <span className="font-semibold">Line Item:</span>
+              <span>{job.line}</span>
+            </div>
+          )}
+          {job.jobNumber && (
+            <div className="flex gap-1">
+              <span className="font-semibold">JOB#:</span>
+              <span>{job.jobNumber}</span>
+            </div>
+          )}
+          {job.quantity && (
+            <div className="flex gap-1">
+              <span className="font-semibold">Qty:</span>
+              <span>{job.quantity}</span>
+            </div>
+          )}
           {job.partNumber && (
             <div className="flex gap-1">
               <span className="font-semibold">Part#:</span>
               <span>{job.partNumber}</span>
-            </div>
-          )}
-          {job.line && (
-            <div className="flex gap-1">
-              <span className="font-semibold">Line:</span>
-              <span>{job.line}</span>
             </div>
           )}
           {job.dwgNumber && (

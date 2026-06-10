@@ -46,11 +46,15 @@ export function JobFormModal({
   
   const [jobNumber, setJobNumber] = useState('');
   const [customer, setCustomer] = useState('');
+  const [customerOther, setCustomerOther] = useState('');
   const [poNumber, setPoNumber] = useState('');
   const [line, setLine] = useState('');
+  const [quantity, setQuantity] = useState('');
   const [dwgNumber, setDwgNumber] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [dueDate, setDueDate] = useState('');
+
+  const CUSTOMER_OPTIONS = ['Baker', 'Halliburton', 'TDW', 'Other'];
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +108,9 @@ export function JobFormModal({
       await handleFileUpload();
     }
 
+    const finalCustomer =
+      customer === 'Other' ? customerOther.trim() : customer;
+
     onSubmit({
       title,
       description,
@@ -114,9 +121,10 @@ export function JobFormModal({
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
       jobNumber: jobNumber || undefined,
-      customer: customer || undefined,
+      customer: finalCustomer || undefined,
       poNumber: poNumber || undefined,
       line: line || undefined,
+      quantity: quantity || undefined,
       dwgNumber: dwgNumber || undefined,
       partNumber: partNumber || undefined,
       dueDate: dueDate || undefined,
@@ -132,8 +140,10 @@ export function JobFormModal({
     setUploadedFile(null);
     setJobNumber('');
     setCustomer('');
+    setCustomerOther('');
     setPoNumber('');
     setLine('');
+    setQuantity('');
     setDwgNumber('');
     setPartNumber('');
     setDueDate('');
@@ -211,34 +221,64 @@ export function JobFormModal({
             </h3>
             
             <div className="grid grid-cols-4 gap-3">
-              <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#</Label>
-                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className="rounded-lg h-9 bg-background border-border text-xs" />
-              </div>
+              {/* 1. Customer (dropdown) */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Customer</Label>
-                <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer" className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Select value={customer} onValueChange={setCustomer}>
+                  <SelectTrigger className="rounded-lg h-9 bg-background border-border text-xs">
+                    <SelectValue placeholder="Cliente" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {CUSTOMER_OPTIONS.map((c) => (
+                      <SelectItem key={c} value={c} className="hover:bg-muted text-xs">{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {customer === 'Other' && (
+                  <Input
+                    value={customerOther}
+                    onChange={(e) => setCustomerOther(e.target.value)}
+                    placeholder="Nombre del cliente"
+                    className="rounded-lg h-9 bg-background border-border text-xs mt-1.5"
+                  />
+                )}
               </div>
+              {/* 2. PO# */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">PO#</Label>
                 <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="PO Number" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
+              {/* 3. Line Item */}
               <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Line</Label>
-                <Input value={line} onChange={(e) => setLine(e.target.value)} placeholder="Line" className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Line Item</Label>
+                <Input value={line} onChange={(e) => setLine(e.target.value)} placeholder="Line Item" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
+              {/* 4. Job# */}
+              <div>
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#</Label>
+                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className="rounded-lg h-9 bg-background border-border text-xs" />
+              </div>
+              {/* 5. Quantity */}
+              <div>
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Quantity</Label>
+                <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Cantidad" className="rounded-lg h-9 bg-background border-border text-xs" />
+              </div>
+              {/* 6. DWG# */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
                 <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} placeholder="Drawing #" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
+              {/* 7. Part# */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
                 <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder="Part Number" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
+              {/* 8. Due Date */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
+              {/* 9. Priority */}
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Priority</Label>
                 <Select value={priority.toString()} onValueChange={(v) => setPriority(Number(v))}>
