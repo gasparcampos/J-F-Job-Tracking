@@ -216,54 +216,43 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap" onPointerDown={(e) => e.stopPropagation()}>
-        {/* In Progress Button */}
+      {/* Action buttons - single compact row */}
+      <div className="flex gap-1.5 items-stretch" onPointerDown={(e) => e.stopPropagation()}>
+        {/* In Progress */}
         <Button
           onClick={() => onToggleInProgress?.(job)}
-          className={`h-9 px-3 rounded-lg font-bold uppercase tracking-wider text-[10px] transition-all ${
+          className={`flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] transition-all ${
             isInProgress
               ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-500/30'
               : 'bg-muted hover:bg-orange-600 text-muted-foreground hover:text-white border border-border'
           }`}
         >
           {isInProgress ? (
-            <>
-              <Pause size={14} className="mr-1" />
-              Detener
-            </>
+            <><Pause size={12} className="mr-1" />Detener</>
           ) : (
-            <>
-              <Play size={14} className="mr-1" />
-              In Progress
-            </>
+            <><Play size={12} className="mr-1" />Progress</>
           )}
         </Button>
-        
-        {/* Move to Any Department Button - available on every job */}
+
+        {/* Completar */}
+        <Button
+          onClick={() => onMarkDone(job)}
+          className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20"
+        >
+          <Check size={12} className="mr-1" />
+          Completar
+        </Button>
+
+        {/* Move to Any Department (right) */}
         {canMoveToAnyDept && (
           <Button
             onClick={() => onMoveToAnyDept?.(job)}
-            className="h-9 px-3 rounded-lg font-bold uppercase tracking-wider text-[10px] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white shadow-lg shadow-orange-500/20"
+            className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white shadow-lg shadow-orange-500/20"
           >
-            <ArrowRightLeft size={14} className="mr-1" />
-            Mover a Área
+            <ArrowRightLeft size={12} className="mr-1" />
+            Mover
           </Button>
         )}
-        
-        <Button
-          onClick={() => onMarkDone(job)}
-          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white h-9 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-emerald-900/20"
-        >
-          <Check size={14} className="mr-1" />
-          Completar
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => onDelete(job.id)}
-          className="h-9 px-3 rounded-lg border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
-        >
-          <Trash2 size={14} />
-        </Button>
       </div>
     </div>
   );
