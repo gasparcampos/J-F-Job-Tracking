@@ -48,28 +48,26 @@ function toISODate(s: string | null): string | null {
   return `${yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
+// Lines that are field labels (used to skip over them when scanning for values).
+const LABEL = /^(P\.?\s*O|W\.?\s*O|Part|Dwg|Due|Line|Job|Buyer|Order|Material|PO|Route|Customer)/i;
+
 function parseRouteSheet(text: string): ExtractedData {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const STOP = /^(P\.?\s*O|Job|Dwg|Part|Due|Line|W\.?\s*O|Order|Buyer|\d)/i;
-  const pick = (re: RegExp): string | null => {
-    const m = text.match(re);
-    return m ? m[1].replace(/\s+/g, ' ').trim() : null;
-  };
 
-  // Customer can span the line after "Customer:" (e.g. "HALLI" / "HALLIBURTON ENERGY").
+  // Customer can span the line(s) after "Customer:" (e.g. "HALLI" / "HALLIBURTON ENERGY").
   let customerRaw: string | null = null;
   const ci = lines.findIndex((l) => /^Customer[:\s]/i.test(l));
   if (ci >= 0) {
     const parts = [lines[ci].replace(/^Customer[:\s]*/i, '').trim()].filter(Boolean);
     for (let j = ci + 1; j < Math.min(ci + 3, lines.length); j++) {
-      if (/^[A-Za-z][A-Za-z .,&'-]+$/.test(lines[j]) && !STOP.test(lines[j])) parts.push(lines[j]);
+      if (/^[A-Za-z][A-Za-z .,&'-]+$/.test(lines[j]) && !LABEL.test(lines[j])) parts.push(lines[j]);
       else break;
     }
     customerRaw = parts.join(' ').replace(/\s+/g, ' ').trim() || null;
   }
   const { value: customer } = mapCustomer(customerRaw);
 
-  // PO value can sit before OR after the "P.O. #:" label; take the longest match.
+  // PO value can sit before OR after the "P.O. #:" label; take the longest candidate.
   const poCands: string[] = [];
   let m = text.match(/P\.?\s*O\.?\s*#?[.:]*\s*\n?\s*([A-Z0-9-]{4,})/i);
   if (m) poCands.push(m[1]);
@@ -78,21 +76,41 @@ function parseRouteSheet(text: string): ExtractedData {
   poCands.sort((a, b) => b.length - a.length);
   const poNumber = poCands[0] || null;
 
-  // Quantity: a small number on its own line above the item description (e.g. "2"/"CASE").
-  const qtyM = text.match(/(?:^|\n)\s*(\d{1,4})\s*\n\s*[A-Z][A-Z]{2,}\b/);
+  // Quantity: a number directly above/next to the item description (e.g. "2 CASE", "37\nPLUG").
+  const qtyM = text.match(
+    /(?:^|\n)\s*(\d{1,4})\s*[\n ]\s*(?:CASE|PLUG|SUB|PCS?|EA|UNITS?|ASSY|[A-Z]{3,})\b/,
+  );
 
-  const data: ExtractedData = {
+  // Value for a label: inline after the label, else the nearest following line that
+  // has a digit (skipping other labels). For Dwg/Part, prefer the line with "REV".
+  const valByLabel = (labelRe: RegExp, preferRev = false): string | null => {
+    const i = lines.findIndex((l) => labelRe.test(l));
+    if (i < 0) return null;
+    const inline = lines[i].replace(labelRe, '').replace(/^[#.:\s]+/, '').trim();
+    if (inline && /\d/.test(inline)) return inline.replace(/\s+/g, ' ');
+    let firstDigit: string | null = null;
+    for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
+      const v = lines[j];
+      if (LABEL.test(v)) continue;
+      if (preferRev && /REV/i.test(v)) return v.replace(/\s+/g, ' ');
+      if (/\d/.test(v) && firstDigit === null) firstDigit = v.replace(/\s+/g, ' ');
+    }
+    return firstDigit;
+  };
+
+  const dueM = text.match(/Due\s*Date[.:]*\s*\n?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i);
+
+  return {
     customer,
     customerRaw,
     poNumber,
-    jobNumber: pick(/Job\s*#?[.:]*\s*\n?\s*([A-Z0-9-]{3,})/i),
-    line: pick(/Line\s*Item\s*#?[.:]*\s*\n?\s*([A-Z0-9-]+)/i),
+    jobNumber: valByLabel(/^Job\s*#?/i),
+    line: valByLabel(/^Line\s*Item\s*#?/i),
     quantity: qtyM ? qtyM[1] : null,
-    dwgNumber: pick(/Dwg\s*#?[.:]*\s*\n?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
-    partNumber: pick(/Part\s*#?[.:]*\s*\n?\s*([A-Z0-9.\/-]+(?:\s*REV\s*[A-Z0-9]+)?)/i),
-    dueDate: toISODate(pick(/Due\s*Date[.:]*\s*\n?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)),
+    dwgNumber: valByLabel(/^Dwg\s*#?/i, true),
+    partNumber: valByLabel(/^Part\s*#?/i, true),
+    dueDate: toISODate(dueM ? dueM[1] : null),
   };
-  return data;
 }
 
 /** Extract the storage path from a Firebase download URL or accept a raw path. */
