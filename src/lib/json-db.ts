@@ -188,6 +188,25 @@ export const jobsDB = {
     return docToJob(doc.id, doc.data()!);
   },
 
+  /**
+   * Find a job by its JOB# (work number). Case-insensitive, trimmed.
+   * Used to block duplicate work numbers on create.
+   */
+  async findByJobNumber(jobNumber: string): Promise<StoredJob | null> {
+    const target = jobNumber.trim().toLowerCase();
+    if (!target) return null;
+    const snap = await jobsCol().get();
+    let match: StoredJob | null = null;
+    snap.forEach((d) => {
+      if (match) return;
+      const jn = (d.data().jobNumber as string | undefined) ?? '';
+      if (jn.trim().toLowerCase() === target) {
+        match = docToJob(d.id, d.data());
+      }
+    });
+    return match;
+  },
+
   async create(data: {
     title: string;
     description?: string;

@@ -23,6 +23,21 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Block duplicate JOB# (work number) — it must be unique.
+    const jobNumber = (body.jobNumber ?? '').trim();
+    if (jobNumber) {
+      const existing = await jobsDB.findByJobNumber(jobNumber);
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: 'DUPLICATE_JOB_NUMBER',
+            message: `JOB# ${jobNumber} already exists. Use a different work number.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const job = await jobsDB.create({
       title: body.title,
       description: body.description,

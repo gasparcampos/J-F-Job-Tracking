@@ -202,19 +202,49 @@ export default function Home() {
   };
 
   // Job actions
-  const handleCreateJob = async (data: CreateJobInput) => {
+  // Returns true when the job was created, false otherwise (e.g. duplicate
+  // JOB#). The form modal uses this to stay open on failure.
+  const handleCreateJob = async (data: CreateJobInput): Promise<boolean> => {
+    // Quick local check against jobs already loaded — instant feedback.
+    const jobNumber = (data.jobNumber ?? '').trim();
+    if (jobNumber) {
+      const dup = jobs.find(
+        (j) => (j.jobNumber ?? '').trim().toLowerCase() === jobNumber.toLowerCase()
+      );
+      if (dup) {
+        toast({
+          title: 'Duplicate JOB#',
+          description: `JOB# ${jobNumber} already exists. Use a different work number.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+
     try {
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({
+          title: res.status === 409 ? 'Duplicate JOB#' : 'Error',
+          description: err.message || 'Could not create job',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
       const newJob = await res.json();
       setJobs((prev) => [newJob, ...prev]);
       toast({
         title: 'Success',
         description: 'Job created successfully',
       });
+      return true;
     } catch (error) {
       console.error('Error creating job:', error);
       toast({
@@ -222,6 +252,7 @@ export default function Home() {
         description: 'Could not create job',
         variant: 'destructive',
       });
+      return false;
     }
   };
 

@@ -19,7 +19,9 @@ import { FilePreview } from './file-preview';
 interface JobFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateJobInput) => void;
+  // Returns true if the job was created. When it returns false (e.g. a
+  // duplicate JOB#), the form stays open so the user can fix the number.
+  onSubmit: (data: CreateJobInput) => Promise<boolean> | void;
   departments: Department[];
   employees: Employee[];
 }
@@ -156,7 +158,7 @@ export function JobFormModal({
     const finalCustomer =
       customer === 'Other' ? customerOther.trim() : customer;
 
-    onSubmit({
+    const result = await onSubmit({
       title,
       description,
       departmentId,
@@ -174,6 +176,10 @@ export function JobFormModal({
       partNumber: partNumber || undefined,
       dueDate: dueDate || undefined,
     });
+
+    // If creation failed (e.g. duplicate JOB#), keep the form open so the
+    // user can correct the work number without losing what they typed.
+    if (result === false) return;
 
     // Reset
     setTitle('');
