@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
   DndContext,
@@ -18,7 +18,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { LayoutGrid, List, Plus, Trash2, Loader2, Wrench } from 'lucide-react';
+import { LayoutGrid, List, Plus, Trash2, Loader2, Wrench, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import type { Job, Department, Employee, CreateJobInput } from '@/types';
@@ -42,6 +42,7 @@ export default function Home() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
   const [historyJob, setHistoryJob] = useState<Job | null>(null);
@@ -63,6 +64,23 @@ export default function Home() {
       },
     })
   );
+
+  // Search: match against JOB#, PO#, DWG#, Part# and the job name/title.
+  // Case-insensitive substring match across all those fields.
+  const filteredJobs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter((j) => {
+      const fields = [
+        j.jobNumber,
+        j.poNumber,
+        j.dwgNumber,
+        j.partNumber,
+        j.title,
+      ];
+      return fields.some((f) => (f ?? '').toLowerCase().includes(q));
+    });
+  }, [jobs, searchQuery]);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -512,6 +530,30 @@ export default function Home() {
               </Button>
             </div>
 
+            {/* Search bar: JOB#, PO#, DWG#, Part#, name */}
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search JOB#, PO#, DWG#, Part#, name..."
+                className="w-80 h-10 pl-9 pr-9 rounded-xl bg-muted border border-border text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-card-foreground transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
             <Button
               onClick={() => setIsAddingJob(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
@@ -543,7 +585,7 @@ export default function Home() {
           >
             <div className="flex gap-3 overflow-x-auto pb-4 h-full">
               {departments.map((dept) => {
-                const deptJobs = jobs
+                const deptJobs = filteredJobs
                   .filter((j) => j.departmentId === dept.id)
                   .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                 
@@ -580,7 +622,7 @@ export default function Home() {
           </DndContext>
         ) : (
           <JobsTable
-            jobs={jobs}
+            jobs={filteredJobs}
             departments={departments}
             onViewHistory={setHistoryJob}
             onDeleteJob={handleDeleteJob}
@@ -599,7 +641,11 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span>{jobs.length} jobs</span>
+            <span>
+              {searchQuery.trim()
+                ? `${filteredJobs.length} of ${jobs.length} jobs`
+                : `${jobs.length} jobs`}
+            </span>
             <span>{departments.length} stages</span>
             <span>{employees.length} employees</span>
           </div>
