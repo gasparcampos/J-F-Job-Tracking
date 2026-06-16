@@ -68,11 +68,17 @@ export default function Home() {
   );
 
   // Search: case-insensitive substring match across every job field,
-  // including the details hidden on each card (customer, line, qty, due date).
+  // including the details hidden on each card (customer, line, qty, due date),
+  // the notes block, and every note in the job's history (PDF annotations
+  // and notes added when moving between stages).
   const filteredJobs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return jobs;
     return jobs.filter((j) => {
+      // All history notes joined so any annotation is searchable too.
+      const historyNotes = (j.history ?? [])
+        .map((h) => h.notes ?? '')
+        .join(' ');
       const fields = [
         j.jobNumber,
         j.name,
@@ -86,6 +92,7 @@ export default function Home() {
         j.dueDate,
         j.assignedTo,
         j.notes,
+        historyNotes,
       ];
       return fields.some((f) => (f ?? '').toLowerCase().includes(q));
     });
