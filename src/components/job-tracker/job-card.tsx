@@ -98,61 +98,6 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         </Badge>
       </div>
 
-      {/* Job Details Grid - Extracted Fields */}
-      {(job.jobNumber || job.customer || job.poNumber || job.partNumber || job.quantity || job.dueDate) && (
-        <div className={`mb-3 ml-6 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] ${
-          isInProgress ? 'text-orange-200/80' : 'text-muted-foreground'
-        }`}>
-          {job.customer && (
-            <div className="flex gap-1">
-              <span className="font-semibold">Customer:</span>
-              <span>{job.customer}</span>
-            </div>
-          )}
-          {job.poNumber && (
-            <div className="flex gap-1">
-              <span className="font-semibold">PO#:</span>
-              <span>{job.poNumber}</span>
-            </div>
-          )}
-          {job.line && (
-            <div className="flex gap-1">
-              <span className="font-semibold">Line Item:</span>
-              <span>{job.line}</span>
-            </div>
-          )}
-          {job.jobNumber && (
-            <div className="flex gap-1">
-              <span className="font-semibold">JOB#:</span>
-              <span>{job.jobNumber}</span>
-            </div>
-          )}
-          {job.quantity && (
-            <div className="flex gap-1">
-              <span className="font-semibold">Qty:</span>
-              <span>{job.quantity}</span>
-            </div>
-          )}
-          {job.partNumber && (
-            <div className="flex gap-1">
-              <span className="font-semibold">Part#:</span>
-              <span>{job.partNumber}</span>
-            </div>
-          )}
-          {job.dwgNumber && (
-            <div className="flex gap-1">
-              <span className="font-semibold">DWG#:</span>
-              <span>{job.dwgNumber}</span>
-            </div>
-          )}
-          {job.dueDate && (
-            <div className="flex gap-1 col-span-2">
-              <span className="font-semibold">Due Date:</span>
-              <span className="text-orange-500 font-medium">{new Date(job.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {job.description && (
         <p className={`text-xs mb-3 line-clamp-2 pl-6 ${
@@ -169,7 +114,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             fileUrl={job.fileUrl}
             fileName={job.fileName}
             thumbnail
-            maxHeightClass="max-h-[600px]"
+            maxHeightClass="max-h-[280px]"
             onClick={() => onViewPdf?.(job)}
           />
         </div>

@@ -121,7 +121,7 @@ export function FilePreview({
     return (
       <div
         ref={containerRef}
-        className={box}
+        className={`${box} ${maxHeightClass ?? 'max-h-[280px]'} overflow-hidden`}
         onClick={onClick}
         // Box height follows the page's real aspect ratio -> no empty space.
         style={{ aspectRatio: String(pageAspect) }}

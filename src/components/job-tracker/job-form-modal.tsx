@@ -318,20 +318,20 @@ export function JobFormModal({
             </div>
 
             {/* Row 2: drawing / part / due date / priority */}
-            <div className="grid grid-cols-4 gap-3 mt-3">
-              <div>
+            <div className="grid grid-cols-6 gap-3 mt-3">
+              <div className="col-span-2">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
                 <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} placeholder="Drawing #" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div>
+              <div className="col-span-2">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
                 <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder="Part Number" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div>
+              <div className="col-span-1">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div>
+              <div className="col-span-1">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Priority</Label>
                 <Select value={priority.toString()} onValueChange={(v) => setPriority(Number(v))}>
                   <SelectTrigger className="rounded-lg h-9 bg-background border-border text-xs">
