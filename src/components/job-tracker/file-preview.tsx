@@ -121,19 +121,21 @@ export function FilePreview({
     return (
       <div
         ref={containerRef}
-        className={`${box} ${maxHeightClass ?? 'max-h-[280px]'} overflow-hidden`}
+        className={`${box} ${maxHeightClass ?? 'max-h-[500px]'} w-full overflow-hidden`}
         onClick={onClick}
-        // Box height follows the page's real aspect ratio -> no empty space.
-        style={{ aspectRatio: String(pageAspect) }}
       >
-        <iframe
-          src={`${src}#toolbar=0&navpanes=0&statusbar=0&messages=0&view=FitH`}
-          title={fileName || 'PDF'}
-          loading="lazy"
-          tabIndex={-1}
-          className="w-full h-full bg-white"
-          style={{ border: 'none', pointerEvents: 'none' }}
-        />
+        {/* Full card width; height follows the page's real aspect ratio.
+            The outer box caps height (crops only very tall scans). */}
+        <div className="w-full" style={{ aspectRatio: String(pageAspect) }}>
+          <iframe
+            src={`${src}#toolbar=0&navpanes=0&statusbar=0&messages=0&view=FitH`}
+            title={fileName || 'PDF'}
+            loading="lazy"
+            tabIndex={-1}
+            className="w-full h-full bg-white"
+            style={{ border: 'none', pointerEvents: 'none' }}
+          />
+        </div>
         {/* Transparent click layer (iframe swallows clicks otherwise) */}
         {clickable && <div className="absolute inset-0" onClick={onClick} />}
         {clickHint}

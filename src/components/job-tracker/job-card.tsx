@@ -114,7 +114,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             fileUrl={job.fileUrl}
             fileName={job.fileName}
             thumbnail
-            maxHeightClass="max-h-[280px]"
+            maxHeightClass="max-h-[500px]"
             onClick={() => onViewPdf?.(job)}
           />
         </div>
