@@ -89,6 +89,15 @@ export interface UpdateJobInput {
   fileName?: string;
   previewUrl?: string;
   pageCount?: number;
+  // Job tracking fields (editable from the table)
+  jobNumber?: string;
+  customer?: string;
+  poNumber?: string;
+  line?: string;
+  quantity?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  dueDate?: string;
 }
 
 export interface MoveJobInput {

@@ -21,10 +21,11 @@ import {
 import { LayoutGrid, List, Plus, Trash2, Loader2, Wrench, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import type { Job, Department, Employee, CreateJobInput } from '@/types';
+import type { Job, Department, Employee, CreateJobInput, UpdateJobInput } from '@/types';
 import {
   KanbanColumn,
   JobFormModal,
+  JobEditModal,
   HistoryModal,
   AssignModal,
   JobsTable,
@@ -45,6 +46,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [historyJob, setHistoryJob] = useState<Job | null>(null);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [pdfJob, setPdfJob] = useState<Job | null>(null);
@@ -274,6 +276,62 @@ export default function Home() {
       toast({
         title: 'Error',
         description: 'Could not create job',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  // Edit an existing job (quantities, due date, etc.). Returns true on
+  // success; false (e.g. duplicate JOB#) keeps the edit modal open.
+  const handleUpdateJob = async (jobId: string, data: UpdateJobInput): Promise<boolean> => {
+    // Block changing JOB# to one that another job already uses.
+    const jobNumber = (data.jobNumber ?? '').trim();
+    if (jobNumber) {
+      const dup = jobs.find(
+        (j) =>
+          j.id !== jobId &&
+          (j.jobNumber ?? '').trim().toLowerCase() === jobNumber.toLowerCase()
+      );
+      if (dup) {
+        toast({
+          title: 'Duplicate JOB#',
+          description: `JOB# ${jobNumber} already exists. Use a different work number.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({
+          title: res.status === 409 ? 'Duplicate JOB#' : 'Error',
+          description: err.message || 'Could not update job',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      const updatedJob = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
+      toast({
+        title: 'Success',
+        description: 'Job updated successfully',
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating job:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not update job',
         variant: 'destructive',
       });
       return false;
@@ -633,6 +691,7 @@ export default function Home() {
             onViewHistory={setHistoryJob}
             onDeleteJob={handleDeleteJob}
             onViewPdf={setPdfJob}
+            onEditJob={setEditingJob}
           />
         )}
       </main>
@@ -665,6 +724,13 @@ export default function Home() {
         onSubmit={handleCreateJob}
         departments={departments}
         employees={employees}
+      />
+
+      <JobEditModal
+        job={editingJob}
+        employees={employees}
+        onSave={handleUpdateJob}
+        onClose={() => setEditingJob(null)}
       />
 
       <HistoryModal

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Clock, Trash2, Eye } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -19,6 +19,7 @@ interface JobsTableProps {
   onViewHistory: (job: Job) => void;
   onDeleteJob: (jobId: string) => void;
   onViewPdf?: (job: Job) => void;
+  onEditJob?: (job: Job) => void;
 }
 
 export function JobsTable({
@@ -27,6 +28,7 @@ export function JobsTable({
   onViewHistory,
   onDeleteJob,
   onViewPdf,
+  onEditJob,
 }: JobsTableProps) {
   // Modern priority colors - solid
   const priorityColors: Record<number, string> = {
@@ -132,8 +134,18 @@ export function JobsTable({
                   <Button
                     variant="ghost"
                     size="icon"
+                    onClick={() => onEditJob?.(job)}
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                    title="Edit job"
+                  >
+                    <Pencil size={18} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => onViewHistory(job)}
                     className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                    title="History"
                   >
                     <Clock size={18} />
                   </Button>

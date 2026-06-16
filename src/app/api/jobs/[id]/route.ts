@@ -87,6 +87,21 @@ export async function PUT(
       return NextResponse.json(finalJob);
     }
 
+    // Block changing JOB# to one another job already uses.
+    const newJobNumber = (body.jobNumber ?? '').trim();
+    if (newJobNumber) {
+      const existing = await jobsDB.findByJobNumber(newJobNumber);
+      if (existing && existing.id !== id) {
+        return NextResponse.json(
+          {
+            error: 'DUPLICATE_JOB_NUMBER',
+            message: `JOB# ${newJobNumber} already exists. Use a different work number.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Regular update
     const job = await jobsDB.update(id, body);
 
