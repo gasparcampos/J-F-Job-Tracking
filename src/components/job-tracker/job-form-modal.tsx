@@ -326,8 +326,8 @@ export function JobFormModal({
               </div>
             </div>
 
-            {/* Row 2: drawing / part / due date / name */}
-            <div className="grid grid-cols-9 gap-3 mt-3">
+            {/* Row 2: drawing / part / name / due date */}
+            <div className="grid grid-cols-11 gap-3 mt-3">
               <div className="col-span-2">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
                 <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} placeholder="Drawing #" className="rounded-lg h-9 bg-background border-border text-xs" />
@@ -336,13 +336,13 @@ export function JobFormModal({
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
                 <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder="Part Number" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div className="col-span-2">
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
-              </div>
-              <div className="col-span-3">
+              <div className="col-span-4">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
+              </div>
+              <div className="col-span-3">
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
             </div>
           </div>
