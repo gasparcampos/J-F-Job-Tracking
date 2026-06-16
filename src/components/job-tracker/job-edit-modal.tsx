@@ -27,6 +27,7 @@ interface JobEditModalProps {
 export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalProps) {
   const [title, setTitle] = useState('');
   const [jobNumber, setJobNumber] = useState('');
+  const [name, setName] = useState('');
   const [customer, setCustomer] = useState('');
   const [poNumber, setPoNumber] = useState('');
   const [line, setLine] = useState('');
@@ -44,6 +45,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     if (!job) return;
     setTitle(job.title ?? '');
     setJobNumber(job.jobNumber ?? '');
+    setName(job.name ?? '');
     setCustomer(job.customer ?? '');
     setPoNumber(job.poNumber ?? '');
     setLine(job.line ?? '');
@@ -66,6 +68,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
       const result = await onSave(job.id, {
         title,
         jobNumber: jobNumber.trim() || undefined,
+        name: name.trim() || undefined,
         customer: customer.trim() || undefined,
         poNumber: poNumber.trim() || undefined,
         line: line.trim() || undefined,
@@ -110,6 +113,12 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-2">
               Job Details
             </h3>
+
+            {/* Name (full width) */}
+            <div>
+              <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
+            </div>
 
             {/* Row 1: customer / PO# / line / job# / quantity */}
             <div className="grid grid-cols-5 gap-3">

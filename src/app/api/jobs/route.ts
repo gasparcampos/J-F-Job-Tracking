@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       pageCount: body.pageCount,
       notes: body.notes,
       jobNumber: body.jobNumber,
+      name: body.name,
       customer: body.customer,
       poNumber: body.poNumber,
       line: body.line,

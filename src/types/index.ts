@@ -43,6 +43,7 @@ export interface Job {
   inProgressAt?: string;
   // New fields for job tracking
   jobNumber?: string;
+  name?: string;
   customer?: string;
   poNumber?: string;
   line?: string;
@@ -69,6 +70,7 @@ export interface CreateJobInput {
   pageCount?: number;
   // New fields for job tracking
   jobNumber?: string;
+  name?: string;
   customer?: string;
   poNumber?: string;
   line?: string;
@@ -91,6 +93,7 @@ export interface UpdateJobInput {
   pageCount?: number;
   // Job tracking fields (editable from the table)
   jobNumber?: string;
+  name?: string;
   customer?: string;
   poNumber?: string;
   line?: string;

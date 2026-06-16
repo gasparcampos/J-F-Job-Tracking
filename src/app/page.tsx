@@ -75,6 +75,7 @@ export default function Home() {
     return jobs.filter((j) => {
       const fields = [
         j.jobNumber,
+        j.name,
         j.poNumber,
         j.dwgNumber,
         j.partNumber,

@@ -48,6 +48,7 @@ export function JobFormModal({
   } | null>(null);
   
   const [jobNumber, setJobNumber] = useState('');
+  const [name, setName] = useState('');
   const [customer, setCustomer] = useState('');
   const [customerOther, setCustomerOther] = useState('');
   const [poNumber, setPoNumber] = useState('');
@@ -168,6 +169,7 @@ export function JobFormModal({
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
       jobNumber: jobNumber || undefined,
+      name: name || undefined,
       customer: finalCustomer || undefined,
       poNumber: poNumber || undefined,
       line: line || undefined,
@@ -190,6 +192,7 @@ export function JobFormModal({
     setNotes('');
     setUploadedFile(null);
     setJobNumber('');
+    setName('');
     setCustomer('');
     setCustomerOther('');
     setPoNumber('');
@@ -276,7 +279,13 @@ export function JobFormModal({
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-2">
               Job Details
             </h3>
-            
+
+            {/* Name (full width) */}
+            <div>
+              <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
+            </div>
+
             {/* Row 1: the five identifiers, all on one line */}
             <div className="grid grid-cols-5 gap-3">
               {/* 1. Customer (dropdown) */}

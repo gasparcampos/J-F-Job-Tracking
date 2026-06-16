@@ -27,6 +27,7 @@ export interface StoredJob {
   inProgress: boolean;
   inProgressAt?: string;
   jobNumber?: string;
+  name?: string;
   customer?: string;
   poNumber?: string;
   line?: string;
@@ -143,6 +144,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     inProgress: data.inProgress ?? false,
     inProgressAt: data.inProgressAt,
     jobNumber: data.jobNumber,
+    name: data.name,
     customer: data.customer,
     poNumber: data.poNumber,
     line: data.line,
@@ -219,6 +221,7 @@ export const jobsDB = {
     pageCount?: number;
     notes?: string;
     jobNumber?: string;
+    name?: string;
     customer?: string;
     poNumber?: string;
     line?: string;
@@ -246,6 +249,7 @@ export const jobsDB = {
       notes: data.notes,
       inProgress: false,
       jobNumber: data.jobNumber,
+      name: data.name,
       customer: data.customer,
       poNumber: data.poNumber,
       line: data.line,
