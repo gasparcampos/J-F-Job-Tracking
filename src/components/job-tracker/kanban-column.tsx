@@ -17,6 +17,7 @@ interface KanbanColumnProps {
   onToggleInProgress?: (job: Job) => void;
   onMoveToAnyDept?: (job: Job) => void;
   canMoveToAnyDept?: boolean;
+  highlightJobs?: boolean;
 }
 
 export function KanbanColumn({
@@ -30,6 +31,7 @@ export function KanbanColumn({
   onToggleInProgress,
   onMoveToAnyDept,
   canMoveToAnyDept,
+  highlightJobs,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: department.id,
@@ -80,6 +82,7 @@ export function KanbanColumn({
               onToggleInProgress={onToggleInProgress}
               onMoveToAnyDept={onMoveToAnyDept}
               canMoveToAnyDept={canMoveToAnyDept}
+              highlight={highlightJobs}
             />
           ))}
 

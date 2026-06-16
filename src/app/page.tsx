@@ -667,6 +667,7 @@ export default function Home() {
                     onToggleInProgress={handleToggleInProgress}
                     onMoveToAnyDept={setMoveToAnyJob}
                     canMoveToAnyDept={true}
+                    highlightJobs={!!searchQuery.trim()}
                   />
                 );
               })}

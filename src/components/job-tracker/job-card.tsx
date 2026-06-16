@@ -18,9 +18,10 @@ interface JobCardProps {
   onToggleInProgress?: (job: Job) => void;
   onMoveToAnyDept?: (job: Job) => void;
   canMoveToAnyDept?: boolean;
+  highlight?: boolean;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, canMoveToAnyDept }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, canMoveToAnyDept, highlight }: JobCardProps) {
   const {
     attributes,
     listeners,
@@ -68,7 +69,9 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         isInProgress
           ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
           : 'bg-card border border-border hover:border-primary/50'
-      } ${isDragging ? 'opacity-40 shadow-2xl scale-105 border-primary ring-2 ring-primary/50 z-50' : ''}`}
+      } ${isDragging ? 'opacity-40 shadow-2xl scale-105 border-primary ring-2 ring-primary/50 z-50' : ''} ${
+        highlight ? 'search-flash' : ''
+      }`}
     >
       {/* In Progress indicator */}
       {isInProgress && (
