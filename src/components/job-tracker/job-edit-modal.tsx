@@ -90,7 +90,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-border animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden border border-border animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="bg-card border-b border-border px-8 py-6 flex justify-between items-center sticky top-0 bg-card z-10">
           <div className="flex items-center gap-3">
             <div className="bg-primary p-2 rounded-lg">
@@ -114,8 +114,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
               Job Details
             </h3>
 
-            {/* Row 1: customer / PO# / line / job# / quantity */}
-            <div className="grid grid-cols-5 gap-3">
+            {/* Row 1: customer / PO# / line / job# / quantity.
+                Widths tuned: longer customer/PO, short line item & qty. */}
+            <div className="grid gap-3" style={{ gridTemplateColumns: '1.25fr 1.3fr 0.55fr 1fr 0.75fr' }}>
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Customer</Label>
                 <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer" className="rounded-lg h-9 bg-background border-border text-xs" />
@@ -138,21 +139,22 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
               </div>
             </div>
 
-            {/* Row 2: drawing / part / name / due date */}
-            <div className="grid grid-cols-11 gap-3 mt-3">
-              <div className="col-span-2">
+            {/* Row 2: drawing / part / name / due date.
+                Longer DWG#/Part# for long part numbers. */}
+            <div className="grid gap-3 mt-3" style={{ gridTemplateColumns: '1.5fr 1.5fr 1.4fr 1.1fr' }}>
+              <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
                 <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} placeholder="Drawing #" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
                 <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder="Part Number" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div className="col-span-4">
+              <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
-              <div className="col-span-3">
+              <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
