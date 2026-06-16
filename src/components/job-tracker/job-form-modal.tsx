@@ -280,12 +280,6 @@ export function JobFormModal({
               Job Details
             </h3>
 
-            {/* Name (full width) */}
-            <div>
-              <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
-            </div>
-
             {/* Row 1: the five identifiers, all on one line */}
             <div className="grid grid-cols-5 gap-3">
               {/* 1. Customer (dropdown) */}
@@ -347,17 +341,8 @@ export function JobFormModal({
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
               <div className="col-span-1">
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Priority</Label>
-                <Select value={priority.toString()} onValueChange={(v) => setPriority(Number(v))}>
-                  <SelectTrigger className="rounded-lg h-9 bg-background border-border text-xs">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {[1, 2, 3, 4, 5].map((p) => (
-                      <SelectItem key={p} value={p.toString()} className="hover:bg-muted text-xs">Level {p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
             </div>
           </div>
@@ -367,7 +352,7 @@ export function JobFormModal({
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job title..." required className="rounded-lg h-11 bg-background border-border" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Initial Stage</Label>
               <Select value={departmentId} onValueChange={setDepartmentId}>
@@ -396,6 +381,19 @@ export function JobFormModal({
                   <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
                   {employees.map((emp) => (
                     <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">{emp.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Priority</Label>
+              <Select value={priority.toString()} onValueChange={(v) => setPriority(Number(v))}>
+                <SelectTrigger className="rounded-lg h-11 bg-background border-border">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {[1, 2, 3, 4, 5].map((p) => (
+                    <SelectItem key={p} value={p.toString()} className="hover:bg-muted">Level {p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
