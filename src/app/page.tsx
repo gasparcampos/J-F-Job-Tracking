@@ -65,8 +65,8 @@ export default function Home() {
     })
   );
 
-  // Search: match against JOB#, PO#, DWG#, Part# and the job name/title.
-  // Case-insensitive substring match across all those fields.
+  // Search: case-insensitive substring match across every job field,
+  // including the details hidden on each card (customer, line, qty, due date).
   const filteredJobs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return jobs;
@@ -77,6 +77,12 @@ export default function Home() {
         j.dwgNumber,
         j.partNumber,
         j.title,
+        j.customer,
+        j.line,
+        j.quantity,
+        j.dueDate,
+        j.assignedTo,
+        j.notes,
       ];
       return fields.some((f) => (f ?? '').toLowerCase().includes(q));
     });
