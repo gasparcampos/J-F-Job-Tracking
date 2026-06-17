@@ -21,6 +21,8 @@ export interface StoredJob {
   assignedTo?: string;
   fileUrl?: string;
   fileName?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
   previewUrl?: string;
   pageCount?: number;
   notes?: string;
@@ -138,6 +140,8 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     assignedTo: data.assignedTo,
     fileUrl: data.fileUrl,
     fileName: data.fileName,
+    attachmentUrl: data.attachmentUrl,
+    attachmentName: data.attachmentName,
     previewUrl: data.previewUrl,
     pageCount: data.pageCount,
     notes: data.notes,
@@ -217,6 +221,8 @@ export const jobsDB = {
     assignedTo?: string;
     fileUrl?: string;
     fileName?: string;
+    attachmentUrl?: string;
+    attachmentName?: string;
     previewUrl?: string;
     pageCount?: number;
     notes?: string;
@@ -244,6 +250,8 @@ export const jobsDB = {
       assignedTo: data.assignedTo,
       fileUrl: data.fileUrl,
       fileName: data.fileName,
+      attachmentUrl: data.attachmentUrl,
+      attachmentName: data.attachmentName,
       previewUrl: data.previewUrl,
       pageCount: data.pageCount,
       notes: data.notes,

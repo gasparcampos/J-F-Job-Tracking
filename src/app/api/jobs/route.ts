@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
       assignedTo: body.assignedTo,
       fileUrl: body.fileUrl,
       fileName: body.fileName,
+      attachmentUrl: body.attachmentUrl,
+      attachmentName: body.attachmentName,
       previewUrl: body.previewUrl,
       pageCount: body.pageCount,
       notes: body.notes,

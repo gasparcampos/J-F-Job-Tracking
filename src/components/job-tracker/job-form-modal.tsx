@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { X, Upload, Wrench, Loader2, FileText, Check } from 'lucide-react';
+import { X, Upload, Wrench, Loader2, FileText, Check, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +46,8 @@ export function JobFormModal({
     name: string;
     isPdf?: boolean;
   } | null>(null);
+  const [isAttaching, setIsAttaching] = useState(false);
+  const [attachment, setAttachment] = useState<{ url: string; name: string } | null>(null);
   
   const [jobNumber, setJobNumber] = useState('');
   const [name, setName] = useState('');
@@ -61,6 +63,27 @@ export function JobFormModal({
   const CUSTOMER_OPTIONS = ['Baker', 'Halliburton', 'Liberty', 'Other'];
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+
+  // Upload an extra attachment (no OCR; this is just a side file).
+  const handleAttachUpload = async () => {
+    const file = attachInputRef.current?.files?.[0];
+    if (!file) return;
+    setIsAttaching(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        setAttachment({ url: data.fileUrl, name: data.fileName });
+      }
+    } catch (error) {
+      console.error('Attachment upload error:', error);
+    } finally {
+      setIsAttaching(false);
+    }
+  };
 
   const handleFileUpload = async () => {
     const file = fileInputRef.current?.files?.[0];
@@ -168,6 +191,8 @@ export function JobFormModal({
       notes: notes || undefined,
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
+      attachmentUrl: attachment?.url,
+      attachmentName: attachment?.name,
       jobNumber: jobNumber || undefined,
       name: name || undefined,
       customer: finalCustomer || undefined,
@@ -191,6 +216,7 @@ export function JobFormModal({
     setAssignedTo('__none__');
     setNotes('');
     setUploadedFile(null);
+    setAttachment(null);
     setJobNumber('');
     setName('');
     setCustomer('');
@@ -354,7 +380,7 @@ export function JobFormModal({
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job title..." required className="rounded-lg h-11 bg-background border-border" />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Initial Stage</Label>
               <Select value={departmentId} onValueChange={setDepartmentId}>
@@ -399,6 +425,35 @@ export function JobFormModal({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* Attachment: one extra side file (no OCR). */}
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Attachment</Label>
+              <input
+                type="file"
+                ref={attachInputRef}
+                className="hidden"
+                onChange={handleAttachUpload}
+              />
+              <Button
+                type="button"
+                onClick={() => attachInputRef.current?.click()}
+                disabled={isAttaching}
+                variant="outline"
+                title={attachment?.name}
+                className="w-full h-11 rounded-lg bg-background border-border hover:bg-muted text-card-foreground font-medium justify-start gap-2 overflow-hidden"
+              >
+                {isAttaching ? (
+                  <Loader2 size={16} className="animate-spin flex-shrink-0" />
+                ) : attachment ? (
+                  <Check size={16} className="text-emerald-500 flex-shrink-0" />
+                ) : (
+                  <Paperclip size={16} className="flex-shrink-0" />
+                )}
+                <span className="truncate text-xs">
+                  {attachment ? attachment.name : 'Attach file'}
+                </span>
+              </Button>
             </div>
           </div>
 

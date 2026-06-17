@@ -36,6 +36,8 @@ export interface Job {
   assignedTo?: string;
   fileUrl?: string;
   fileName?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
   previewUrl?: string;
   pageCount?: number;
   notes?: string;
@@ -66,6 +68,8 @@ export interface CreateJobInput {
   notes?: string;
   fileUrl?: string;
   fileName?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
   previewUrl?: string;
   pageCount?: number;
   // New fields for job tracking

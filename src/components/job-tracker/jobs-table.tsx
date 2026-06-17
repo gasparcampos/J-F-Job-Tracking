@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Clock, Trash2, Eye, Pencil } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -123,19 +123,33 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                {job.fileUrl ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewPdf?.(job)}
-                    className="flex items-center gap-2 text-primary hover:bg-primary/10"
-                  >
-                    <Eye size={14} />
-                    View
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
+                <div className="flex flex-col items-start gap-1">
+                  {job.fileUrl ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewPdf?.(job)}
+                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
+                    >
+                      <Eye size={14} />
+                      View
+                    </Button>
+                  ) : (
+                    !job.attachmentUrl && <span className="text-muted-foreground">—</span>
+                  )}
+                  {job.attachmentUrl && (
+                    <a
+                      href={job.attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={job.attachmentName}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-2"
+                    >
+                      <Paperclip size={12} className="flex-shrink-0" />
+                      <span className="truncate max-w-[120px]">{job.attachmentName || 'Attachment'}</span>
+                    </a>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="px-6 py-4">
                 <span className="text-xs text-muted-foreground line-clamp-2 max-w-[360px] block">
