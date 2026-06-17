@@ -95,12 +95,12 @@ export function JobsTable({
         <TableBody>
           {jobs.map((job) => (
             <TableRow key={job.id} className="hover:bg-muted/30 border-b border-border transition-colors">
-              <TableCell className="px-6 py-4">
+              <TableCell className="px-6 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2.5 rounded-lg">
+                  <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
                     <FileText size={16} className="text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     {(job.customer || job.dwgNumber || job.partNumber) && (
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mb-0.5">
                         {job.customer && (
@@ -114,37 +114,41 @@ export function JobsTable({
                         )}
                       </div>
                     )}
-                    <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
+                    {/* Title + due badge / attachment on the same line so the
+                        row stays thin (important with 40-50 records). */}
+                    <div className="flex items-center gap-3">
+                      <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
+                      {(() => {
+                        const di = getDueInfo(job.dueDate);
+                        if (!di && !job.attachmentUrl) return null;
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap ml-auto flex-shrink-0">
+                            {di && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${di.className}`}>
+                                Due {di.dateStr} · {di.label}
+                              </span>
+                            )}
+                            {job.attachmentUrl && (
+                              <a
+                                href={job.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={job.attachmentName}
+                                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                              >
+                                <Paperclip size={11} className="flex-shrink-0" />
+                                <span className="truncate max-w-[140px]">{job.attachmentName || 'Attachment'}</span>
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     {job.description && (
                       <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                         {job.description}
                       </p>
                     )}
-                    {(() => {
-                      const di = getDueInfo(job.dueDate);
-                      if (!di && !job.attachmentUrl) return null;
-                      return (
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          {di && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${di.className}`}>
-                              Due {di.dateStr} · {di.label}
-                            </span>
-                          )}
-                          {job.attachmentUrl && (
-                            <a
-                              href={job.attachmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={job.attachmentName}
-                              className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                            >
-                              <Paperclip size={11} className="flex-shrink-0" />
-                              <span className="truncate max-w-[140px]">{job.attachmentName || 'Attachment'}</span>
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })()}
                   </div>
                 </div>
               </TableCell>
