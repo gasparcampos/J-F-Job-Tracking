@@ -42,7 +42,7 @@ export function JobsTable({
   // Due-date urgency color:
   //   red    = overdue (1+ days past due)
   //   yellow = due within 1-20 days (incl. today)
-  //   orange = more than 20 days out
+  //   green  = more than 20 days out
   const getDueInfo = (dueDate?: string) => {
     if (!dueDate) return null;
     const m = String(dueDate).match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -54,7 +54,7 @@ export function JobsTable({
     let className: string;
     if (days < 0) className = 'bg-red-500 text-white';
     else if (days <= 20) className = 'bg-yellow-400 text-black';
-    else className = 'bg-orange-500 text-white';
+    else className = 'bg-green-500 text-white';
     const label =
       days < 0
         ? `${Math.abs(days)}d overdue`
