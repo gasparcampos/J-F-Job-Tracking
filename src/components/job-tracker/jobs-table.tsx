@@ -76,6 +76,19 @@ export function JobsTable({
                     <FileText size={16} className="text-primary" />
                   </div>
                   <div>
+                    {(job.customer || job.dwgNumber || job.partNumber) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mb-0.5">
+                        {job.customer && (
+                          <span><span className="font-semibold text-card-foreground/70">Company:</span> {job.customer}</span>
+                        )}
+                        {job.dwgNumber && (
+                          <span><span className="font-semibold text-card-foreground/70">DWG#:</span> {job.dwgNumber}</span>
+                        )}
+                        {job.partNumber && (
+                          <span><span className="font-semibold text-card-foreground/70">Part#:</span> {job.partNumber}</span>
+                        )}
+                      </div>
+                    )}
                     <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
                     {job.description && (
                       <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
