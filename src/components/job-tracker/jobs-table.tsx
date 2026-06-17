@@ -129,33 +129,17 @@ export function JobsTable({
                         )}
                       </div>
                     )}
-                    {/* Title + due badge / attachment on the same line so the
-                        row stays thin (important with 40-50 records). */}
+                    {/* Title + due badge on the same line so the row stays
+                        thin (important with 40-50 records). */}
                     <div className="flex items-center gap-3">
                       <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
                       {(() => {
                         const di = getDueInfo(job.dueDate);
-                        if (!di && !job.attachmentUrl) return null;
+                        if (!di) return null;
                         return (
-                          <div className="flex items-center gap-2 flex-wrap ml-auto flex-shrink-0">
-                            {di && (
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${di.className}`}>
-                                Due {di.dateStr} · {di.label}
-                              </span>
-                            )}
-                            {job.attachmentUrl && (
-                              <a
-                                href={job.attachmentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={job.attachmentName}
-                                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                              >
-                                <Paperclip size={11} className="flex-shrink-0" />
-                                <span className="truncate max-w-[140px]">{job.attachmentName || 'Attachment'}</span>
-                              </a>
-                            )}
-                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ml-auto flex-shrink-0 ${di.className}`}>
+                            Due {di.dateStr} · {di.label}
+                          </span>
                         );
                       })()}
                     </div>
@@ -197,19 +181,33 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                {job.fileUrl ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewPdf?.(job)}
-                    className="flex items-center gap-2 text-primary hover:bg-primary/10"
-                  >
-                    <Eye size={14} />
-                    View
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {job.fileUrl ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewPdf?.(job)}
+                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
+                    >
+                      <Eye size={14} />
+                      View
+                    </Button>
+                  ) : (
+                    !job.attachmentUrl && <span className="text-muted-foreground">—</span>
+                  )}
+                  {job.attachmentUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(job.attachmentUrl, '_blank', 'noopener')}
+                      title={job.attachmentName}
+                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
+                    >
+                      <Paperclip size={14} />
+                      Attachment
+                    </Button>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="px-6 py-4">
                 <div className="flex items-center justify-end gap-2">
