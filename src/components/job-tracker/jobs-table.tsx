@@ -48,19 +48,19 @@ export function JobsTable({
               Job
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Status
+              Priority
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Priority
+              Status
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Assigned
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              File
+              Notes
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Notes
+              File
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-right">
               Actions
@@ -99,6 +99,15 @@ export function JobsTable({
                 </div>
               </TableCell>
               <TableCell className="px-6 py-4">
+                <span
+                  className={`font-bold text-xs px-3 py-1.5 rounded-lg ${
+                    priorityColors[job.priority] || priorityColors[3]
+                  }`}
+                >
+                  P{job.priority}
+                </span>
+              </TableCell>
+              <TableCell className="px-6 py-4">
                 <Badge
                   className="text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg"
                   style={{
@@ -109,17 +118,13 @@ export function JobsTable({
                 </Badge>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <span
-                  className={`font-bold text-xs px-3 py-1.5 rounded-lg ${
-                    priorityColors[job.priority] || priorityColors[3]
-                  }`}
-                >
-                  P{job.priority}
+                <span className="text-sm text-card-foreground font-medium">
+                  {job.assignedTo || '—'}
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <span className="text-sm text-card-foreground font-medium">
-                  {job.assignedTo || '—'}
+                <span className="text-xs text-muted-foreground line-clamp-2 max-w-[360px] block">
+                  {job.notes || '—'}
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
@@ -150,11 +155,6 @@ export function JobsTable({
                     </a>
                   )}
                 </div>
-              </TableCell>
-              <TableCell className="px-6 py-4">
-                <span className="text-xs text-muted-foreground line-clamp-2 max-w-[360px] block">
-                  {job.notes || '—'}
-                </span>
               </TableCell>
               <TableCell className="px-6 py-4">
                 <div className="flex items-center justify-end gap-2">
