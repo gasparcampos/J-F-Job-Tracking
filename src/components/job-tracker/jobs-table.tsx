@@ -39,6 +39,31 @@ export function JobsTable({
     5: 'bg-emerald-500 text-white',
   };
 
+  // Due-date urgency color:
+  //   red    = overdue (1+ days past due)
+  //   yellow = due within 1-20 days (incl. today)
+  //   orange = more than 20 days out
+  const getDueInfo = (dueDate?: string) => {
+    if (!dueDate) return null;
+    const m = String(dueDate).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+    let className: string;
+    if (days < 0) className = 'bg-red-500 text-white';
+    else if (days <= 20) className = 'bg-yellow-400 text-black';
+    else className = 'bg-orange-500 text-white';
+    const label =
+      days < 0
+        ? `${Math.abs(days)}d overdue`
+        : days === 0
+        ? 'Due today'
+        : `${days}d left`;
+    return { className, label, dateStr: `${m[2]}/${m[3]}/${m[1]}` };
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
       <Table>
@@ -95,6 +120,31 @@ export function JobsTable({
                         {job.description}
                       </p>
                     )}
+                    {(() => {
+                      const di = getDueInfo(job.dueDate);
+                      if (!di && !job.attachmentUrl) return null;
+                      return (
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          {di && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${di.className}`}>
+                              Due {di.dateStr} · {di.label}
+                            </span>
+                          )}
+                          {job.attachmentUrl && (
+                            <a
+                              href={job.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={job.attachmentName}
+                              className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                            >
+                              <Paperclip size={11} className="flex-shrink-0" />
+                              <span className="truncate max-w-[140px]">{job.attachmentName || 'Attachment'}</span>
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </TableCell>
@@ -128,33 +178,19 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <div className="flex flex-col items-start gap-1">
-                  {job.fileUrl ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onViewPdf?.(job)}
-                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
-                    >
-                      <Eye size={14} />
-                      View
-                    </Button>
-                  ) : (
-                    !job.attachmentUrl && <span className="text-muted-foreground">—</span>
-                  )}
-                  {job.attachmentUrl && (
-                    <a
-                      href={job.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={job.attachmentName}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-2"
-                    >
-                      <Paperclip size={12} className="flex-shrink-0" />
-                      <span className="truncate max-w-[120px]">{job.attachmentName || 'Attachment'}</span>
-                    </a>
-                  )}
-                </div>
+                {job.fileUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewPdf?.(job)}
+                    className="flex items-center gap-2 text-primary hover:bg-primary/10"
+                  >
+                    <Eye size={14} />
+                    View
+                  </Button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell className="px-6 py-4">
                 <div className="flex items-center justify-end gap-2">
