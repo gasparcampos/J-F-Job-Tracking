@@ -138,7 +138,7 @@ export function JobsTable({
                 )}
               </TableCell>
               <TableCell className="px-6 py-4">
-                <span className="text-xs text-muted-foreground truncate max-w-[150px] block">
+                <span className="text-xs text-muted-foreground line-clamp-2 max-w-[360px] block">
                   {job.notes || '—'}
                 </span>
               </TableCell>
