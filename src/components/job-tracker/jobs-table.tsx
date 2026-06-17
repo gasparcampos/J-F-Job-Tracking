@@ -39,18 +39,33 @@ export function JobsTable({
     5: 'bg-emerald-500 text-white',
   };
 
+  // Days until the due date (negative = overdue). No date -> +Infinity so
+  // those rows sort to the bottom.
+  const daysUntil = (dueDate?: string): number => {
+    if (!dueDate) return Infinity;
+    const m = String(dueDate).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return Infinity;
+    const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((due.getTime() - today.getTime()) / 86400000);
+  };
+
+  // Sort by urgency: overdue (red) first, then due-soon (yellow), then
+  // far-out (green), then jobs without a due date.
+  const sortedJobs = [...jobs].sort(
+    (a, b) => daysUntil(a.dueDate) - daysUntil(b.dueDate)
+  );
+
   // Due-date urgency color:
   //   red    = overdue (1+ days past due)
   //   yellow = due within 1-20 days (incl. today)
   //   green  = more than 20 days out
   const getDueInfo = (dueDate?: string) => {
     if (!dueDate) return null;
+    const days = daysUntil(dueDate);
     const m = String(dueDate).match(/(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return null;
-    const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
     let className: string;
     if (days < 0) className = 'bg-red-500 text-white';
     else if (days <= 20) className = 'bg-yellow-400 text-black';
@@ -93,7 +108,7 @@ export function JobsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {jobs.map((job) => (
+          {sortedJobs.map((job) => (
             <TableRow key={job.id} className="hover:bg-muted/30 border-b border-border transition-colors">
               <TableCell className="px-6 py-3">
                 <div className="flex items-center gap-3">
