@@ -186,7 +186,7 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-3 py-4 align-middle">
-                <div className="flex flex-row flex-wrap items-center justify-end gap-x-1.5 gap-y-1">
+                <div className="flex flex-row flex-nowrap items-center justify-end gap-x-1.5">
                   {job.fileUrl && (
                     <button
                       type="button"
