@@ -66,11 +66,13 @@ export async function PUT(
         }
       }
 
-      // Update job department
+      // Update job department. Moving to a new stage always clears the
+      // in-progress flag (a job can't stay "in progress" across stages).
       const updatedJob = await jobsDB.update(id, {
         departmentId: body.targetDeptId,
         assignedTo: employeeName || currentJob.assignedTo,
         notes: body.notes,
+        inProgress: false,
       });
 
       if (updatedJob) {

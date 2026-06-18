@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Pause, Flame, ArrowRightLeft, FileImage } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
@@ -213,21 +213,25 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
 
       {/* Action buttons - single compact row */}
       <div className="flex gap-1.5 items-stretch" onPointerDown={(e) => e.stopPropagation()}>
-        {/* In Progress */}
-        <Button
-          onClick={() => onToggleInProgress?.(job)}
-          className={`flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] transition-all ${
-            isInProgress
-              ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-              : 'bg-muted hover:bg-orange-600 text-muted-foreground hover:text-white border border-border'
-          }`}
-        >
-          {isInProgress ? (
-            <><Pause size={12} className="mr-1" />Stop</>
-          ) : (
-            <><Play size={12} className="mr-1" />Progress</>
-          )}
-        </Button>
+        {/* In Progress — can be started, but not stopped manually. Once in
+            progress it stays so until the job is completed/moved, which clears
+            it automatically. */}
+        {isInProgress ? (
+          <div
+            className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-orange-600 text-white shadow-lg shadow-orange-500/30 cursor-default select-none"
+            title="In progress — completing the job will stop it"
+          >
+            <Flame size={12} className="mr-1 animate-pulse" />
+            In Progress
+          </div>
+        ) : (
+          <Button
+            onClick={() => onToggleInProgress?.(job)}
+            className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] transition-all bg-muted hover:bg-orange-600 text-muted-foreground hover:text-white border border-border"
+          >
+            <Play size={12} className="mr-1" />Progress
+          </Button>
+        )}
 
         {/* Complete */}
         <Button
