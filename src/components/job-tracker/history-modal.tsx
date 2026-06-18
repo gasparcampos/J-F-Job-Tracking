@@ -1,7 +1,6 @@
 'use client';
 
 import { X, Clock, User, FileText } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import type { Job, Department } from '@/types';
 
@@ -14,10 +13,15 @@ interface HistoryModalProps {
 export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
   if (!job) return null;
 
+  // Newest entries first.
+  const sortedHistory = [...job.history].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-border animate-in zoom-in-95 duration-200">
-        <div className="bg-card border-b border-border px-8 py-5 flex justify-between items-center">
+      <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-border animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+        <div className="flex-shrink-0 bg-card border-b border-border px-8 py-5 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-primary p-2 rounded-lg">
               <Clock size={18} className="text-primary-foreground" />
@@ -35,15 +39,15 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
           </button>
         </div>
 
-        <ScrollArea className="max-h-[60vh] p-6">
-          {job.history.length === 0 ? (
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+          {sortedHistory.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <Clock size={40} className="mx-auto mb-3 opacity-30" />
               <p className="font-medium italic">No hay registros</p>
             </div>
           ) : (
             <div className="border-l-2 border-border ml-4 space-y-5">
-              {job.history.map((log, idx) => (
+              {sortedHistory.map((log, idx) => (
                 <div key={log.id || idx} className="relative pl-8">
                   <div
                     className="absolute left-[-9px] top-1 w-4 h-4 rounded-full border-4 border-card shadow-md"
@@ -88,9 +92,9 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
-        <div className="p-4 bg-card border-t border-border">
+        <div className="flex-shrink-0 p-4 bg-card border-t border-border">
           <Button
             variant="outline"
             onClick={onClose}
