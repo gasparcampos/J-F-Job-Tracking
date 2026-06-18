@@ -23,6 +23,7 @@ export interface StoredJob {
   fileName?: string;
   attachmentUrl?: string;
   attachmentName?: string;
+  attachments?: Array<{ url: string; name: string }>;
   previewUrl?: string;
   pageCount?: number;
   notes?: string;
@@ -142,6 +143,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     fileName: data.fileName,
     attachmentUrl: data.attachmentUrl,
     attachmentName: data.attachmentName,
+    attachments: Array.isArray(data.attachments) ? data.attachments : undefined,
     previewUrl: data.previewUrl,
     pageCount: data.pageCount,
     notes: data.notes,

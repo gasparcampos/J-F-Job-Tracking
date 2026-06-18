@@ -346,7 +346,32 @@ export default function Home() {
     }
   };
 
-  // Upload + attach a file to an existing job (from the table).
+  // Merge the legacy single attachment + the attachments array into one list.
+  const mergeAttachments = (job: Job): Array<{ url: string; name: string }> => {
+    const list = [...(job.attachments ?? [])];
+    if (job.attachmentUrl) {
+      list.unshift({ url: job.attachmentUrl, name: job.attachmentName || 'Attachment' });
+    }
+    return list;
+  };
+
+  // Persist a new attachments list, clearing the legacy single fields so we
+  // keep a single source of truth.
+  const saveAttachments = async (
+    job: Job,
+    attachments: Array<{ url: string; name: string }>
+  ) => {
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attachments, attachmentUrl: '', attachmentName: '' }),
+    });
+    const updated = await res.json();
+    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+  };
+
+  // Upload + attach a file to an existing job (from the table). Supports
+  // multiple attachments per job (e.g. revisions).
   const handleAttachToJob = async (job: Job, file: File) => {
     try {
       const fd = new FormData();
@@ -355,17 +380,28 @@ export default function Home() {
       const up = await upRes.json();
       if (!up.success) throw new Error('upload failed');
 
-      const res = await fetch(`/api/jobs/${job.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attachmentUrl: up.fileUrl, attachmentName: up.fileName }),
-      });
-      const updated = await res.json();
-      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      await saveAttachments(job, [
+        ...mergeAttachments(job),
+        { url: up.fileUrl, name: up.fileName },
+      ]);
       toast({ title: 'Success', description: 'Attachment added' });
     } catch (error) {
       console.error('Error attaching file:', error);
       toast({ title: 'Error', description: 'Could not attach file', variant: 'destructive' });
+    }
+  };
+
+  // Remove one attachment from a job (e.g. an outdated revision).
+  const handleRemoveAttachment = async (job: Job, url: string) => {
+    try {
+      await saveAttachments(
+        job,
+        mergeAttachments(job).filter((a) => a.url !== url)
+      );
+      toast({ title: 'Removed', description: 'Attachment removed' });
+    } catch (error) {
+      console.error('Error removing attachment:', error);
+      toast({ title: 'Error', description: 'Could not remove attachment', variant: 'destructive' });
     }
   };
 
@@ -725,6 +761,7 @@ export default function Home() {
             onViewPdf={setPdfJob}
             onEditJob={setEditingJob}
             onAttachFile={handleAttachToJob}
+            onRemoveAttachment={handleRemoveAttachment}
           />
         )}
       </main>

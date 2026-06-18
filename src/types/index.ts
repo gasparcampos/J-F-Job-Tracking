@@ -38,6 +38,7 @@ export interface Job {
   fileName?: string;
   attachmentUrl?: string;
   attachmentName?: string;
+  attachments?: Array<{ url: string; name: string }>;
   previewUrl?: string;
   pageCount?: number;
   notes?: string;

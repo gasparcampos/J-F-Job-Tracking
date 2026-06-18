@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2 } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -22,6 +22,7 @@ interface JobsTableProps {
   onViewPdf?: (job: Job) => void;
   onEditJob?: (job: Job) => void;
   onAttachFile?: (job: Job, file: File) => Promise<void> | void;
+  onRemoveAttachment?: (job: Job, url: string) => Promise<void> | void;
 }
 
 export function JobsTable({
@@ -32,6 +33,7 @@ export function JobsTable({
   onViewPdf,
   onEditJob,
   onAttachFile,
+  onRemoveAttachment,
 }: JobsTableProps) {
   // Which row is currently uploading an attachment (shows a spinner).
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -43,6 +45,22 @@ export function JobsTable({
       await onAttachFile(job, file);
     } finally {
       setUploadingId(null);
+    }
+  };
+
+  // Merge the legacy single attachment + the attachments array into one list.
+  const getAttachments = (job: Job): Array<{ url: string; name: string }> => {
+    const list = [...(job.attachments ?? [])];
+    if (job.attachmentUrl) {
+      list.unshift({ url: job.attachmentUrl, name: job.attachmentName || 'Attachment' });
+    }
+    return list;
+  };
+
+  const handleRemove = (job: Job, url: string, name: string) => {
+    if (!onRemoveAttachment) return;
+    if (window.confirm(`Remove attachment "${name}"?`)) {
+      onRemoveAttachment(job, url);
     }
   };
   // Modern priority colors - solid
@@ -196,8 +214,8 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  {job.fileUrl ? (
+                <div className="flex flex-col items-start gap-1.5">
+                  {job.fileUrl && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -207,22 +225,35 @@ export function JobsTable({
                       <Eye size={14} />
                       View
                     </Button>
-                  ) : (
-                    !job.attachmentUrl && <span className="text-muted-foreground">—</span>
                   )}
-                  {job.attachmentUrl && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(job.attachmentUrl, '_blank', 'noopener')}
-                      title={job.attachmentName}
-                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
-                    >
-                      <Paperclip size={14} />
-                      Attachment
-                    </Button>
+                  {/* Each extra attachment: open it, or remove it (revisions). */}
+                  {getAttachments(job).map((att) => (
+                    <div key={att.url} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => window.open(att.url, '_blank', 'noopener')}
+                        title={att.name}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 rounded-md px-2 py-1 max-w-[160px] transition-colors"
+                      >
+                        <Paperclip size={13} className="flex-shrink-0" />
+                        <span className="truncate">{att.name}</span>
+                      </button>
+                      {onRemoveAttachment && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(job, att.url, att.name)}
+                          title="Remove attachment"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md p-1 transition-colors"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!job.fileUrl && getAttachments(job).length === 0 && (
+                    <span className="text-muted-foreground">—</span>
                   )}
-                  {onAttachFile && !job.attachmentUrl && (
+                  {onAttachFile && (
                     <label className="cursor-pointer">
                       <input
                         type="file"
@@ -233,7 +264,7 @@ export function JobsTable({
                           e.target.value = '';
                         }}
                       />
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md px-2 py-1.5 transition-colors">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md px-2 py-1 transition-colors">
                         {uploadingId === job.id ? (
                           <Loader2 size={14} className="animate-spin" />
                         ) : (
