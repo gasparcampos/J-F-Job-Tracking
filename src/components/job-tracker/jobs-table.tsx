@@ -1,6 +1,7 @@
 'use client';
 
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,6 +21,7 @@ interface JobsTableProps {
   onDeleteJob: (jobId: string) => void;
   onViewPdf?: (job: Job) => void;
   onEditJob?: (job: Job) => void;
+  onAttachFile?: (job: Job, file: File) => Promise<void> | void;
 }
 
 export function JobsTable({
@@ -29,7 +31,20 @@ export function JobsTable({
   onDeleteJob,
   onViewPdf,
   onEditJob,
+  onAttachFile,
 }: JobsTableProps) {
+  // Which row is currently uploading an attachment (shows a spinner).
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  const handleAttachChange = async (job: Job, file: File | undefined) => {
+    if (!file || !onAttachFile) return;
+    setUploadingId(job.id);
+    try {
+      await onAttachFile(job, file);
+    } finally {
+      setUploadingId(null);
+    }
+  };
   // Modern priority colors - solid
   const priorityColors: Record<number, string> = {
     1: 'bg-red-500 text-white',
@@ -206,6 +221,27 @@ export function JobsTable({
                       <Paperclip size={14} />
                       Attachment
                     </Button>
+                  )}
+                  {onAttachFile && !job.attachmentUrl && (
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={uploadingId === job.id}
+                        onChange={(e) => {
+                          handleAttachChange(job, e.target.files?.[0]);
+                          e.target.value = '';
+                        }}
+                      />
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md px-2 py-1.5 transition-colors">
+                        {uploadingId === job.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Paperclip size={14} />
+                        )}
+                        {uploadingId === job.id ? 'Uploading…' : 'Attach'}
+                      </span>
+                    </label>
                   )}
                 </div>
               </TableCell>

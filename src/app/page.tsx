@@ -346,6 +346,29 @@ export default function Home() {
     }
   };
 
+  // Upload + attach a file to an existing job (from the table).
+  const handleAttachToJob = async (job: Job, file: File) => {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const upRes = await fetch('/api/upload', { method: 'POST', body: fd });
+      const up = await upRes.json();
+      if (!up.success) throw new Error('upload failed');
+
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachmentUrl: up.fileUrl, attachmentName: up.fileName }),
+      });
+      const updated = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      toast({ title: 'Success', description: 'Attachment added' });
+    } catch (error) {
+      console.error('Error attaching file:', error);
+      toast({ title: 'Error', description: 'Could not attach file', variant: 'destructive' });
+    }
+  };
+
   const handleMoveJob = async (employeeName: string, notes: string) => {
     if (!movingJob || !targetDepartment) return;
 
@@ -701,6 +724,7 @@ export default function Home() {
             onDeleteJob={handleDeleteJob}
             onViewPdf={setPdfJob}
             onEditJob={setEditingJob}
+            onAttachFile={handleAttachToJob}
           />
         )}
       </main>
