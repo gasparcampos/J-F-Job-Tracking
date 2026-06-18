@@ -113,29 +113,29 @@ export function JobsTable({
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
+    <div className="w-full bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[20%]">
               Job
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[6%]">
               Priority
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[12%]">
               Status
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[9%]">
               Assigned
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[38%]">
               Notes
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-right w-[8%]">
               File
             </TableHead>
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-right">
+            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-right w-[7%]">
               Actions
             </TableHead>
           </TableRow>
@@ -148,7 +148,7 @@ export function JobsTable({
                   <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
                     <FileText size={16} className="text-primary" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 max-w-[230px]">
                     {(job.customer || job.dwgNumber || job.partNumber) && (
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mb-0.5">
                         {job.customer && (
@@ -164,8 +164,8 @@ export function JobsTable({
                     )}
                     {/* Title + due badge on the same line so the row stays
                         thin (important with 40-50 records). */}
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <p className="font-semibold text-sm text-card-foreground truncate min-w-0">{job.title}</p>
                       {(() => {
                         const di = getDueInfo(job.dueDate);
                         if (!di) return null;
@@ -184,18 +184,18 @@ export function JobsTable({
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="px-6 py-4">
+              <TableCell className="px-3 py-4">
                 <span
-                  className={`font-bold text-xs px-3 py-1.5 rounded-lg ${
+                  className={`font-bold text-xs px-2.5 py-1.5 rounded-lg ${
                     priorityColors[job.priority] || priorityColors[3]
                   }`}
                 >
                   P{job.priority}
                 </span>
               </TableCell>
-              <TableCell className="px-6 py-4">
+              <TableCell className="px-3 py-4">
                 <Badge
-                  className="text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg"
+                  className="text-white text-[9px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg whitespace-normal text-left leading-tight"
                   style={{
                     backgroundColor: departments.find((d) => d.id === job.departmentId)?.color,
                   }}
@@ -203,28 +203,27 @@ export function JobsTable({
                   {departments.find((d) => d.id === job.departmentId)?.name}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4">
-                <span className="text-sm text-card-foreground font-medium">
+              <TableCell className="px-3 py-4">
+                <span className="text-sm text-card-foreground font-medium truncate block">
                   {job.assignedTo || '—'}
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <span className="text-xs text-muted-foreground line-clamp-2 max-w-[360px] block">
+                <span className="text-xs text-muted-foreground line-clamp-3 block min-w-[380px]">
                   {job.notes || '—'}
                 </span>
               </TableCell>
-              <TableCell className="px-6 py-4">
-                <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
+              <TableCell className="px-3 py-4 align-middle">
+                <div className="flex flex-row flex-wrap items-center justify-end gap-x-1.5 gap-y-1">
                   {job.fileUrl && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => onViewPdf?.(job)}
-                      className="flex items-center gap-2 text-primary hover:bg-primary/10"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:bg-primary/10 rounded-md px-2 py-1 transition-colors"
                     >
-                      <Eye size={14} />
+                      <Eye size={13} />
                       View
-                    </Button>
+                    </button>
                   )}
                   {/* Each extra attachment: open it, or remove it (revisions). */}
                   {getAttachments(job).map((att) => (
@@ -233,7 +232,7 @@ export function JobsTable({
                         type="button"
                         onClick={() => window.open(att.url, '_blank', 'noopener')}
                         title={att.name}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 rounded-md px-2 py-1 max-w-[160px] transition-colors"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 rounded-md px-2 py-1 max-w-[120px] transition-colors"
                       >
                         <Paperclip size={13} className="flex-shrink-0" />
                         <span className="truncate">{att.name}</span>
@@ -276,33 +275,34 @@ export function JobsTable({
                   )}
                 </div>
               </TableCell>
-              <TableCell className="px-6 py-4">
-                <div className="flex items-center justify-end gap-2">
+              <TableCell className="px-3 py-4">
+                <div className="flex items-center justify-end gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onEditJob?.(job)}
-                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                     title="Edit job"
                   >
-                    <Pencil size={18} />
+                    <Pencil size={16} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onViewHistory(job)}
-                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                     title="History"
                   >
-                    <Clock size={18} />
+                    <Clock size={16} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onDeleteJob(job.id)}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                    title="Delete job"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </Button>
                 </div>
               </TableCell>
