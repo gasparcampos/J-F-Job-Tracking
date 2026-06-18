@@ -560,6 +560,23 @@ export default function Home() {
     }
   };
 
+  // Change a job's priority from the card dropdown. Lower number = higher
+  // priority; the column re-sorts so the card moves up/down accordingly.
+  const handleChangePriority = async (job: Job, priority: number) => {
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority }),
+      });
+      const updated = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    } catch (error) {
+      console.error('Error changing priority:', error);
+      toast({ title: 'Error', description: 'Could not change priority', variant: 'destructive' });
+    }
+  };
+
   const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string) => {
     if (!moveToAnyJob) return;
 
@@ -718,7 +735,12 @@ export default function Home() {
               {departments.map((dept) => {
                 const deptJobs = filteredJobs
                   .filter((j) => j.departmentId === dept.id)
-                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  // Sort by priority (P1 at top), then manual order as tiebreaker.
+                  .sort(
+                    (a, b) =>
+                      (a.priority ?? 3) - (b.priority ?? 3) ||
+                      (a.order ?? 0) - (b.order ?? 0)
+                  );
                 
                 return (
                   <KanbanColumn
@@ -732,6 +754,7 @@ export default function Home() {
                     onViewPdf={setPdfJob}
                     onToggleInProgress={handleToggleInProgress}
                     onMoveToAnyDept={setMoveToAnyJob}
+                    onChangePriority={handleChangePriority}
                     canMoveToAnyDept={true}
                     highlightJobs={!!searchQuery.trim()}
                   />

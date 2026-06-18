@@ -214,7 +214,7 @@ export function JobsTable({
                 </span>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <div className="flex flex-col items-start gap-1.5">
+                <div className="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
                   {job.fileUrl && (
                     <Button
                       variant="ghost"

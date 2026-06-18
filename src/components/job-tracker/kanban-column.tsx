@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   onViewPdf?: (job: Job) => void;
   onToggleInProgress?: (job: Job) => void;
   onMoveToAnyDept?: (job: Job) => void;
+  onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
   highlightJobs?: boolean;
 }
@@ -30,6 +31,7 @@ export function KanbanColumn({
   onViewPdf,
   onToggleInProgress,
   onMoveToAnyDept,
+  onChangePriority,
   canMoveToAnyDept,
   highlightJobs,
 }: KanbanColumnProps) {
@@ -81,6 +83,7 @@ export function KanbanColumn({
               onViewPdf={onViewPdf}
               onToggleInProgress={onToggleInProgress}
               onMoveToAnyDept={onMoveToAnyDept}
+              onChangePriority={onChangePriority}
               canMoveToAnyDept={canMoveToAnyDept}
               highlight={highlightJobs}
             />

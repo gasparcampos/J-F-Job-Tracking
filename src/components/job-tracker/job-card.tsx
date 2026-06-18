@@ -17,11 +17,14 @@ interface JobCardProps {
   onViewPdf?: (job: Job) => void;
   onToggleInProgress?: (job: Job) => void;
   onMoveToAnyDept?: (job: Job) => void;
+  onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
   highlight?: boolean;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, canMoveToAnyDept, highlight }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight }: JobCardProps) {
+  // Priority dropdown open state (click the P-badge to change priority).
+  const [priorityOpen, setPriorityOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -94,11 +97,49 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             {job.title}
           </h4>
         </div>
-        <Badge 
-          className={`text-[10px] font-bold uppercase tracking-wider ${priorityColors[job.priority] || priorityColors[3]}`}
-        >
-          P{job.priority}
-        </Badge>
+        {/* Priority badge — click to change priority from a dropdown.
+            Lower number = higher priority, moves the card up the column. */}
+        {onChangePriority ? (
+          <div className="relative flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPriorityOpen((o) => !o)}
+              title="Change priority"
+              className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-transform hover:scale-105 ${priorityColors[job.priority] || priorityColors[3]}`}
+            >
+              P{job.priority}
+            </button>
+            {priorityOpen && (
+              <>
+                {/* Click-away backdrop */}
+                <div className="fixed inset-0 z-40" onClick={() => setPriorityOpen(false)} />
+                <div className="absolute right-0 mt-1 z-50 bg-card border border-border rounded-lg shadow-xl p-1 flex flex-col gap-0.5">
+                  {[1, 2, 3, 4, 5].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => {
+                        if (p !== job.priority) onChangePriority(job, p);
+                        setPriorityOpen(false);
+                      }}
+                      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-md text-left transition-all ${priorityColors[p]} ${
+                        p === job.priority ? 'ring-2 ring-white/70' : 'opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      P{p}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <Badge
+            className={`text-[10px] font-bold uppercase tracking-wider ${priorityColors[job.priority] || priorityColors[3]}`}
+          >
+            P{job.priority}
+          </Badge>
+        )}
       </div>
 
 
