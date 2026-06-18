@@ -63,14 +63,6 @@ export function JobsTable({
       onRemoveAttachment(job, url);
     }
   };
-  // Modern priority colors - solid
-  const priorityColors: Record<number, string> = {
-    1: 'bg-red-500 text-white',
-    2: 'bg-orange-500 text-white',
-    3: 'bg-amber-500 text-white',
-    4: 'bg-blue-500 text-white',
-    5: 'bg-emerald-500 text-white',
-  };
 
   // Days until the due date (negative = overdue). No date -> +Infinity so
   // those rows sort to the bottom.
@@ -117,17 +109,11 @@ export function JobsTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
-            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[20%]">
+            <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[32%]">
               Job
-            </TableHead>
-            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[6%]">
-              Priority
             </TableHead>
             <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[12%]">
               Status
-            </TableHead>
-            <TableHead className="px-3 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[9%]">
-              Assigned
             </TableHead>
             <TableHead className="px-6 py-4 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-[38%]">
               Notes
@@ -148,7 +134,7 @@ export function JobsTable({
                   <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
                     <FileText size={16} className="text-primary" />
                   </div>
-                  <div className="flex-1 min-w-0 max-w-[230px]">
+                  <div className="flex-1 min-w-0 max-w-[460px]">
                     {(job.customer || job.dwgNumber || job.partNumber) && (
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mb-0.5">
                         {job.customer && (
@@ -165,7 +151,7 @@ export function JobsTable({
                     {/* Title + due badge on the same line so the row stays
                         thin (important with 40-50 records). */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <p className="font-semibold text-sm text-card-foreground truncate min-w-0">{job.title}</p>
+                      <p className="font-semibold text-sm text-card-foreground">{job.title}</p>
                       {(() => {
                         const di = getDueInfo(job.dueDate);
                         if (!di) return null;
@@ -177,21 +163,12 @@ export function JobsTable({
                       })()}
                     </div>
                     {job.description && (
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                      <p className="text-[10px] text-muted-foreground line-clamp-2 max-w-[440px]">
                         {job.description}
                       </p>
                     )}
                   </div>
                 </div>
-              </TableCell>
-              <TableCell className="px-3 py-4">
-                <span
-                  className={`font-bold text-xs px-2.5 py-1.5 rounded-lg ${
-                    priorityColors[job.priority] || priorityColors[3]
-                  }`}
-                >
-                  P{job.priority}
-                </span>
               </TableCell>
               <TableCell className="px-3 py-4">
                 <Badge
@@ -202,11 +179,6 @@ export function JobsTable({
                 >
                   {departments.find((d) => d.id === job.departmentId)?.name}
                 </Badge>
-              </TableCell>
-              <TableCell className="px-3 py-4">
-                <span className="text-sm text-card-foreground font-medium truncate block">
-                  {job.assignedTo || '—'}
-                </span>
               </TableCell>
               <TableCell className="px-6 py-4">
                 <span className="text-xs text-muted-foreground line-clamp-3 block min-w-[380px]">
