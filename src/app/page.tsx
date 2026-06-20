@@ -825,7 +825,7 @@ export default function Home() {
                     : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
                 }`}
               >
-                Activos
+                Active
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                     tableTab === 'active' ? 'bg-primary-foreground/20' : 'bg-background'
@@ -843,7 +843,7 @@ export default function Home() {
                     : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
                 }`}
               >
-                Enviados
+                Shipped
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                     tableTab === 'shipped' ? 'bg-white/20' : 'bg-background'

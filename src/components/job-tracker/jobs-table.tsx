@@ -180,20 +180,20 @@ export function JobsTable({
                   {departments.find((d) => d.id === job.departmentId)?.name}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4">
-                <div className="min-w-[380px] space-y-1.5">
-                  <span className="text-xs text-muted-foreground line-clamp-3 block">
+              <TableCell className="px-6 py-3">
+                <div className="min-w-[380px] flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground truncate">
                     {job.notes || '—'}
                   </span>
                   {job.outService && (
-                    <div className="flex items-start gap-1.5">
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5 flex-shrink-0">
+                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
                         Out Service
                       </span>
-                      <span className="text-[11px] text-amber-700 dark:text-amber-300 leading-tight">
+                      <span className="text-[11px] text-amber-700 dark:text-amber-300 whitespace-nowrap">
                         {job.outService}
                       </span>
-                    </div>
+                    </span>
                   )}
                 </div>
               </TableCell>
