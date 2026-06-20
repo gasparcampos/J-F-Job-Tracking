@@ -273,6 +273,22 @@ export function JobsTable({
               </TableCell>
               <TableCell className="px-3 py-4">
                 <div className="flex items-center justify-end gap-1">
+                  {/* DEV badge: shows a job carries a deviation and its outcome.
+                      Green = approved, gray = rejected. Click opens the job. */}
+                  {(job.deviationStatus === 'accepted' || job.deviationStatus === 'rejected') && (
+                    <button
+                      type="button"
+                      onClick={() => onEditJob?.(job)}
+                      title={`Deviation ${job.deviationStatus === 'accepted' ? 'approved' : 'rejected'}${job.deviation ? `: ${job.deviation}` : ''}`}
+                      className={`text-[9px] font-bold uppercase tracking-wider text-white rounded-md px-1.5 py-1 mr-1 transition-colors ${
+                        job.deviationStatus === 'accepted'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-zinc-600 hover:bg-zinc-700'
+                      }`}
+                    >
+                      DEV
+                    </button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
