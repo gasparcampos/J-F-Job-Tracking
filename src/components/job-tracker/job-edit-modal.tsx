@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Pencil, Save } from 'lucide-react';
+import { X, Pencil, Save, AlertTriangle, Check, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,6 +39,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
   const [assignedTo, setAssignedTo] = useState('__none__');
   const [notes, setNotes] = useState('');
   const [outService, setOutService] = useState('');
+  const [deviation, setDeviation] = useState('');
+  const [deviationStatus, setDeviationStatus] = useState<'pending' | 'accepted' | 'rejected' | ''>('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Load the job's current values whenever a new job is opened for editing.
@@ -59,6 +61,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     setAssignedTo(job.assignedTo || '__none__');
     setNotes(job.notes ?? '');
     setOutService(job.outService ?? '');
+    setDeviation(job.deviation ?? '');
+    setDeviationStatus(job.deviationStatus ?? '');
   }, [job]);
 
   if (!job) return null;
@@ -82,6 +86,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
         assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
         notes: notes.trim() || undefined,
         outService: outService.trim() || undefined,
+        deviation: deviation.trim() || undefined,
+        // Always send the status (incl. '') so resolving a deviation clears it.
+        deviationStatus,
       });
       // Keep the modal open if the save failed (e.g. duplicate JOB#).
       if (result === false) return;
@@ -202,6 +209,77 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service</Label>
             <Textarea value={outService} onChange={(e) => setOutService(e.target.value)} placeholder="Outside services (e.g. phosphate, NDE)..." rows={2} className="rounded-lg bg-background border-border resize-none" />
+          </div>
+
+          {/* Deviation: details + workflow button. A pending deviation moves
+              the job into the Deviations list until accepted/rejected. */}
+          <div className={`rounded-xl p-4 border ${deviationStatus === 'pending' ? 'border-red-500/60 bg-red-500/5' : 'border-border bg-muted/30'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <AlertTriangle size={13} className={deviationStatus === 'pending' ? 'text-red-500' : 'text-muted-foreground'} />
+                Deviation
+              </Label>
+              {deviationStatus === 'pending' && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-red-600 rounded-md px-2 py-0.5 animate-pulse">
+                  Pending
+                </span>
+              )}
+              {deviationStatus === 'accepted' && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-green-600 rounded-md px-2 py-0.5">
+                  Accepted
+                </span>
+              )}
+              {deviationStatus === 'rejected' && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-zinc-600 rounded-md px-2 py-0.5">
+                  Rejected
+                </span>
+              )}
+            </div>
+            <Textarea
+              value={deviation}
+              onChange={(e) => setDeviation(e.target.value)}
+              placeholder="Deviation details (reason, dimensions, disposition)..."
+              rows={2}
+              className="rounded-lg bg-background border-border resize-none"
+            />
+
+            {deviationStatus === 'pending' ? (
+              <div className="mt-3">
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  Deviation sent. Once reviewed, mark the outcome to return the job to the active list:
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setDeviationStatus('accepted')}
+                    className="flex-1 h-10 rounded-lg font-semibold uppercase tracking-wider bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Check size={15} className="mr-1.5" />
+                    Accepted
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setDeviationStatus('rejected')}
+                    className="flex-1 h-10 rounded-lg font-semibold uppercase tracking-wider bg-zinc-600 hover:bg-zinc-700 text-white"
+                  >
+                    <Ban size={15} className="mr-1.5" />
+                    Rejected
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => setDeviationStatus('pending')}
+                className="mt-3 w-full h-10 rounded-lg font-semibold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white"
+              >
+                <AlertTriangle size={15} className="mr-1.5" />
+                {deviationStatus ? 'Send Deviation Again' : 'Send Deviation'}
+              </Button>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Changes apply when you click <span className="font-semibold">Save Changes</span>.
+            </p>
           </div>
 
           <div>

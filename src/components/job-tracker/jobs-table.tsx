@@ -195,6 +195,18 @@ export function JobsTable({
                       </span>
                     </span>
                   )}
+                  {job.deviationStatus === 'pending' && (
+                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-red-600 rounded-md px-1.5 py-0.5">
+                        Deviation
+                      </span>
+                      {job.deviation && (
+                        <span className="text-[11px] text-red-600 dark:text-red-400 whitespace-nowrap">
+                          {job.deviation}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </TableCell>
               <TableCell className="px-3 py-4 align-middle">

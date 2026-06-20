@@ -39,6 +39,8 @@ export interface StoredJob {
   partNumber?: string;
   dueDate?: string;
   outService?: string;
+  deviation?: string;
+  deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
   history: Array<{
     id: string;
     jobId: string;
@@ -160,6 +162,8 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     partNumber: data.partNumber,
     dueDate: data.dueDate,
     outService: data.outService,
+    deviation: data.deviation,
+    deviationStatus: data.deviationStatus,
     history: Array.isArray(data.history) ? data.history : [],
     createdAt: data.createdAt ?? new Date().toISOString(),
     updatedAt: data.updatedAt ?? new Date().toISOString(),

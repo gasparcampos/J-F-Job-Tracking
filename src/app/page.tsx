@@ -44,7 +44,7 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations'>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -97,6 +97,7 @@ export default function Home() {
         j.assignedTo,
         j.notes,
         j.outService,
+        j.deviation,
         historyNotes,
         // Column/department name, so e.g. "blue pallet" finds its jobs.
         deptName(j.departmentId),
@@ -114,13 +115,28 @@ export default function Home() {
     [departments]
   );
 
+  // A job with a pending deviation is pulled out of the active/shipped lists
+  // into its own Deviations list until it's accepted or rejected.
+  const isPendingDeviation = (j: Job) => j.deviationStatus === 'pending';
+
+  const deviationTableJobs = useMemo(
+    () => filteredJobs.filter((j) => isPendingDeviation(j)),
+    [filteredJobs]
+  );
+
   const activeTableJobs = useMemo(
-    () => filteredJobs.filter((j) => j.departmentId !== shippedDeptId),
+    () =>
+      filteredJobs.filter(
+        (j) => j.departmentId !== shippedDeptId && !isPendingDeviation(j)
+      ),
     [filteredJobs, shippedDeptId]
   );
 
   const shippedTableJobs = useMemo(
-    () => filteredJobs.filter((j) => j.departmentId === shippedDeptId),
+    () =>
+      filteredJobs.filter(
+        (j) => j.departmentId === shippedDeptId && !isPendingDeviation(j)
+      ),
     [filteredJobs, shippedDeptId]
   );
 
@@ -852,11 +868,39 @@ export default function Home() {
                   {shippedTableJobs.length}
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setTableTab('deviations')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'deviations'
+                    ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Deviations
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'deviations'
+                      ? 'bg-white/20'
+                      : deviationTableJobs.length > 0
+                      ? 'bg-red-600 text-white'
+                      : 'bg-background'
+                  }`}
+                >
+                  {deviationTableJobs.length}
+                </span>
+              </button>
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
               <JobsTable
-                jobs={tableTab === 'active' ? activeTableJobs : shippedTableJobs}
+                jobs={
+                  tableTab === 'active'
+                    ? activeTableJobs
+                    : tableTab === 'shipped'
+                    ? shippedTableJobs
+                    : deviationTableJobs
+                }
                 departments={departments}
                 onViewHistory={setHistoryJob}
                 onDeleteJob={handleDeleteJob}
