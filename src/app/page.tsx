@@ -74,6 +74,8 @@ export default function Home() {
   const filteredJobs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return jobs;
+    const deptName = (id: string) =>
+      departments.find((d) => d.id === id)?.name ?? '';
     return jobs.filter((j) => {
       // All history notes joined so any annotation is searchable too.
       const historyNotes = (j.history ?? [])
@@ -93,10 +95,12 @@ export default function Home() {
         j.assignedTo,
         j.notes,
         historyNotes,
+        // Column/department name, so e.g. "blue pallet" finds its jobs.
+        deptName(j.departmentId),
       ];
       return fields.some((f) => (f ?? '').toLowerCase().includes(q));
     });
-  }, [jobs, searchQuery]);
+  }, [jobs, searchQuery, departments]);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
