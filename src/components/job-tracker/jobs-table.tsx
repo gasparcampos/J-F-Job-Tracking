@@ -181,9 +181,21 @@ export function JobsTable({
                 </Badge>
               </TableCell>
               <TableCell className="px-6 py-4">
-                <span className="text-xs text-muted-foreground line-clamp-3 block min-w-[380px]">
-                  {job.notes || '—'}
-                </span>
+                <div className="min-w-[380px] space-y-1.5">
+                  <span className="text-xs text-muted-foreground line-clamp-3 block">
+                    {job.notes || '—'}
+                  </span>
+                  {job.outService && (
+                    <div className="flex items-start gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5 flex-shrink-0">
+                        Out Service
+                      </span>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-300 leading-tight">
+                        {job.outService}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="px-3 py-4 align-middle">
                 <div className="flex flex-row flex-nowrap items-center justify-end gap-x-1.5">
