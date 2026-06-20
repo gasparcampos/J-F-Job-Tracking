@@ -104,11 +104,39 @@ export async function PUT(
       }
     }
 
+    // Capture the prior deviation status so we can log transitions below.
+    const beforeJob = await jobsDB.findById(id);
+
     // Regular update
     const job = await jobsDB.update(id, body);
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Record deviation movements in the history so there's an exact trail of
+    // when a job was sent to / cleared from the Deviations list.
+    if (
+      beforeJob &&
+      typeof body.deviationStatus === 'string' &&
+      body.deviationStatus !== (beforeJob.deviationStatus ?? '')
+    ) {
+      const detail = (body.deviation ?? job.deviation ?? '').trim();
+      let note = '';
+      if (body.deviationStatus === 'pending') {
+        note = `🚩 Sent to Deviations${detail ? `: ${detail}` : ''}`;
+      } else if (body.deviationStatus === 'accepted') {
+        note = `✅ Deviation accepted${detail ? `: ${detail}` : ''}`;
+      } else if (body.deviationStatus === 'rejected') {
+        note = `🚫 Deviation rejected${detail ? `: ${detail}` : ''}`;
+      }
+      if (note) {
+        const withHistory = await jobsDB.addHistory(id, {
+          toDeptId: job.departmentId,
+          notes: note,
+        });
+        if (withHistory) return NextResponse.json(withHistory);
+      }
     }
 
     return NextResponse.json(job);
