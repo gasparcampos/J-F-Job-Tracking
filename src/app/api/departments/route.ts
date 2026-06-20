@@ -20,7 +20,10 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const department = await departmentsDB.update(body.id, { name: body.name });
+    const department = await departmentsDB.update(body.id, {
+      name: body.name,
+      ...(body.order !== undefined ? { order: body.order } : {}),
+    });
 
     if (!department) {
       return NextResponse.json({ error: 'Department not found' }, { status: 404 });
