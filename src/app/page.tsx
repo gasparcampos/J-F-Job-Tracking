@@ -43,6 +43,8 @@ export default function Home() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
+  const [tableTab, setTableTab] = useState<'active' | 'shipped'>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -102,6 +104,25 @@ export default function Home() {
       return fields.some((f) => (f ?? '').toLowerCase().includes(q));
     });
   }, [jobs, searchQuery, departments]);
+
+  // The "shipped" stage is the final READY TO SHIP department. Jobs sitting
+  // there are considered shipped and are split out of the active table into
+  // the Enviados sub-tab automatically.
+  const shippedDeptId = useMemo(
+    () =>
+      departments.find((d) => d.name.trim().toUpperCase() === 'READY TO SHIP')?.id ?? null,
+    [departments]
+  );
+
+  const activeTableJobs = useMemo(
+    () => filteredJobs.filter((j) => j.departmentId !== shippedDeptId),
+    [filteredJobs, shippedDeptId]
+  );
+
+  const shippedTableJobs = useMemo(
+    () => filteredJobs.filter((j) => j.departmentId === shippedDeptId),
+    [filteredJobs, shippedDeptId]
+  );
 
   // For Kanban: when the search matches a column name, move that column to the
   // front (right under the search bar) so it's quick to spot.
@@ -792,16 +813,60 @@ export default function Home() {
             </DragOverlay>
           </DndContext>
         ) : (
-          <JobsTable
-            jobs={filteredJobs}
-            departments={departments}
-            onViewHistory={setHistoryJob}
-            onDeleteJob={handleDeleteJob}
-            onViewPdf={setPdfJob}
-            onEditJob={setEditingJob}
-            onAttachFile={handleAttachToJob}
-            onRemoveAttachment={handleRemoveAttachment}
-          />
+          <div className="h-full flex flex-col gap-3 min-h-0">
+            {/* Sub-tabs: live (Activos) vs. shipped (Enviados) jobs. */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setTableTab('active')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'active'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Activos
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'active' ? 'bg-primary-foreground/20' : 'bg-background'
+                  }`}
+                >
+                  {activeTableJobs.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableTab('shipped')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'shipped'
+                    ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-600/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Enviados
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'shipped' ? 'bg-white/20' : 'bg-background'
+                  }`}
+                >
+                  {shippedTableJobs.length}
+                </span>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-auto">
+              <JobsTable
+                jobs={tableTab === 'active' ? activeTableJobs : shippedTableJobs}
+                departments={departments}
+                onViewHistory={setHistoryJob}
+                onDeleteJob={handleDeleteJob}
+                onViewPdf={setPdfJob}
+                onEditJob={setEditingJob}
+                onAttachFile={handleAttachToJob}
+                onRemoveAttachment={handleRemoveAttachment}
+              />
+            </div>
+          </div>
         )}
       </main>
 
