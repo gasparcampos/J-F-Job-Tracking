@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       dwgNumber: body.dwgNumber,
       partNumber: body.partNumber,
       dueDate: body.dueDate,
+      outService: body.outService,
     });
 
     return NextResponse.json(job);

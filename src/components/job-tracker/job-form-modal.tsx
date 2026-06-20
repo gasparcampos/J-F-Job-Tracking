@@ -38,7 +38,7 @@ export function JobFormModal({
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || '');
   const [priority, setPriority] = useState(3);
   const [assignedTo, setAssignedTo] = useState('__none__');
-  const [notes, setNotes] = useState('');
+  const [outService, setOutService] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{
@@ -188,7 +188,7 @@ export function JobFormModal({
       departmentId,
       priority,
       assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
-      notes: notes || undefined,
+      outService: outService || undefined,
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
       attachmentUrl: attachment?.url,
@@ -214,7 +214,7 @@ export function JobFormModal({
     setDepartmentId(departments[0]?.id || '');
     setPriority(3);
     setAssignedTo('__none__');
-    setNotes('');
+    setOutService('');
     setUploadedFile(null);
     setAttachment(null);
     setJobNumber('');
@@ -458,8 +458,8 @@ export function JobFormModal({
           </div>
 
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Additional Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={3} className="rounded-lg bg-background border-border resize-none" />
+            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service</Label>
+            <Textarea value={outService} onChange={(e) => setOutService(e.target.value)} placeholder="Outside services (e.g. phosphate, NDE)..." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
           <Button type="submit" disabled={isUploading || isExtracting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">

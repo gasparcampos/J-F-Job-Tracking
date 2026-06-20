@@ -38,6 +38,7 @@ export interface StoredJob {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  outService?: string;
   history: Array<{
     id: string;
     jobId: string;
@@ -158,6 +159,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     dwgNumber: data.dwgNumber,
     partNumber: data.partNumber,
     dueDate: data.dueDate,
+    outService: data.outService,
     history: Array.isArray(data.history) ? data.history : [],
     createdAt: data.createdAt ?? new Date().toISOString(),
     updatedAt: data.updatedAt ?? new Date().toISOString(),
@@ -237,6 +239,7 @@ export const jobsDB = {
     dwgNumber?: string;
     partNumber?: string;
     dueDate?: string;
+    outService?: string;
   }): Promise<StoredJob> {
     const id = generateId();
     const order = await getNextOrder(data.departmentId);
@@ -267,6 +270,7 @@ export const jobsDB = {
       dwgNumber: data.dwgNumber,
       partNumber: data.partNumber,
       dueDate: data.dueDate,
+      outService: data.outService,
       history: [
         {
           id: generateId(),

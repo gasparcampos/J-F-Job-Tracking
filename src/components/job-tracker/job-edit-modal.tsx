@@ -38,6 +38,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
   const [priority, setPriority] = useState(3);
   const [assignedTo, setAssignedTo] = useState('__none__');
   const [notes, setNotes] = useState('');
+  const [outService, setOutService] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Load the job's current values whenever a new job is opened for editing.
@@ -57,6 +58,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     setPriority(job.priority ?? 3);
     setAssignedTo(job.assignedTo || '__none__');
     setNotes(job.notes ?? '');
+    setOutService(job.outService ?? '');
   }, [job]);
 
   if (!job) return null;
@@ -79,6 +81,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
         priority,
         assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
         notes: notes.trim() || undefined,
+        outService: outService.trim() || undefined,
       });
       // Keep the modal open if the save failed (e.g. duplicate JOB#).
       if (result === false) return;
@@ -194,6 +197,11 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service</Label>
+            <Textarea value={outService} onChange={(e) => setOutService(e.target.value)} placeholder="Outside services (e.g. phosphate, NDE)..." rows={2} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
           <div>

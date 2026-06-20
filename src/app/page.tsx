@@ -94,6 +94,7 @@ export default function Home() {
         j.dueDate,
         j.assignedTo,
         j.notes,
+        j.outService,
         historyNotes,
         // Column/department name, so e.g. "blue pallet" finds its jobs.
         deptName(j.departmentId),

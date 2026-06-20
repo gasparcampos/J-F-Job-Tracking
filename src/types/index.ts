@@ -54,6 +54,9 @@ export interface Job {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  // Permanent "outside services" note (e.g. phosphate, NDE). Stays anchored
+  // to the job and is NOT overwritten by department moves like `notes` is.
+  outService?: string;
   history?: JobHistoryEntry[];
   createdAt: string;
   updatedAt: string;
@@ -83,6 +86,7 @@ export interface CreateJobInput {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  outService?: string;
 }
 
 export interface UpdateJobInput {
@@ -106,6 +110,7 @@ export interface UpdateJobInput {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  outService?: string;
 }
 
 export interface MoveJobInput {
