@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +23,9 @@ interface JobsTableProps {
   onEditJob?: (job: Job) => void;
   onAttachFile?: (job: Job, file: File) => Promise<void> | void;
   onRemoveAttachment?: (job: Job, url: string) => Promise<void> | void;
+  // When provided (Shipped tab), shows a button to move the job back to the
+  // active list in case it was shipped by mistake.
+  onReturnToActive?: (job: Job) => Promise<void> | void;
 }
 
 export function JobsTable({
@@ -34,6 +37,7 @@ export function JobsTable({
   onEditJob,
   onAttachFile,
   onRemoveAttachment,
+  onReturnToActive,
 }: JobsTableProps) {
   // Which row is currently uploading an attachment (shows a spinner).
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -273,6 +277,19 @@ export function JobsTable({
               </TableCell>
               <TableCell className="px-3 py-4">
                 <div className="flex items-center justify-end gap-1">
+                  {/* Return to Active: only on the Shipped tab, undoes a job
+                      that was shipped by mistake. */}
+                  {onReturnToActive && (
+                    <button
+                      type="button"
+                      onClick={() => onReturnToActive(job)}
+                      title="Return to Active"
+                      className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-primary hover:text-primary-foreground hover:bg-primary border border-primary/40 rounded-md px-2 py-1 mr-1 transition-colors"
+                    >
+                      <Undo2 size={12} />
+                      Return
+                    </button>
+                  )}
                   {/* DEV badge: shows a job carries a deviation and its outcome.
                       Green = approved, gray = rejected. Click opens the job. */}
                   {(job.deviationStatus === 'accepted' || job.deviationStatus === 'rejected') && (

@@ -19,6 +19,7 @@ interface KanbanColumnProps {
   onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
   highlightJobs?: boolean;
+  onReturnToActive?: (job: Job) => void;
 }
 
 export function KanbanColumn({
@@ -34,6 +35,7 @@ export function KanbanColumn({
   onChangePriority,
   canMoveToAnyDept,
   highlightJobs,
+  onReturnToActive,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: department.id,
@@ -86,6 +88,7 @@ export function KanbanColumn({
               onChangePriority={onChangePriority}
               canMoveToAnyDept={canMoveToAnyDept}
               highlight={highlightJobs}
+              onReturnToActive={onReturnToActive}
             />
           ))}
 

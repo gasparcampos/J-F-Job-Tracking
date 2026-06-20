@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
@@ -20,9 +20,10 @@ interface JobCardProps {
   onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
   highlight?: boolean;
+  onReturnToActive?: (job: Job) => void;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive }: JobCardProps) {
   // Priority dropdown open state (click the P-badge to change priority).
   const [priorityOpen, setPriorityOpen] = useState(false);
   const {
@@ -233,14 +234,25 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           </Button>
         )}
 
-        {/* Complete */}
-        <Button
-          onClick={() => onMarkDone(job)}
-          className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20"
-        >
-          <Check size={12} className="mr-1" />
-          Complete
-        </Button>
+        {/* Complete or Return to Active */}
+        {onReturnToActive ? (
+          <Button
+            onClick={() => onReturnToActive(job)}
+            className="flex-1 h-8 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-blue-900/20"
+            title="Return to Active"
+          >
+            <Undo2 size={12} className="mr-1" />
+            Return
+          </Button>
+        ) : (
+          <Button
+            onClick={() => onMarkDone(job)}
+            className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20"
+          >
+            <Check size={12} className="mr-1" />
+            Complete
+          </Button>
+        )}
 
         {/* Move to Any Department (right) */}
         {canMoveToAnyDept && (

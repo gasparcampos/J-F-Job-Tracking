@@ -630,6 +630,43 @@ export default function Home() {
     }
   };
 
+  // Move a shipped job back to the active list. Targets the department it
+  // was in right before it was shipped (from history), falling back to the
+  // first non-shipped stage. Logs the move in history.
+  const handleReturnToActive = async (job: Job) => {
+    const lastToShip = [...(job.history ?? [])]
+      .reverse()
+      .find((h) => h.toDeptId === shippedDeptId && h.fromDeptId);
+    const targetDeptId =
+      lastToShip?.fromDeptId ||
+      departments.find((d) => d.id !== shippedDeptId)?.id;
+    if (!targetDeptId) return;
+
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetDeptId,
+          notes: '↩️ Returned to Active from Shipped',
+        }),
+      });
+      const updatedJob = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
+      toast({
+        title: 'Returned to Active',
+        description: 'Job moved back from Shipped',
+      });
+    } catch (error) {
+      console.error('Error returning job to active:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not return the job',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string) => {
     if (!moveToAnyJob) return;
 
@@ -810,6 +847,7 @@ export default function Home() {
                     onChangePriority={handleChangePriority}
                     canMoveToAnyDept={true}
                     highlightJobs={!!searchQuery.trim()}
+                    onReturnToActive={dept.id === shippedDeptId ? handleReturnToActive : undefined}
                   />
                 );
               })}
@@ -908,6 +946,7 @@ export default function Home() {
                 onEditJob={setEditingJob}
                 onAttachFile={handleAttachToJob}
                 onRemoveAttachment={handleRemoveAttachment}
+                onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
               />
             </div>
           </div>
