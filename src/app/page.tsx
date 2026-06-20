@@ -102,6 +102,17 @@ export default function Home() {
     });
   }, [jobs, searchQuery, departments]);
 
+  // For Kanban: when the search matches a column name, move that column to the
+  // front (right under the search bar) so it's quick to spot.
+  const displayDepartments = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return departments;
+    const matches = departments.filter((d) => d.name.toLowerCase().includes(q));
+    if (matches.length === 0) return departments;
+    const rest = departments.filter((d) => !d.name.toLowerCase().includes(q));
+    return [...matches, ...rest];
+  }, [departments, searchQuery]);
+
   // Fetch initial data
   const fetchData = useCallback(async () => {
     try {
@@ -736,7 +747,7 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-3 overflow-x-auto pb-4 h-full">
-              {departments.map((dept) => {
+              {displayDepartments.map((dept) => {
                 const deptJobs = filteredJobs
                   .filter((j) => j.departmentId === dept.id)
                   // Sort by priority (P1 at top), then manual order as tiebreaker.
