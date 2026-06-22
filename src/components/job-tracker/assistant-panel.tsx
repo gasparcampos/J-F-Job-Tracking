@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ChatMessage {
@@ -9,16 +9,65 @@ interface ChatMessage {
   content: string;
 }
 
+// Web Speech API isn't in the standard lib.dom types; Chrome/Edge expose it
+// as webkitSpeechRecognition.
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === 'undefined') return null;
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+}
+
 export function AssistantPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-MX';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results as ArrayLike<any>)
+        .map((r: any) => r[0].transcript)
+        .join(' ');
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    recognition.onerror = () => setIsRecording(false);
+    recognition.onend = () => setIsRecording(false);
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -120,9 +169,21 @@ export function AssistantPanel() {
                     handleSend();
                   }
                 }}
-                placeholder="Escribe tu pregunta..."
+                placeholder={isRecording ? 'Escuchando...' : 'Escribe tu pregunta...'}
                 className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
+              {speechSupported && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isRecording ? 'destructive' : 'outline'}
+                  onClick={toggleRecording}
+                  title={isRecording ? 'Detener dictado' : 'Dictar por voz'}
+                  className={`h-9 w-9 rounded-lg flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
+                >
+                  {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+                </Button>
+              )}
               <Button
                 size="icon"
                 onClick={handleSend}
