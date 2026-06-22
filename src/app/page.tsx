@@ -30,6 +30,7 @@ import {
   AssignModal,
   JobsTable,
   MoveToAnyDeptModal,
+  AssistantPanel,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -1020,6 +1021,8 @@ export default function Home() {
         onMove={handleMoveToAnyDept}
         onCancel={() => setMoveToAnyJob(null)}
       />
+
+      <AssistantPanel />
     </div>
   );
 }
