@@ -33,9 +33,23 @@ export function AssistantPanel() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceLang, setVoiceLang] = useState<'es-MX' | 'en-US'>('es-MX');
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const speechSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
+
+  // Remember the last language picked so it doesn't reset every time the
+  // panel is reopened (different shop-floor staff speak different defaults).
+  useEffect(() => {
+    const saved = localStorage.getItem('assistantVoiceLang');
+    if (saved === 'es-MX' || saved === 'en-US') setVoiceLang(saved);
+  }, []);
+
+  const toggleVoiceLang = () => {
+    const next = voiceLang === 'es-MX' ? 'en-US' : 'es-MX';
+    setVoiceLang(next);
+    localStorage.setItem('assistantVoiceLang', next);
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -51,7 +65,7 @@ export function AssistantPanel() {
     if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'es-MX';
+    recognition.lang = voiceLang;
     recognition.interimResults = false;
     recognition.continuous = false;
 
@@ -173,12 +187,23 @@ export function AssistantPanel() {
                 className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {speechSupported && (
+                <button
+                  type="button"
+                  onClick={toggleVoiceLang}
+                  disabled={isRecording}
+                  title="Idioma del dictado"
+                  className="h-9 px-2 rounded-lg flex-shrink-0 text-[10px] font-bold uppercase tracking-wider border border-border text-muted-foreground hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors"
+                >
+                  {voiceLang === 'es-MX' ? 'ES' : 'EN'}
+                </button>
+              )}
+              {speechSupported && (
                 <Button
                   type="button"
                   size="icon"
                   variant={isRecording ? 'destructive' : 'outline'}
                   onClick={toggleRecording}
-                  title={isRecording ? 'Detener dictado' : 'Dictar por voz'}
+                  title={isRecording ? 'Detener dictado' : `Dictar por voz (${voiceLang === 'es-MX' ? 'Español' : 'English'})`}
                   className={`h-9 w-9 rounded-lg flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
                 >
                   {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
