@@ -135,9 +135,15 @@ export function JobsTable({
             <TableRow key={job.id} className="hover:bg-muted/30 border-b border-border transition-colors">
               <TableCell className="px-6 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
-                    <FileText size={16} className="text-primary" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onViewPdf?.(job)}
+                    disabled={!job.fileUrl}
+                    title={job.fileUrl ? 'View PDF' : 'No PDF attached'}
+                    className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Eye size={16} className="text-primary" />
+                  </button>
                   <div className="flex-1 min-w-0 max-w-[460px]">
                     {(job.customer || job.dwgNumber || job.partNumber) && (
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mb-0.5">
@@ -327,7 +333,11 @@ export function JobsTable({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onDeleteJob(job.id)}
+                    onClick={() => {
+                      if (window.confirm(`Delete job "${job.title}"? This cannot be undone.`)) {
+                        onDeleteJob(job.id);
+                      }
+                    }}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                     title="Delete job"
                   >
