@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import ZAI from 'z-ai-web-dev-sdk';
 import { buildJobsContext } from '@/lib/assistant-context';
 
 export const runtime = 'nodejs';
@@ -20,49 +21,36 @@ JOB DATA:
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY not configured. Add it to .env.local to enable the assistant.' },
-        { status: 501 }
-      );
-    }
-
     const body = await request.json();
     const messages = body.messages as ChatMessage[] | undefined;
     if (!messages || !messages.length) {
       return NextResponse.json({ error: 'messages required' }, { status: 400 });
     }
 
-    const jobsContext = await buildJobsContext();
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT + jobsContext,
-        messages,
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Anthropic API error:', res.status, errText);
+    // ZAI.create() reads ./.z-ai-config (gitignored) for { baseUrl, apiKey }.
+    let zai;
+    try {
+      zai = await ZAI.create();
+    } catch {
       return NextResponse.json(
-        { error: `Assistant request failed (${res.status})` },
-        { status: 502 }
+        {
+          error:
+            'Z.ai not configured. Fill in .z-ai-config in the project root with your real apiKey.',
+        },
+        { status: 501 }
       );
     }
 
-    const data = await res.json();
-    const reply = data.content?.[0]?.text ?? '';
+    const jobsContext = await buildJobsContext();
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT + jobsContext },
+        ...messages,
+      ],
+    });
+
+    const reply = completion.choices?.[0]?.message?.content ?? '';
 
     return NextResponse.json({ reply });
   } catch (error) {
