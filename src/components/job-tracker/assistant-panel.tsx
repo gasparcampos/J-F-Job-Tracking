@@ -33,7 +33,7 @@ export function AssistantPanel() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [voiceLang, setVoiceLang] = useState<'es-MX' | 'en-US'>('es-MX');
+  const [voiceLang, setVoiceLang] = useState<'es-MX' | 'en-US'>('en-US');
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const speechSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
