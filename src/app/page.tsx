@@ -721,8 +721,8 @@ export default function Home() {
   return (
     <div className="h-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
-      <nav className="bg-card border-b border-border px-6 py-4 flex items-center justify-between z-40 shadow-lg flex-shrink-0">
-        <div className="flex items-center gap-6">
+      <nav className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 z-40 shadow-lg flex-shrink-0">
+        <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-6">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/30">
@@ -739,77 +739,87 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 ml-8">
-            <div className="bg-muted p-1 rounded-xl flex border border-border">
-              <Button
-                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-                className={`rounded-lg gap-2 ${
-                  viewMode === 'kanban'
-                    ? 'bg-primary text-primary-foreground shadow-lg'
-                    : 'text-muted-foreground hover:text-card-foreground'
-                }`}
-              >
-                <LayoutGrid size={14} />
-                Kanban
-              </Button>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className={`rounded-lg gap-2 ${
-                  viewMode === 'table'
-                    ? 'bg-primary text-primary-foreground shadow-lg'
-                    : 'text-muted-foreground hover:text-card-foreground'
-                }`}
-              >
-                <List size={14} />
-                Tabla
-              </Button>
-            </div>
-
-            {/* Search bar: JOB#, PO#, DWG#, Part#, name */}
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search JOB#, PO#, DWG#, Part#, name..."
-                className="w-80 h-10 pl-9 pr-9 rounded-xl bg-muted border border-border text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-card-foreground transition-colors"
-                  aria-label="Clear search"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
-
-            <Button
-              onClick={() => setIsAddingJob(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
-            >
-              <Plus size={16} />
-              New Job
-            </Button>
-          </div>
+          {/* On mobile this row wraps below the logo; the delete-all button
+              moves up here so the second row is just the view toggle. */}
+          <Button
+            variant="outline"
+            onClick={handleClearAll}
+            className="sm:hidden border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
+          >
+            <Trash2 size={18} />
+          </Button>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={handleClearAll}
-          className="border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
-        >
-          <Trash2 size={18} />
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 sm:ml-8">
+          <div className="bg-muted p-1 rounded-xl flex border border-border">
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className={`rounded-lg gap-2 ${
+                viewMode === 'kanban'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-card-foreground'
+              }`}
+            >
+              <LayoutGrid size={14} />
+              Kanban
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className={`rounded-lg gap-2 ${
+                viewMode === 'table'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-card-foreground'
+              }`}
+            >
+              <List size={14} />
+              Tabla
+            </Button>
+          </div>
+
+          {/* Search bar: JOB#, PO#, DWG#, Part#, name */}
+          <div className="relative flex-1 min-w-[180px] sm:flex-initial">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search JOB#, PO#, DWG#, Part#, name..."
+              className="w-full sm:w-80 h-10 pl-9 pr-9 rounded-xl bg-muted border border-border text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-card-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          <Button
+            onClick={() => setIsAddingJob(true)}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">New Job</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleClearAll}
+            className="hidden sm:inline-flex border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
+          >
+            <Trash2 size={18} />
+          </Button>
+        </div>
       </nav>
 
       {/* Main Content */}
@@ -955,15 +965,15 @@ export default function Home() {
       </main>
 
       {/* Footer (fixed at bottom) */}
-      <footer className="bg-card border-t border-border px-6 py-4 flex-shrink-0 z-40 shadow-[0_-2px_8px_rgba(0,0,0,0.15)]">
-        <div className="flex items-center justify-between">
+      <footer className="bg-card border-t border-border px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0 z-40 shadow-[0_-2px_8px_rgba(0,0,0,0.15)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Wrench size={14} className="text-primary" />
             <p className="text-xs font-medium">
               Job Tracker - J&F MACHINE SHOP
             </p>
           </div>
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] text-muted-foreground">
             <span>
               {searchQuery.trim()
                 ? `${filteredJobs.length} of ${jobs.length} jobs`

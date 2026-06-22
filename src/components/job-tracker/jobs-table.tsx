@@ -110,6 +110,7 @@ export function JobsTable({
 
   return (
     <div className="w-full bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
@@ -349,6 +350,7 @@ export function JobsTable({
           ))}
         </TableBody>
       </Table>
+      </div>
 
       {jobs.length === 0 && (
         <div className="p-20 text-center">
