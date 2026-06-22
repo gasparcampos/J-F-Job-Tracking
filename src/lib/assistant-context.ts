@@ -45,8 +45,11 @@ export async function buildJobsContext(): Promise<string> {
 
     const parts = [
       `JOB# ${job.jobNumber || job.title}`,
+      job.name ? `Name: ${job.name}` : null,
       job.customer ? `Customer: ${job.customer}` : null,
       job.poNumber ? `PO#: ${job.poNumber}` : null,
+      job.line ? `Line Item: ${job.line}` : null,
+      job.quantity ? `Quantity (pieces): ${job.quantity}` : null,
       job.dwgNumber ? `DWG#: ${job.dwgNumber}` : null,
       job.partNumber ? `Part#: ${job.partNumber}` : null,
       `Department: ${deptName(job.departmentId)}`,
