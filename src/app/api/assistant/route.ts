@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     const jobsContext = await buildJobsContext();
 
     const completion = await zai.chat.completions.create({
+      model: 'glm-4.6',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT + jobsContext },
         ...messages,
