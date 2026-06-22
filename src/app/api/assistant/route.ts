@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { buildJobsContext } from '@/lib/assistant-context';
+import { ensureZaiConfig } from '@/lib/ensure-zai-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     // ZAI.create() reads ./.z-ai-config (gitignored) for { baseUrl, apiKey }.
+    // In production, write that file on first request from env vars (see
+    // ensure-zai-config.ts) since the file itself can't be committed/deployed.
+    ensureZaiConfig();
     let zai;
     try {
       zai = await ZAI.create();

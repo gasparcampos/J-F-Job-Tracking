@@ -43,3 +43,15 @@ env:
     secret: FIREBASE_PRIVATE_KEY
     availability:
       - RUNTIME
+
+  # Job assistant chat (Z.ai). Set the key as a secret:
+  #   firebase apphosting:secrets:set ZAI_API_KEY
+  - variable: ZAI_API_KEY
+    secret: ZAI_API_KEY
+    availability:
+      - RUNTIME
+
+  - variable: ZAI_BASE_URL
+    value: https://api.z.ai/api/paas/v4
+    availability:
+      - RUNTIME
