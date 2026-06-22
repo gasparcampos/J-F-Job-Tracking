@@ -36,7 +36,17 @@ export function AssistantPanel() {
   const [voiceLang, setVoiceLang] = useState<'es-MX' | 'en-US'>('en-US');
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const speechSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
+
+  // Auto-grow the textarea to fit whatever was typed or dictated, so the
+  // full text is visible to review/edit before sending.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
 
   // Remember the last language picked so it doesn't reset every time the
   // panel is reopened (different shop-floor staff speak different defaults).
@@ -172,9 +182,10 @@ export function AssistantPanel() {
               )}
             </div>
 
-            <div className="p-3 border-t border-border flex items-center gap-2 flex-shrink-0">
-              <input
-                type="text"
+            <div className="p-3 border-t border-border flex items-end gap-2 flex-shrink-0">
+              <textarea
+                ref={textareaRef}
+                rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -184,7 +195,7 @@ export function AssistantPanel() {
                   }
                 }}
                 placeholder={isRecording ? 'Escuchando...' : 'Escribe tu pregunta...'}
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none overflow-y-auto leading-snug focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {speechSupported && (
                 <button
