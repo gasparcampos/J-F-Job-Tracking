@@ -1032,7 +1032,11 @@ export default function Home() {
         onCancel={() => setMoveToAnyJob(null)}
       />
 
-      <AssistantPanel />
+      <AssistantPanel
+        onJobMoved={(updated) =>
+          setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)))
+        }
+      />
     </div>
   );
 }

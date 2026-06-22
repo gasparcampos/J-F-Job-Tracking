@@ -485,6 +485,24 @@ export const departmentsDB = {
       defaultEmployee: d.defaultEmployee ?? '',
     };
   },
+
+  /**
+   * Resolve a department by display name (e.g. for the assistant's
+   * move-job action). Case-insensitive exact match first, then falls back
+   * to a substring match so loose/partial phrasing still has a chance.
+   */
+  async findByName(name: string): Promise<StoredDepartment | null> {
+    const target = name.trim().toLowerCase();
+    if (!target) return null;
+    const depts = await this.findAll();
+    const exact = depts.find((d) => d.name.toLowerCase() === target);
+    if (exact) return exact;
+    return (
+      depts.find(
+        (d) => d.name.toLowerCase().includes(target) || target.includes(d.name.toLowerCase())
+      ) ?? null
+    );
+  },
 };
 
 // ---------- employeesDB ----------

@@ -1,12 +1,32 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff, Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Job } from '@/types';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface PendingMove {
+  jobId: string;
+  jobNumber: string;
+  fromDeptName: string;
+  toDeptId: string;
+  toDeptName: string;
+}
+
+interface UiMessage extends ChatMessage {
+  pendingMove?: PendingMove;
+  moveResolved?: 'confirmed' | 'cancelled';
+}
+
+interface AssistantPanelProps {
+  // Lets the assistant's confirmed "move job" action update the Kanban/Table
+  // state immediately, the same way handleMoveJob does in page.tsx.
+  onJobMoved?: (job: Job) => void;
 }
 
 // Web Speech API isn't in the standard lib.dom types; Chrome/Edge expose it
@@ -27,11 +47,12 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
-export function AssistantPanel() {
+export function AssistantPanel({ onJobMoved }: AssistantPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [movingJobId, setMovingJobId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceLang, setVoiceLang] = useState<'es-MX' | 'en-US'>('en-US');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -97,7 +118,7 @@ export function AssistantPanel() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: text }];
+    const nextMessages: UiMessage[] = [...messages, { role: 'user', content: text }];
     setMessages(nextMessages);
     setInput('');
     setLoading(true);
@@ -106,19 +127,58 @@ export function AssistantPanel() {
       const res = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages }),
+        // Only role/content matter to the API -- strip UI-only fields.
+        body: JSON.stringify({ messages: nextMessages.map((m) => ({ role: m.role, content: m.content })) }),
       });
       const data = await res.json();
       if (!res.ok) {
         setMessages((prev) => [...prev, { role: 'assistant', content: `⚠️ ${data.error || 'Error desconocido.'}` }]);
       } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: data.reply, pendingMove: data.pendingMove },
+        ]);
       }
     } catch {
       setMessages((prev) => [...prev, { role: 'assistant', content: '⚠️ No se pudo conectar con el asistente.' }]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmMove = async (index: number, move: PendingMove) => {
+    setMovingJobId(move.jobId);
+    try {
+      const res = await fetch(`/api/jobs/${move.jobId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetDeptId: move.toDeptId }),
+      });
+      const updatedJob = await res.json();
+      if (!res.ok) throw new Error(updatedJob?.error || 'No se pudo mover el job.');
+
+      onJobMoved?.(updatedJob);
+      setMessages((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], moveResolved: 'confirmed' };
+        return [...next, { role: 'assistant', content: `✅ JOB# ${move.jobNumber} movido a ${move.toDeptName}.` }];
+      });
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `⚠️ ${e instanceof Error ? e.message : 'No se pudo mover el job.'}` },
+      ]);
+    } finally {
+      setMovingJobId(null);
+    }
+  };
+
+  const handleCancelMove = (index: number) => {
+    setMessages((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], moveResolved: 'cancelled' };
+      return [...next, { role: 'assistant', content: 'Cancelado, no se movió nada.' }];
+    });
   };
 
   return (
@@ -159,19 +219,53 @@ export function AssistantPanel() {
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center mt-8">
-                  Pregúntame por número de JOB#, Part# o DWG#, o qué trabajos están por vencer.
+                  Pregúntame por número de JOB#, Part# o DWG#, qué trabajos están por vencer, o pídeme mover un job de departamento.
                 </p>
               )}
               {messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.role === 'user'
-                      ? 'ml-auto bg-primary text-primary-foreground'
-                      : 'bg-muted text-card-foreground'
-                  }`}
-                >
-                  {m.content}
+                <div key={i}>
+                  <div
+                    className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                      m.role === 'user'
+                        ? 'ml-auto bg-primary text-primary-foreground'
+                        : 'bg-muted text-card-foreground'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  {m.pendingMove && !m.moveResolved && (
+                    <div className="mt-2 max-w-[85%] bg-muted/50 border border-border rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-medium">
+                        <span className="truncate">{m.pendingMove.fromDeptName}</span>
+                        <ArrowRight size={12} className="flex-shrink-0 text-muted-foreground" />
+                        <span className="truncate text-primary">{m.pendingMove.toDeptName}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmMove(i, m.pendingMove!)}
+                          disabled={movingJobId === m.pendingMove.jobId}
+                          className="h-8 flex-1 rounded-lg text-xs gap-1.5"
+                        >
+                          {movingJobId === m.pendingMove.jobId ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Check size={13} />
+                          )}
+                          Confirmar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCancelMove(i)}
+                          disabled={movingJobId === m.pendingMove.jobId}
+                          className="h-8 flex-1 rounded-lg text-xs"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {loading && (

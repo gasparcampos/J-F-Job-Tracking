@@ -59,8 +59,14 @@ export async function buildJobsContext(): Promise<string> {
     return `- ${parts.join(' | ')}`;
   });
 
+  const deptNames = departments
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((d) => d.name);
+
   return [
     `Today's date is ${todayStr}.`,
+    `Valid department names (use these exact names if asked to move a job): ${deptNames.join(', ')}.`,
     `There are ${jobs.length} jobs currently in the shop:`,
     ...lines,
   ].join('\n');
