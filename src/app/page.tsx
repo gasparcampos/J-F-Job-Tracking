@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import {
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCorners,
@@ -61,11 +62,21 @@ export default function Home() {
   // Move to any department modal state
   const [moveToAnyJob, setMoveToAnyJob] = useState<Job | null>(null);
 
-  // Sensors for drag and drop
+  // Sensors for drag and drop.
+  // Desktop (mouse): a tiny 3px move starts a drag — snappy.
+  // Mobile (touch): require a 250ms press-and-hold before a drag starts, so a
+  // quick horizontal swipe scrolls the board instead of accidentally grabbing
+  // a card. Pairs with the mobile move-confirmation in handleDragEnd.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 3,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
       },
     })
   );
@@ -186,11 +197,21 @@ export default function Home() {
     fetchData();
   }, [fetchData]);
 
+  // The dragged job's original department, captured at drag start (before
+  // handleDragOver optimistically mutates state) so a cancelled move can be
+  // reverted cleanly on mobile.
+  const dragOriginRef = useRef<string | null>(null);
+
+  // True on phone-sized screens (matches the `sm` breakpoint used elsewhere).
+  const isMobile = () =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const job = jobs.find((j) => j.id === active.id);
     if (job) {
+      dragOriginRef.current = job.departmentId;
       setActiveJob(job);
     }
   };
@@ -273,6 +294,7 @@ export default function Home() {
         // Different column - show assign modal
         const targetDept = departments.find((d) => d.id === overJob.departmentId);
         if (targetDept) {
+          if (!confirmMobileMove(activeJob, targetDept)) return;
           setMovingJob(activeJob);
           setTargetDepartment(targetDept);
         }
@@ -280,13 +302,30 @@ export default function Home() {
     } else {
       // Check if dropped over a department column
       const targetDept = departments.find((d) => d.id === overId);
-      
+
       if (targetDept && activeJob.departmentId !== targetDept.id) {
         // Moving to different department - show modal
+        if (!confirmMobileMove(activeJob, targetDept)) return;
         setMovingJob(activeJob);
         setTargetDepartment(targetDept);
       }
     }
+  };
+
+  // On mobile, ask before committing a cross-column move (easy to trigger by
+  // accident). Returns false (and reverts the optimistic move back to the
+  // job's original column) if the user declines. Desktop always returns true
+  // since the AssignModal already serves as the confirmation there.
+  const confirmMobileMove = (job: Job, targetDept: Department): boolean => {
+    if (!isMobile()) return true;
+    if (window.confirm(`¿Mover "${job.title}" a ${targetDept.name}?`)) return true;
+    const origin = dragOriginRef.current;
+    if (origin) {
+      setJobs((prev) =>
+        prev.map((j) => (j.id === job.id ? { ...j, departmentId: origin } : j))
+      );
+    }
+    return false;
   };
 
   // Job actions
