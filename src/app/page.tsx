@@ -230,6 +230,27 @@ export default function Home() {
     fetchData();
   }, [fetchData]);
 
+  // Deep link from a scanned Extra Part QR code (?extraPart=<id>): jump to the
+  // Table view's Extra Parts tab and pop that record open in edit mode so it
+  // can be pulled from inventory. Runs once the extra parts have loaded; the
+  // URL param is then cleared so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (isLoading || !extraParts.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('extraPart');
+    if (!id) return;
+    const part = extraParts.find((p) => p.id === id);
+    if (part) {
+      setViewMode('table');
+      setTableTab('extra-parts');
+      setEditingExtraPart(part);
+    }
+    // Strip the param so it doesn't retrigger on re-render/refresh.
+    params.delete('extraPart');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [isLoading, extraParts]);
+
   // The dragged job's original department, captured at drag start (before
   // handleDragOver optimistically mutates state) so a cancelled move can be
   // reverted cleanly on mobile.

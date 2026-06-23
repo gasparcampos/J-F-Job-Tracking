@@ -1,18 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, Save, Package } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Save, Package, Printer } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { ExtraPart, Job, Employee, CreateExtraPartInput } from '@/types';
 import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
 
@@ -48,6 +42,16 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
   const [active, setActive] = useState(true);
   const [exitDate, setExitDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  // Deep link encoded in the QR. Scanning it opens the app, jumps to the
+  // Extra Parts tab, and pops this record open in edit mode so the part can
+  // be pulled from inventory. Uses the current origin so it works on both
+  // localhost and production.
+  const qrValue =
+    existing && typeof window !== 'undefined'
+      ? `${window.location.origin}/?extraPart=${existing.id}`
+      : '';
 
   // Load existing values when opening for edit, or reset when opening for new.
   useEffect(() => {
@@ -137,6 +141,50 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     }
   }, [jobLookup, jobs, isEditing, jobId]);
 
+  // Print a small storage label: the QR plus the key identifying info, so it
+  // can be taped to the stored piece. Opens a clean print window with just
+  // the label (window.print on the modal would print the whole UI).
+  const handlePrintLabel = () => {
+    const qrSvg = qrRef.current?.querySelector('svg')?.outerHTML ?? '';
+    const rows: [string, string][] = [
+      ['JOB#', jobNumber],
+      ['Part#', partNumber],
+      ['Company', company],
+      ['Place', place],
+      ['Qty', partQty],
+      ['Heat#', heatNumber],
+    ];
+    const rowsHtml = rows
+      .filter(([, v]) => v && v.trim())
+      .map(
+        ([k, v]) =>
+          `<tr><td style="font-weight:700;padding:2px 8px 2px 0;white-space:nowrap;">${k}</td><td style="padding:2px 0;">${v}</td></tr>`
+      )
+      .join('');
+
+    const win = window.open('', '_blank', 'width=460,height=620');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Extra Part Label</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 16px; color: #000; }
+        .label { border: 2px solid #000; border-radius: 8px; padding: 16px; width: 100%; }
+        .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align:center; }
+        .qr { display:flex; justify-content:center; margin: 8px 0 14px; }
+        .qr svg { width: 200px; height: 200px; }
+        table { font-size: 14px; margin: 0 auto; }
+        .hint { font-size: 10px; text-align:center; margin-top: 10px; color:#444; }
+      </style></head><body onload="window.print()">
+      <div class="label">
+        <div class="title">J&amp;F Machine Shop — Extra Part</div>
+        <div class="qr">${qrSvg}</div>
+        <table>${rowsHtml}</table>
+        <div class="hint">Scan to open this record</div>
+      </div>
+    </body></html>`);
+    win.document.close();
+  };
+
   if (!part) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,9 +237,24 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="hover:bg-muted p-2 rounded-lg transition-all text-muted-foreground hover:text-card-foreground">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePrintLabel}
+                className="gap-1.5 rounded-lg"
+                title="Print label"
+              >
+                <Printer size={16} />
+                <span className="hidden sm:inline">Print Label</span>
+              </Button>
+            )}
+            <button onClick={onClose} className="hover:bg-muted p-2 rounded-lg transition-all text-muted-foreground hover:text-card-foreground">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -272,17 +335,18 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Place</Label>
-              <Select value={place || '__none__'} onValueChange={(v) => setPlace(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="rounded-lg h-10 bg-background border-border">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="__none__" className="hover:bg-muted">—</SelectItem>
-                  {PLACE_OPTIONS.map((p) => (
-                    <SelectItem key={p} value={p} className="hover:bg-muted">{p}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Native select: reliably shows the saved value on open and gives
+                  a native picker on mobile (better for shop-floor phones). */}
+              <select
+                value={place}
+                onChange={(e) => setPlace(e.target.value)}
+                className="w-full rounded-lg h-10 bg-background border border-border text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">—</option>
+                {PLACE_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Date</Label>
@@ -293,17 +357,16 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Employee</Label>
-              <Select value={employeeName} onValueChange={setEmployeeName}>
-                <SelectTrigger className="rounded-lg h-10 bg-background border-border">
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">{emp.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={employeeName}
+                onChange={(e) => setEmployeeName(e.target.value)}
+                className="w-full rounded-lg h-10 bg-background border border-border text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="__none__">Unassigned</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.name}>{emp.name}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-end gap-3">
               <label className="flex items-center gap-2 cursor-pointer flex-1 h-10 px-3 rounded-lg bg-background border border-border">
@@ -317,6 +380,19 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
               </label>
             </div>
           </div>
+
+          {/* QR code — only for saved records. Scanning it opens this exact
+              entry in edit mode (for pulling the part during inventory). */}
+          {isEditing && qrValue && (
+            <div className="flex flex-col items-center justify-center gap-2 py-2 border border-dashed border-border rounded-xl bg-muted/20">
+              <div ref={qrRef} className="bg-white p-3 rounded-lg">
+                <QRCode value={qrValue} size={128} />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center">
+                Scan during inventory to open & edit this part
+              </p>
+            </div>
+          )}
 
           {!active && (
             <div>
