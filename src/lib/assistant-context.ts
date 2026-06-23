@@ -1,4 +1,4 @@
-import { jobsDB, departmentsDB } from './json-db';
+import { jobsDB, departmentsDB, extraPartsDB } from './json-db';
 
 // Days until the due date (negative = overdue). No date -> null.
 // Mirrors the same day-math used in jobs-table.tsx so the assistant's
@@ -20,9 +20,10 @@ function daysUntil(dueDate?: string): number | null {
  * the full list is cheaper to build and more reliable than search.
  */
 export async function buildJobsContext(): Promise<string> {
-  const [jobs, departments] = await Promise.all([
+  const [jobs, departments, extraParts] = await Promise.all([
     jobsDB.findAll(),
     departmentsDB.findAll(),
+    extraPartsDB.findAll(),
   ]);
 
   const deptName = (id: string) =>
@@ -70,10 +71,32 @@ export async function buildJobsContext(): Promise<string> {
     .sort((a, b) => a.order - b.order)
     .map((d) => d.name);
 
+  // Extra parts inventory -- leftover pieces stored in racks/shelves. Only
+  // include active (in-stock) ones so "where is the extra piece from job X"
+  // ignores ones that have already been pulled out.
+  const activeExtras = extraParts.filter((p) => p.active);
+  const extraLines = activeExtras.map((p) => {
+    const bits = [
+      p.jobNumber ? `JOB# ${p.jobNumber}` : null,
+      p.partNumber ? `Part# ${p.partNumber}` : null,
+      p.place ? `Place: ${p.place}` : null,
+      p.partQty ? `Qty: ${p.partQty}` : null,
+      p.heatNumber ? `HEAT#: ${p.heatNumber}` : null,
+      p.partDate ? `Stored: ${p.partDate}` : null,
+      p.employeeName ? `By: ${p.employeeName}` : null,
+      p.partNotes ? `Notes: ${p.partNotes}` : null,
+    ].filter(Boolean);
+    return `- ${bits.join(' | ')}`;
+  });
+
   return [
     `Today's date is ${todayStr}.`,
     `Valid department names (use these exact names if asked to move a job): ${deptNames.join(', ')}.`,
     `There are ${jobs.length} jobs currently in the shop:`,
     ...lines,
+    activeExtras.length
+      ? `\nExtra parts currently in stock (${activeExtras.length} entries):`
+      : '\nExtra parts inventory: empty.',
+    ...extraLines,
   ].join('\n');
 }

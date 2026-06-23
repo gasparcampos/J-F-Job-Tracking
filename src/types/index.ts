@@ -130,6 +130,53 @@ export interface UpdateJobInput {
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
 }
 
+// Leftover machined pieces stored in racks/shelves (Extra Parts tab).
+// Linked to the original Job by jobId (optional), but the identifying
+// fields are copied so the row is self-contained even if the job is later
+// deleted or shipped.
+export interface ExtraPart {
+  id: string;
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  poNumber?: string;
+  name?: string;
+  heatNumber?: string;
+  partQty?: string;
+  place?: string;
+  partDate?: string;
+  employeeName?: string;
+  partNotes?: string;
+  // While `active` is true the piece is still in stock. When set to false,
+  // exitDate is auto-filled with today server-side.
+  active: boolean;
+  exitDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExtraPartInput {
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  poNumber?: string;
+  name?: string;
+  heatNumber?: string;
+  partQty?: string;
+  place?: string;
+  partDate?: string;
+  employeeName?: string;
+  partNotes?: string;
+  active?: boolean;
+  exitDate?: string;
+}
+
+export type UpdateExtraPartInput = Partial<CreateExtraPartInput>;
+
 export interface MoveJobInput {
   jobId: string;
   targetDeptId: string;

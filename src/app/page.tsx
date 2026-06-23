@@ -22,7 +22,7 @@ import {
 import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import type { Job, Department, Employee, CreateJobInput, UpdateJobInput } from '@/types';
+import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput } from '@/types';
 import {
   KanbanColumn,
   JobFormModal,
@@ -32,6 +32,8 @@ import {
   JobsTable,
   MoveToAnyDeptModal,
   AssistantPanel,
+  ExtraPartsTable,
+  ExtraPartFormModal,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -46,7 +48,12 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts'>('active');
+
+  // Extra Parts inventory (leftover stocked pieces).
+  const [extraParts, setExtraParts] = useState<ExtraPart[]>([]);
+  // null = closed, {} = new entry, ExtraPart = editing.
+  const [editingExtraPart, setEditingExtraPart] = useState<ExtraPart | Record<string, never> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -152,6 +159,29 @@ export default function Home() {
     [filteredJobs, shippedDeptId]
   );
 
+  // Extra parts filter: matches the global search across all the identifying
+  // text fields so the same search box works for jobs *and* extras.
+  const filteredExtraParts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return extraParts;
+    return extraParts.filter((p) =>
+      [
+        p.jobNumber,
+        p.dwgNumber,
+        p.partNumber,
+        p.poNumber,
+        p.company,
+        p.name,
+        p.place,
+        p.heatNumber,
+        p.employeeName,
+        p.partNotes,
+      ]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [extraParts, searchQuery]);
+
   // For Kanban: when the search matches a column name, move that column to the
   // front (right under the search bar) so it's quick to spot.
   const displayDepartments = useMemo(() => {
@@ -168,19 +198,22 @@ export default function Home() {
     try {
       await fetch('/api/seed');
 
-      const [jobsRes, deptsRes, employeesRes] = await Promise.all([
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch('/api/departments'),
         fetch('/api/employees'),
+        fetch('/api/extra-parts'),
       ]);
 
       const jobsData = await jobsRes.json();
       const deptsData = await deptsRes.json();
       const employeesData = await employeesRes.json();
+      const extraPartsData = await extraPartsRes.json();
 
       setJobs(jobsData);
       setDepartments(deptsData);
       setEmployees(employeesData);
+      setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -565,6 +598,48 @@ export default function Home() {
     }
   };
 
+  const handleSaveExtraPart = async (data: CreateExtraPartInput, existingId?: string): Promise<boolean> => {
+    try {
+      const res = await fetch(existingId ? `/api/extra-parts/${existingId}` : '/api/extra-parts', {
+        method: existingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: err.error || 'Could not save extra part', variant: 'destructive' });
+        return false;
+      }
+      const saved: ExtraPart = await res.json();
+      setExtraParts((prev) => {
+        const idx = prev.findIndex((p) => p.id === saved.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...prev];
+      });
+      toast({ title: 'Success', description: existingId ? 'Extra part updated' : 'Extra part saved' });
+      return true;
+    } catch (error) {
+      console.error('Error saving extra part:', error);
+      toast({ title: 'Error', description: 'Could not save extra part', variant: 'destructive' });
+      return false;
+    }
+  };
+
+  const handleDeleteExtraPart = async (part: ExtraPart) => {
+    try {
+      await fetch(`/api/extra-parts/${part.id}`, { method: 'DELETE' });
+      setExtraParts((prev) => prev.filter((p) => p.id !== part.id));
+      toast({ title: 'Deleted', description: 'Extra part removed' });
+    } catch (error) {
+      console.error('Error deleting extra part:', error);
+      toast({ title: 'Error', description: 'Could not delete extra part', variant: 'destructive' });
+    }
+  };
+
   const handleEditDept = async (deptId: string) => {
     const dept = departments.find((d) => d.id === deptId);
     if (!dept) return;
@@ -944,26 +1019,63 @@ export default function Home() {
                   {deviationTableJobs.length}
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setTableTab('extra-parts')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'extra-parts'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Extra Parts
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'extra-parts' ? 'bg-primary-foreground/20' : 'bg-background'
+                  }`}
+                >
+                  {filteredExtraParts.length}
+                </span>
+              </button>
+
+              {tableTab === 'extra-parts' && (
+                <Button
+                  onClick={() => setEditingExtraPart({})}
+                  className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
+                  size="sm"
+                >
+                  <Plus size={14} />
+                  Add Extra Part
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-              <JobsTable
-                jobs={
-                  tableTab === 'active'
-                    ? activeTableJobs
-                    : tableTab === 'shipped'
-                    ? shippedTableJobs
-                    : deviationTableJobs
-                }
-                departments={departments}
-                onViewHistory={setHistoryJob}
-                onDeleteJob={handleDeleteJob}
-                onViewPdf={setPdfJob}
-                onEditJob={setEditingJob}
-                onAttachFile={handleAttachToJob}
-                onRemoveAttachment={handleRemoveAttachment}
-                onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
-              />
+              {tableTab === 'extra-parts' ? (
+                <ExtraPartsTable
+                  parts={filteredExtraParts}
+                  onEdit={(p) => setEditingExtraPart(p)}
+                  onDelete={handleDeleteExtraPart}
+                />
+              ) : (
+                <JobsTable
+                  jobs={
+                    tableTab === 'active'
+                      ? activeTableJobs
+                      : tableTab === 'shipped'
+                      ? shippedTableJobs
+                      : deviationTableJobs
+                  }
+                  departments={departments}
+                  onViewHistory={setHistoryJob}
+                  onDeleteJob={handleDeleteJob}
+                  onViewPdf={setPdfJob}
+                  onEditJob={setEditingJob}
+                  onAttachFile={handleAttachToJob}
+                  onRemoveAttachment={handleRemoveAttachment}
+                  onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
+                />
+              )}
             </div>
           </div>
         )}
@@ -1035,6 +1147,14 @@ export default function Home() {
         employees={employees}
         onMove={handleMoveToAnyDept}
         onCancel={() => setMoveToAnyJob(null)}
+      />
+
+      <ExtraPartFormModal
+        part={editingExtraPart}
+        jobs={jobs}
+        employees={employees}
+        onSave={handleSaveExtraPart}
+        onClose={() => setEditingExtraPart(null)}
       />
 
       <AssistantPanel

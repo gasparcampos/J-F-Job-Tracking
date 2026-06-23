@@ -74,15 +74,38 @@ export interface StoredEmployee {
   isActive: boolean;
 }
 
+export interface StoredExtraPart {
+  id: string;
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  poNumber?: string;
+  name?: string;
+  heatNumber?: string;
+  partQty?: string;
+  place?: string;
+  partDate?: string;
+  employeeName?: string;
+  partNotes?: string;
+  active: boolean;
+  exitDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------- Collections ----------
 
 const JOBS = 'jobs';
 const DEPARTMENTS = 'departments';
 const EMPLOYEES = 'employees';
+const EXTRA_PARTS = 'extraParts';
 
 const jobsCol = () => firestore.collection(JOBS);
 const deptsCol = () => firestore.collection(DEPARTMENTS);
 const empsCol = () => firestore.collection(EMPLOYEES);
+const extraPartsCol = () => firestore.collection(EXTRA_PARTS);
 
 // ---------- Defaults / Seed data ----------
 
@@ -548,6 +571,108 @@ export const employeesDB = {
       avatar: data.avatar,
       isActive: data.isActive ?? true,
     };
+  },
+};
+
+// ---------- extraPartsDB ----------
+
+function docToExtraPart(id: string, data: FirebaseFirestore.DocumentData): StoredExtraPart {
+  return {
+    id,
+    jobId: data.jobId,
+    jobNumber: data.jobNumber,
+    company: data.company,
+    dwgNumber: data.dwgNumber,
+    partNumber: data.partNumber,
+    poNumber: data.poNumber,
+    name: data.name,
+    heatNumber: data.heatNumber,
+    partQty: data.partQty,
+    place: data.place,
+    partDate: data.partDate,
+    employeeName: data.employeeName,
+    partNotes: data.partNotes,
+    active: data.active ?? true,
+    exitDate: data.exitDate,
+    createdAt: data.createdAt ?? new Date().toISOString(),
+    updatedAt: data.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+export const extraPartsDB = {
+  async findAll(): Promise<StoredExtraPart[]> {
+    const snap = await extraPartsCol().get();
+    const out: StoredExtraPart[] = [];
+    snap.forEach((d) => out.push(docToExtraPart(d.id, d.data())));
+    // Newest first; toggling active doesn't move the row around.
+    return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  async findById(id: string): Promise<StoredExtraPart | null> {
+    const doc = await extraPartsCol().doc(id).get();
+    if (!doc.exists) return null;
+    return docToExtraPart(doc.id, doc.data()!);
+  },
+
+  async create(data: Partial<StoredExtraPart>): Promise<StoredExtraPart> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const record: StoredExtraPart = {
+      id,
+      jobId: data.jobId,
+      jobNumber: data.jobNumber,
+      company: data.company,
+      dwgNumber: data.dwgNumber,
+      partNumber: data.partNumber,
+      poNumber: data.poNumber,
+      name: data.name,
+      heatNumber: data.heatNumber,
+      partQty: data.partQty,
+      place: data.place,
+      partDate: data.partDate,
+      employeeName: data.employeeName,
+      partNotes: data.partNotes,
+      active: data.active ?? true,
+      exitDate: data.exitDate,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const { id: _id, ...payload } = record;
+    void _id;
+    await extraPartsCol().doc(id).set(stripUndefined(payload as Record<string, unknown>));
+    return record;
+  },
+
+  async update(id: string, data: Partial<StoredExtraPart>): Promise<StoredExtraPart | null> {
+    const ref = extraPartsCol().doc(id);
+    const before = await ref.get();
+    if (!before.exists) return null;
+
+    const patch: Record<string, unknown> = { ...data, updatedAt: new Date().toISOString() };
+
+    // Auto-fill EXIT-DATE when the entry transitions from active -> inactive
+    // (so the client doesn't have to remember to set it). If the user passed
+    // their own exitDate, honor that instead.
+    const wasActive = (before.data()?.active ?? true) === true;
+    if (
+      wasActive &&
+      data.active === false &&
+      !data.exitDate
+    ) {
+      patch.exitDate = new Date().toISOString().slice(0, 10);
+    }
+
+    await ref.update(stripUndefined(patch));
+    const after = await ref.get();
+    return docToExtraPart(after.id, after.data()!);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const ref = extraPartsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return false;
+    await ref.delete();
+    return true;
   },
 };
 

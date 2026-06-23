@@ -8,3 +8,5 @@ export { JobsTable } from './jobs-table';
 // PdfViewerModal is imported dynamically to avoid SSR issues with pdfjs-dist
 export { MoveToAnyDeptModal } from './move-to-any-dept-modal';
 export { AssistantPanel } from './assistant-panel';
+export { ExtraPartsTable } from './extra-parts-table';
+export { ExtraPartFormModal } from './extra-part-form-modal';
