@@ -19,7 +19,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { LayoutGrid, List, Plus, Trash2, Loader2, Wrench, Search, X } from 'lucide-react';
+import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import type { Job, Department, Employee, CreateJobInput, UpdateJobInput } from '@/types';
@@ -565,21 +565,6 @@ export default function Home() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!confirm('Delete all jobs?')) return;
-
-    try {
-      await fetch('/api/jobs', { method: 'DELETE' });
-      setJobs([]);
-      toast({
-        title: 'Success',
-        description: 'All jobs deleted',
-      });
-    } catch (error) {
-      console.error('Error clearing jobs:', error);
-    }
-  };
-
   const handleEditDept = async (deptId: string) => {
     const dept = departments.find((d) => d.id === deptId);
     if (!dept) return;
@@ -760,13 +745,12 @@ export default function Home() {
   return (
     <div className="h-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
-      <nav className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 z-40 shadow-lg flex-shrink-0">
-        <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-6">
+      <nav className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-3 z-40 shadow-lg flex-shrink-0">
+        {/* Left cluster: logo + view toggle + New Job */}
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/30">
-                <Wrench size={22} className="text-primary-foreground" />
-              </div>
+            <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/30">
+              <Wrench size={22} className="text-primary-foreground" />
             </div>
             <div>
               <h1 className="font-bold text-xl tracking-tight text-card-foreground">
@@ -778,18 +762,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* On mobile this row wraps below the logo; the delete-all button
-              moves up here so the second row is just the view toggle. */}
-          <Button
-            variant="outline"
-            onClick={handleClearAll}
-            className="sm:hidden border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
-          >
-            <Trash2 size={18} />
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 sm:ml-8">
           <div className="bg-muted p-1 rounded-xl flex border border-border">
             <Button
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
@@ -819,8 +791,18 @@ export default function Home() {
             </Button>
           </div>
 
-          {/* Search bar: JOB#, PO#, DWG#, Part#, name */}
-          <div className="relative flex-1 min-w-[180px] sm:flex-initial">
+          <Button
+            onClick={() => setIsAddingJob(true)}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">New Job</span>
+          </Button>
+        </div>
+
+        {/* Search bar: centered in the middle on desktop, full width on mobile */}
+        <div className="sm:flex-1 sm:flex sm:justify-center">
+          <div className="relative w-full sm:max-w-md">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
@@ -830,7 +812,7 @@ export default function Home() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search JOB#, PO#, DWG#, Part#, name..."
-              className="w-full sm:w-80 h-10 pl-9 pr-9 rounded-xl bg-muted border border-border text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+              className="w-full h-10 pl-9 pr-9 rounded-xl bg-muted border border-border text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
             />
             {searchQuery && (
               <button
@@ -842,22 +824,6 @@ export default function Home() {
               </button>
             )}
           </div>
-
-          <Button
-            onClick={() => setIsAddingJob(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">New Job</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={handleClearAll}
-            className="hidden sm:inline-flex border-destructive/50 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
-          >
-            <Trash2 size={18} />
-          </Button>
         </div>
       </nav>
 
