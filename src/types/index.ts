@@ -54,6 +54,10 @@ export interface Job {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  // Material-specific fields (raw stock traceability).
+  materialPo?: string;
+  heatNumber?: string;
+  hrc?: string;
   // Permanent "outside services" note (e.g. phosphate, NDE). Stays anchored
   // to the job and is NOT overwritten by department moves like `notes` is.
   outService?: string;
@@ -91,6 +95,9 @@ export interface CreateJobInput {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  materialPo?: string;
+  heatNumber?: string;
+  hrc?: string;
   outService?: string;
 }
 
@@ -115,6 +122,9 @@ export interface UpdateJobInput {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  materialPo?: string;
+  heatNumber?: string;
+  hrc?: string;
   outService?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';

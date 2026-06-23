@@ -38,6 +38,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
   const [priority, setPriority] = useState(3);
   const [assignedTo, setAssignedTo] = useState('__none__');
   const [notes, setNotes] = useState('');
+  const [materialPo, setMaterialPo] = useState('');
+  const [heatNumber, setHeatNumber] = useState('');
+  const [hrc, setHrc] = useState('');
   const [outService, setOutService] = useState('');
   const [deviation, setDeviation] = useState('');
   const [deviationStatus, setDeviationStatus] = useState<'pending' | 'accepted' | 'rejected' | ''>('');
@@ -60,6 +63,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     setPriority(job.priority ?? 3);
     setAssignedTo(job.assignedTo || '__none__');
     setNotes(job.notes ?? '');
+    setMaterialPo(job.materialPo ?? '');
+    setHeatNumber(job.heatNumber ?? '');
+    setHrc(job.hrc ?? '');
     setOutService(job.outService ?? '');
     setDeviation(job.deviation ?? '');
     setDeviationStatus(job.deviationStatus ?? '');
@@ -85,6 +91,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
         priority,
         assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
         notes: notes.trim() || undefined,
+        materialPo: materialPo.trim() || undefined,
+        heatNumber: heatNumber.trim() || undefined,
+        hrc: hrc.trim() || undefined,
         outService: outService.trim() || undefined,
         deviation: deviation.trim() || undefined,
         // Always send the status (incl. '') so resolving a deviation clears it.
@@ -176,7 +185,10 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job title..." required className="rounded-lg h-11 bg-background border-border" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Assign To + Priority on the left, then the three material
+              traceability fields (M_PO, HEAT#, HRC) on the right -- all in
+              one row on tablet/desktop, stacks on mobile. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Assign To</Label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>
@@ -203,6 +215,18 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">M_PO</Label>
+              <Input value={materialPo} onChange={(e) => setMaterialPo(e.target.value)} placeholder="IN HOUSE" className="rounded-lg h-11 bg-background border-border" />
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">HEAT#</Label>
+              <Input value={heatNumber} onChange={(e) => setHeatNumber(e.target.value)} placeholder="e.g. T3015" className="rounded-lg h-11 bg-background border-border" />
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">HRC</Label>
+              <Input value={hrc} onChange={(e) => setHrc(e.target.value)} placeholder="e.g. 33" className="rounded-lg h-11 bg-background border-border" />
             </div>
           </div>
 

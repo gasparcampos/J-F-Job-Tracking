@@ -38,6 +38,9 @@ export interface StoredJob {
   dwgNumber?: string;
   partNumber?: string;
   dueDate?: string;
+  materialPo?: string;
+  heatNumber?: string;
+  hrc?: string;
   outService?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
@@ -161,6 +164,9 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     dwgNumber: data.dwgNumber,
     partNumber: data.partNumber,
     dueDate: data.dueDate,
+    materialPo: data.materialPo,
+    heatNumber: data.heatNumber,
+    hrc: data.hrc,
     outService: data.outService,
     deviation: data.deviation,
     deviationStatus: data.deviationStatus,
@@ -243,6 +249,9 @@ export const jobsDB = {
     dwgNumber?: string;
     partNumber?: string;
     dueDate?: string;
+    materialPo?: string;
+    heatNumber?: string;
+    hrc?: string;
     outService?: string;
   }): Promise<StoredJob> {
     const id = generateId();
@@ -274,6 +283,9 @@ export const jobsDB = {
       dwgNumber: data.dwgNumber,
       partNumber: data.partNumber,
       dueDate: data.dueDate,
+      materialPo: data.materialPo,
+      heatNumber: data.heatNumber,
+      hrc: data.hrc,
       outService: data.outService,
       history: [
         {

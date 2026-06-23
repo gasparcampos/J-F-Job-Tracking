@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
       dwgNumber: body.dwgNumber,
       partNumber: body.partNumber,
       dueDate: body.dueDate,
+      materialPo: body.materialPo,
+      heatNumber: body.heatNumber,
+      hrc: body.hrc,
       outService: body.outService,
     });
 
