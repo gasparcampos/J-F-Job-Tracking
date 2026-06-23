@@ -69,7 +69,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       style={style}
       {...attributes}
       {...listeners}
-      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden touch-none ${
+      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden ${
         isInProgress
           ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
           : 'bg-card border border-border hover:border-primary/50'

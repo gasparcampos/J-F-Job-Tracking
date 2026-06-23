@@ -200,33 +200,33 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-sm">
       <div className="bg-card w-full h-full flex flex-col">
         {/* Header */}
-        <div className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary p-2 rounded-lg">
+        <div className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-primary p-2 rounded-lg flex-shrink-0">
               {isImage ? (
                 <Maximize2 size={18} className="text-primary-foreground" />
               ) : (
                 <FileText size={18} className="text-primary-foreground" />
               )}
             </div>
-            <div>
-              <h3 className="font-bold text-card-foreground">{job.title}</h3>
-              <p className="text-[10px] text-muted-foreground">{job.fileName || 'Documento'}</p>
+            <div className="min-w-0">
+              <h3 className="font-bold text-card-foreground truncate">{job.title}</h3>
+              <p className="text-[10px] text-muted-foreground truncate">{job.fileName || 'Documento'}</p>
             </div>
             {isImage && (
-              <div className="ml-4 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase">
+              <div className="ml-4 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase hidden sm:block flex-shrink-0">
                 Imagen
               </div>
             )}
             {isPdf && (
-              <div className="ml-4 bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase">
+              <div className="ml-4 bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase hidden sm:block flex-shrink-0">
                 PDF - {pdfImages.length > 0 ? `${currentPage + 1}/${pdfImages.length} pages` : 'Loading...'}
               </div>
             )}
           </div>
-          
+
           {/* Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isPdf && pdfImages.length > 1 && (
               <div className="flex items-center gap-1 mr-2">
                 <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0} className="h-8 w-8 p-0">
@@ -240,32 +240,33 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                 </Button>
               </div>
             )}
-            <Button variant="outline" size="sm" onClick={handleRotate} className="gap-1">
+            <Button variant="outline" size="sm" onClick={handleRotate} className="gap-1 hidden sm:inline-flex">
               <RotateCw size={16} />
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1">
+            <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1 hidden sm:inline-flex">
               <Download size={16} />
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => window.open(job.fileUrl, '_blank')}
-              className="gap-1"
+              className="gap-1 hidden sm:inline-flex"
             >
               <ExternalLink size={16} />
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowAnnotationForm(!showAnnotationForm)}
-              className={`gap-1 ml-2 ${showAnnotationForm ? 'bg-primary text-primary-foreground' : ''}`}
+              className={`gap-1 sm:ml-2 hidden sm:inline-flex ${showAnnotationForm ? 'bg-primary text-primary-foreground' : ''}`}
             >
               <Plus size={16} />
               Note
             </Button>
             <button
               onClick={onClose}
-              className="hover:bg-muted p-2 rounded-lg transition-colors text-muted-foreground hover:text-card-foreground ml-4"
+              aria-label="Cerrar"
+              className="hover:bg-muted bg-muted/60 sm:bg-transparent p-2 rounded-lg transition-colors text-card-foreground sm:text-muted-foreground sm:hover:text-card-foreground sm:ml-4 flex-shrink-0"
             >
               <X size={24} />
             </button>
@@ -359,8 +360,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
             )}
           </div>
 
-          {/* Sidebar with notes and history */}
-          <div className="w-80 border-l border-border bg-card flex flex-col">
+          {/* Sidebar with notes and history (hidden on phones so the PDF
+              uses the full width; reachable on tablet/desktop) */}
+          <div className="hidden md:flex w-80 border-l border-border bg-card flex-col">
             {/* Add note form */}
             {showAnnotationForm && (
               <div className="p-4 border-b border-border bg-muted/50">
