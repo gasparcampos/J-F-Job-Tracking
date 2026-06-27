@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2 } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -206,16 +206,18 @@ export function JobsTable({
                       </span>
                     </span>
                   )}
-                  {job.deviationStatus === 'pending' && (
-                    <span className="inline-flex items-center gap-1 flex-shrink-0">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-red-600 rounded-md px-1.5 py-0.5">
-                        Deviation
-                      </span>
-                      {job.deviation && (
-                        <span className="text-[11px] text-red-600 dark:text-red-400 whitespace-nowrap">
-                          {job.deviation}
-                        </span>
-                      )}
+                  {/* Deviation reason text, colored to match the unified DEV
+                      icon in the actions column (red = pending, green =
+                      approved, gray = rejected). */}
+                  {job.deviationStatus && job.deviation && (
+                    <span className={`text-[11px] whitespace-nowrap flex-shrink-0 ${
+                      job.deviationStatus === 'pending'
+                        ? 'text-red-600 dark:text-red-400'
+                        : job.deviationStatus === 'accepted'
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-zinc-500 dark:text-zinc-400'
+                    }`}>
+                      {job.deviation}
                     </span>
                   )}
                 </div>
@@ -297,19 +299,29 @@ export function JobsTable({
                       Return
                     </button>
                   )}
-                  {/* DEV badge: shows a job carries a deviation and its outcome.
-                      Green = approved, gray = rejected. Click opens the job. */}
-                  {(job.deviationStatus === 'accepted' || job.deviationStatus === 'rejected') && (
+                  {/* Unified DEV badge: one icon, three colors for the three
+                      deviation states. Red = pending (not approved yet),
+                      green = approved, gray = rejected. Click opens the job. */}
+                  {(job.deviationStatus === 'pending' || job.deviationStatus === 'accepted' || job.deviationStatus === 'rejected') && (
                     <button
                       type="button"
                       onClick={() => onEditJob?.(job)}
-                      title={`Deviation ${job.deviationStatus === 'accepted' ? 'approved' : 'rejected'}${job.deviation ? `: ${job.deviation}` : ''}`}
-                      className={`text-[9px] font-bold uppercase tracking-wider text-white rounded-md px-1.5 py-1 mr-1 transition-colors ${
+                      title={`Deviation ${
+                        job.deviationStatus === 'accepted'
+                          ? 'approved'
+                          : job.deviationStatus === 'pending'
+                          ? 'pending approval'
+                          : 'rejected'
+                      }${job.deviation ? `: ${job.deviation}` : ''}`}
+                      className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-white rounded-md px-1.5 py-1 mr-1 transition-colors ${
                         job.deviationStatus === 'accepted'
                           ? 'bg-green-600 hover:bg-green-700'
+                          : job.deviationStatus === 'pending'
+                          ? 'bg-red-600 hover:bg-red-700'
                           : 'bg-zinc-600 hover:bg-zinc-700'
                       }`}
                     >
+                      <AlertTriangle size={11} />
                       DEV
                     </button>
                   )}
