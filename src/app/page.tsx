@@ -184,16 +184,22 @@ export default function Home() {
     );
   }, [extraParts, searchQuery]);
 
-  // For Kanban: when the search matches a column name, move that column to the
-  // front (right under the search bar) so it's quick to spot.
+  // For Kanban: when searching, pull every column that has a match to the
+  // front (far left) so the result is easy to spot without scrolling. A column
+  // matches if it holds a matching job (e.g. a JOB#) or its own name matches.
   const displayDepartments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return departments;
-    const matches = departments.filter((d) => d.name.toLowerCase().includes(q));
+    const matchDeptIds = new Set(
+      filteredJobs.filter((j) => j.shipped !== true).map((j) => j.departmentId)
+    );
+    const isMatch = (d: Department) =>
+      matchDeptIds.has(d.id) || d.name.toLowerCase().includes(q);
+    const matches = departments.filter(isMatch);
     if (matches.length === 0) return departments;
-    const rest = departments.filter((d) => !d.name.toLowerCase().includes(q));
+    const rest = departments.filter((d) => !isMatch(d));
     return [...matches, ...rest];
-  }, [departments, searchQuery]);
+  }, [departments, searchQuery, filteredJobs]);
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
