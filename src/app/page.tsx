@@ -954,11 +954,9 @@ export default function Home() {
             <Plus size={16} />
             <span className="hidden sm:inline">New Job</span>
           </Button>
-        </div>
 
-        {/* Search bar: centered in the middle on desktop, full width on mobile */}
-        <div className="sm:flex-1 sm:flex sm:justify-center">
-          <div className="relative w-full sm:max-w-md">
+          {/* Search bar — sits right next to New Job. */}
+          <div className="relative w-full sm:w-[24rem]">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
