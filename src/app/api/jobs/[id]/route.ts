@@ -50,6 +50,45 @@ export async function PUT(
       return NextResponse.json(job);
     }
 
+    // Resolve a REJECTED deviation. Two outcomes, both return the job to its
+    // normal (non-deviation) state and leave a clear trail in the history:
+    //   - 'rework': the same part is salvageable; it stays where it is and goes
+    //     back to normal so work can continue to fix it.
+    //   - 'remake': the part is scrapped; it restarts from scratch as new —
+    //     progress is cleared and, if a first stage is supplied, it's sent back
+    //     to the start of the route.
+    if (body.deviationResolution === 'rework' || body.deviationResolution === 'remake') {
+      const currentJob = await jobsDB.findById(id);
+      if (!currentJob) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
+      const detail = (currentJob.deviation ?? '').trim();
+
+      if (body.deviationResolution === 'rework') {
+        await jobsDB.update(id, { deviationStatus: '' });
+        await jobsDB.addHistory(id, {
+          toDeptId: currentJob.departmentId,
+          notes: `🔧 Deviation rejected → REWORK: part returned to normal to be reworked${detail ? ` (${detail})` : ''}`,
+        });
+      } else {
+        const targetDeptId = body.targetDeptId || currentJob.departmentId;
+        await jobsDB.update(id, {
+          deviationStatus: '',
+          deviation: '',
+          inProgress: false,
+          departmentId: targetDeptId,
+        });
+        await jobsDB.addHistory(id, {
+          fromDeptId: currentJob.departmentId,
+          toDeptId: targetDeptId,
+          notes: `♻️ Deviation rejected → REMAKE: part scrapped, restarting from scratch as new${detail ? ` (was: ${detail})` : ''}`,
+        });
+      }
+
+      const finalJob = await jobsDB.findById(id);
+      return NextResponse.json(finalJob);
+    }
+
     // If moving to a new department
     if (body.targetDeptId) {
       const currentJob = await jobsDB.findById(id);

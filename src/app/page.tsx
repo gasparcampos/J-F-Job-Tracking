@@ -788,6 +788,44 @@ export default function Home() {
     }
   };
 
+  // Rework a rejected-deviation part: the same piece is salvageable, so it
+  // goes back to its normal state (stays in its current stage) to be fixed.
+  const handleReworkDeviation = async (job: Job) => {
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviationResolution: 'rework' }),
+      });
+      const updated = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      toast({ title: 'Sent to Rework', description: 'Job is back to normal to be reworked' });
+    } catch (error) {
+      console.error('Error reworking deviation:', error);
+      toast({ title: 'Error', description: 'Could not send to rework', variant: 'destructive' });
+    }
+  };
+
+  // Remake a rejected-deviation part: the piece is scrapped and started over
+  // from scratch as new — progress cleared and sent back to the first stage.
+  const handleRemakeDeviation = async (job: Job) => {
+    const firstDeptId =
+      departments.find((d) => d.id !== shippedDeptId)?.id || job.departmentId;
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviationResolution: 'remake', targetDeptId: firstDeptId }),
+      });
+      const updated = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      toast({ title: 'Remake from Scratch', description: 'Job restarted as new from the first stage' });
+    } catch (error) {
+      console.error('Error remaking deviation:', error);
+      toast({ title: 'Error', description: 'Could not restart the job', variant: 'destructive' });
+    }
+  };
+
   const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string) => {
     if (!moveToAnyJob) return;
 
@@ -960,6 +998,8 @@ export default function Home() {
                     canMoveToAnyDept={true}
                     highlightJobs={!!searchQuery.trim()}
                     onReturnToActive={dept.id === shippedDeptId ? handleReturnToActive : undefined}
+                    onReworkDeviation={handleReworkDeviation}
+                    onRemakeDeviation={handleRemakeDeviation}
                   />
                 );
               })}

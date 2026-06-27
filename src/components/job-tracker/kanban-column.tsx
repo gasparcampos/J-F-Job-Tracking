@@ -20,6 +20,8 @@ interface KanbanColumnProps {
   canMoveToAnyDept?: boolean;
   highlightJobs?: boolean;
   onReturnToActive?: (job: Job) => void;
+  onReworkDeviation?: (job: Job) => void;
+  onRemakeDeviation?: (job: Job) => void;
 }
 
 export function KanbanColumn({
@@ -36,6 +38,8 @@ export function KanbanColumn({
   canMoveToAnyDept,
   highlightJobs,
   onReturnToActive,
+  onReworkDeviation,
+  onRemakeDeviation,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: department.id,
@@ -89,6 +93,8 @@ export function KanbanColumn({
               canMoveToAnyDept={canMoveToAnyDept}
               highlight={highlightJobs}
               onReturnToActive={onReturnToActive}
+              onReworkDeviation={onReworkDeviation}
+              onRemakeDeviation={onRemakeDeviation}
             />
           ))}
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
@@ -21,9 +21,11 @@ interface JobCardProps {
   canMoveToAnyDept?: boolean;
   highlight?: boolean;
   onReturnToActive?: (job: Job) => void;
+  onReworkDeviation?: (job: Job) => void;
+  onRemakeDeviation?: (job: Job) => void;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive, onReworkDeviation, onRemakeDeviation }: JobCardProps) {
   // Priority dropdown open state (click the P-badge to change priority).
   const [priorityOpen, setPriorityOpen] = useState(false);
   const {
@@ -260,6 +262,34 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             day: '2-digit',
             month: 'short'
           })}</span>
+        </div>
+      )}
+
+      {/* Rejected-deviation decision row. Two ways out, both logged:
+          REWORK = fix the same part (back to normal), REMAKE = scrap it and
+          start over from scratch as new. */}
+      {isRejectedDeviation && (onReworkDeviation || onRemakeDeviation) && (
+        <div className="flex gap-1.5 items-stretch mb-2" onPointerDown={(e) => e.stopPropagation()}>
+          {onReworkDeviation && (
+            <Button
+              onClick={() => onReworkDeviation(job)}
+              className="flex-1 h-8 px-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-amber-900/20"
+              title="Rework this part — return to normal to be fixed"
+            >
+              <Wrench size={12} className="mr-1" />
+              Rework
+            </Button>
+          )}
+          {onRemakeDeviation && (
+            <Button
+              onClick={() => onRemakeDeviation(job)}
+              className="flex-1 h-8 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-blue-900/20"
+              title="Scrap and remake from scratch — restart as new"
+            >
+              <RefreshCw size={12} className="mr-1" />
+              Remake
+            </Button>
+          )}
         </div>
       )}
 
