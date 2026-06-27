@@ -22,6 +22,8 @@ interface KanbanColumnProps {
   onReturnToActive?: (job: Job) => void;
   onReworkDeviation?: (job: Job) => void;
   onRemakeDeviation?: (job: Job) => void;
+  onShip?: (job: Job) => void;
+  isShippingStage?: boolean;
 }
 
 export function KanbanColumn({
@@ -40,6 +42,8 @@ export function KanbanColumn({
   onReturnToActive,
   onReworkDeviation,
   onRemakeDeviation,
+  onShip,
+  isShippingStage,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: department.id,
@@ -95,6 +99,8 @@ export function KanbanColumn({
               onReturnToActive={onReturnToActive}
               onReworkDeviation={onReworkDeviation}
               onRemakeDeviation={onRemakeDeviation}
+              onShip={onShip}
+              isShippingStage={isShippingStage}
             />
           ))}
 

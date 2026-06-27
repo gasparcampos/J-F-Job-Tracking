@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw, Truck, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
@@ -23,9 +23,11 @@ interface JobCardProps {
   onReturnToActive?: (job: Job) => void;
   onReworkDeviation?: (job: Job) => void;
   onRemakeDeviation?: (job: Job) => void;
+  onShip?: (job: Job) => void;
+  isShippingStage?: boolean;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive, onReworkDeviation, onRemakeDeviation }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive, onReworkDeviation, onRemakeDeviation, onShip, isShippingStage }: JobCardProps) {
   // Priority dropdown open state (click the P-badge to change priority).
   const [priorityOpen, setPriorityOpen] = useState(false);
   const {
@@ -68,6 +70,10 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
   // the card to its normal look. REJECTED greys the card out ("REJECTED").
   const isPendingDeviation = job.deviationStatus === 'pending';
   const isRejectedDeviation = job.deviationStatus === 'rejected';
+  const isAcceptedDeviation = job.deviationStatus === 'accepted';
+  // A part can only be shipped once any deviation is approved (accepted) or it
+  // never had one. Pending/rejected deviations block shipping.
+  const canShip = !isPendingDeviation && !isRejectedDeviation;
 
   // A paused (pending-deviation) card overrides the in-progress orange look.
   const isInProgress = job.inProgress && !isPendingDeviation;
@@ -121,6 +127,24 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             : 'bg-zinc-900/60 border border-zinc-700/60 text-zinc-200'
         }`}>
           {job.deviation}
+        </div>
+      )}
+
+      {/* Shipping reminder: this part had an APPROVED deviation and is now in
+          READY TO SHIP. Warn whoever ships it to add the (QN)/(RFA) to the
+          paperwork before sending. */}
+      {isShippingStage && isAcceptedDeviation && (
+        <div className="-mx-4 -mt-4 mb-3 px-3 py-2 bg-amber-500 text-amber-950 flex items-start gap-2 shadow-md">
+          <ClipboardCheck size={16} className="flex-shrink-0 mt-0.5" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider">Approved Deviation</span>
+            <span className="text-[10px] font-bold leading-tight">
+              Add (QN) or (RFA) to the paperwork before shipping.
+            </span>
+            {job.deviation && (
+              <span className="text-[10px] font-medium text-amber-900/80 mt-0.5">{job.deviation}</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -362,6 +386,31 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           </Button>
         )}
       </div>
+
+      {/* Ship shortcut — sends straight to READY TO SHIP with Karina as the
+          processor and lands the job in the Shipped list. Disabled while a
+          deviation is unresolved: a part can't ship until it's approved. */}
+      {onShip && !isShippingStage && (
+        canShip ? (
+          <Button
+            onClick={() => onShip(job)}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="w-full h-8 mt-1.5 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20"
+            title="Ship to Karina (Ready to Ship)"
+          >
+            <Truck size={12} className="mr-1" />
+            Ship
+          </Button>
+        ) : (
+          <div
+            className="w-full h-8 mt-1.5 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-muted text-muted-foreground border border-border cursor-not-allowed select-none"
+            title="Deviation must be approved before this part can ship"
+          >
+            <Ban size={12} className="mr-1" />
+            Ship — needs approval
+          </div>
+        )
+      )}
     </div>
   );
 }

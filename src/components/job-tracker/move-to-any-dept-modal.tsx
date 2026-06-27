@@ -20,6 +20,11 @@ interface MoveToAnyDeptModalProps {
   employees: Employee[];
   onMove: (targetDeptId: string, employeeName: string, notes: string) => void;
   onCancel: () => void;
+  // Optional pre-fill (used by the "Ship" shortcut: target = READY TO SHIP,
+  // processor = Karina). When set, the title also reflects the shipping intent.
+  defaultDeptId?: string;
+  defaultEmployee?: string;
+  shipMode?: boolean;
 }
 
 export function MoveToAnyDeptModal({
@@ -28,9 +33,12 @@ export function MoveToAnyDeptModal({
   employees,
   onMove,
   onCancel,
+  defaultDeptId,
+  defaultEmployee,
+  shipMode,
 }: MoveToAnyDeptModalProps) {
-  const [selectedDeptId, setSelectedDeptId] = useState<string>('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('__none__');
+  const [selectedDeptId, setSelectedDeptId] = useState<string>(defaultDeptId ?? '');
+  const [selectedEmployee, setSelectedEmployee] = useState<string>(defaultEmployee || '__none__');
   const [notes, setNotes] = useState('');
 
   if (!job) return null;
@@ -67,7 +75,7 @@ export function MoveToAnyDeptModal({
         <div className="bg-gradient-to-r from-orange-600 to-amber-500 px-6 py-5 flex justify-between items-center text-white">
           <div className="flex items-center gap-2">
             <Building2 size={18} />
-            <h3 className="font-bold text-sm">Move to Any Area</h3>
+            <h3 className="font-bold text-sm">{shipMode ? 'Ship Job' : 'Move to Any Area'}</h3>
           </div>
           <button
             onClick={onCancel}
@@ -188,7 +196,7 @@ export function MoveToAnyDeptModal({
               className="w-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg disabled:opacity-50"
             >
               <ArrowRight size={16} className="mr-2" />
-              Confirm Move
+              {shipMode ? 'Confirm Ship' : 'Confirm Move'}
             </Button>
             <Button
               variant="outline"

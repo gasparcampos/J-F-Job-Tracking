@@ -126,7 +126,7 @@ const DEFAULT_DEPARTMENTS: StoredDepartment[] = [
   { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
   { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
   { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
-  { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: '' },
+  { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: 'Karina' },
 ];
 
 const DEFAULT_EMPLOYEES: StoredEmployee[] = [
@@ -143,6 +143,7 @@ const DEFAULT_EMPLOYEES: StoredEmployee[] = [
   { id: 'e11', name: 'Fedex', isActive: true },
   { id: 'e12', name: 'Chito', isActive: true },
   { id: 'e13', name: 'All', isActive: true },
+  { id: 'e14', name: 'Karina', isActive: true },
 ];
 
 // ---------- Helpers ----------
@@ -571,6 +572,26 @@ export const employeesDB = {
       avatar: data.avatar,
       isActive: data.isActive ?? true,
     };
+  },
+
+  // Create an employee, reusing the existing record if the name already
+  // exists (case-insensitive) so we never end up with duplicates.
+  async create(data: { name: string; email?: string }): Promise<StoredEmployee> {
+    const name = data.name.trim();
+    const snap = await empsCol().get();
+    let existing: StoredEmployee | null = null;
+    snap.forEach((d) => {
+      const v = d.data();
+      if (!existing && (v.name ?? '').trim().toLowerCase() === name.toLowerCase()) {
+        existing = { id: d.id, name: v.name, email: v.email, avatar: v.avatar, isActive: v.isActive ?? true };
+      }
+    });
+    if (existing) return existing;
+
+    const id = generateId();
+    const record = stripUndefined({ name, email: data.email, isActive: true } as Record<string, unknown>);
+    await empsCol().doc(id).set(record);
+    return { id, name, email: data.email, isActive: true };
   },
 };
 

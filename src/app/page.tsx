@@ -68,6 +68,7 @@ export default function Home() {
 
   // Move to any department modal state
   const [moveToAnyJob, setMoveToAnyJob] = useState<Job | null>(null);
+  const [shipJob, setShipJob] = useState<Job | null>(null);
 
   // Sensors for drag and drop.
   // Desktop (mouse): a tiny 3px move starts a drag — snappy.
@@ -826,6 +827,32 @@ export default function Home() {
     }
   };
 
+  // Ship shortcut confirm: moves the job into READY TO SHIP (the Shipped list)
+  // with the chosen processor (defaults to Karina). Same path as a normal move
+  // so the move is logged in history.
+  const handleShipConfirm = async (targetDeptId: string, employeeName: string, notes: string) => {
+    if (!shipJob) return;
+    try {
+      const res = await fetch(`/api/jobs/${shipJob.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetDeptId,
+          employeeId: employees.find((e) => e.name === employeeName)?.id,
+          employeeName,
+          notes: notes || '🚚 Shipped',
+        }),
+      });
+      const updatedJob = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
+      setShipJob(null);
+      toast({ title: 'Shipped', description: 'Job moved to the Shipped list' });
+    } catch (error) {
+      console.error('Error shipping job:', error);
+      toast({ title: 'Error', description: 'Could not ship the job', variant: 'destructive' });
+    }
+  };
+
   const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string) => {
     if (!moveToAnyJob) return;
 
@@ -1000,6 +1027,8 @@ export default function Home() {
                     onReturnToActive={dept.id === shippedDeptId ? handleReturnToActive : undefined}
                     onReworkDeviation={handleReworkDeviation}
                     onRemakeDeviation={handleRemakeDeviation}
+                    onShip={shippedDeptId && dept.id !== shippedDeptId ? setShipJob : undefined}
+                    isShippingStage={dept.id === shippedDeptId}
                   />
                 );
               })}
@@ -1208,6 +1237,17 @@ export default function Home() {
         employees={employees}
         onMove={handleMoveToAnyDept}
         onCancel={() => setMoveToAnyJob(null)}
+      />
+
+      <MoveToAnyDeptModal
+        job={shipJob}
+        departments={departments}
+        employees={employees}
+        onMove={handleShipConfirm}
+        onCancel={() => setShipJob(null)}
+        defaultDeptId={shippedDeptId ?? undefined}
+        defaultEmployee="Karina"
+        shipMode
       />
 
       <ExtraPartFormModal
