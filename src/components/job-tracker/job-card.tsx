@@ -387,10 +387,11 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         )}
       </div>
 
-      {/* Ship shortcut — sends straight to READY TO SHIP with Karina as the
-          processor and lands the job in the Shipped list. Disabled while a
-          deviation is unresolved: a part can't ship until it's approved. */}
-      {onShip && !isShippingStage && (
+      {/* Ship — only on cards in READY TO SHIP. Sends the part to the Shipped
+          (Enviados) list with Karina as the processor and off the board.
+          Disabled while a deviation is unresolved: a part can't ship until it's
+          approved. */}
+      {onShip && isShippingStage && (
         canShip ? (
           <Button
             onClick={() => onShip(job)}

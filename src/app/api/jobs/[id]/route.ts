@@ -89,6 +89,44 @@ export async function PUT(
       return NextResponse.json(finalJob);
     }
 
+    // Ship / un-ship. Shipping sends the job to the Enviados (Shipped) list and
+    // off the Kanban board; returning brings it back to active. Both are logged.
+    if (body.shipAction === 'ship' || body.shipAction === 'return') {
+      const currentJob = await jobsDB.findById(id);
+      if (!currentJob) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
+
+      if (body.shipAction === 'ship') {
+        let employeeName = body.employeeName || '';
+        if (body.employeeId && !employeeName) {
+          const employee = await employeesDB.findById(body.employeeId);
+          if (employee) employeeName = employee.name;
+        }
+        await jobsDB.update(id, {
+          shipped: true,
+          shippedAt: new Date().toISOString(),
+          assignedTo: employeeName || currentJob.assignedTo,
+          inProgress: false,
+        });
+        await jobsDB.addHistory(id, {
+          toDeptId: currentJob.departmentId,
+          employeeId: body.employeeId,
+          employeeName: employeeName || currentJob.assignedTo,
+          notes: body.notes || '🚚 Shipped',
+        });
+      } else {
+        await jobsDB.update(id, { shipped: false });
+        await jobsDB.addHistory(id, {
+          toDeptId: currentJob.departmentId,
+          notes: '↩️ Returned to Active from Shipped',
+        });
+      }
+
+      const finalJob = await jobsDB.findById(id);
+      return NextResponse.json(finalJob);
+    }
+
     // If moving to a new department
     if (body.targetDeptId) {
       const currentJob = await jobsDB.findById(id);

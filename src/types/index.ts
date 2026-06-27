@@ -66,6 +66,10 @@ export interface Job {
   // Deviations list until it's accepted or rejected.
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
+  // Shipped (sent) from READY TO SHIP. A shipped job leaves the Kanban board
+  // and shows in the Enviados (Shipped) list until returned to active.
+  shipped?: boolean;
+  shippedAt?: string;
   history?: JobHistoryEntry[];
   createdAt: string;
   updatedAt: string;
@@ -128,6 +132,8 @@ export interface UpdateJobInput {
   outService?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
+  shipped?: boolean;
+  shippedAt?: string;
 }
 
 // Leftover machined pieces stored in racks/shelves (Extra Parts tab).

@@ -139,25 +139,26 @@ export default function Home() {
   // into its own Deviations list until it's accepted or rejected.
   const isPendingDeviation = (j: Job) => j.deviationStatus === 'pending';
 
+  // A shipped (sent) job leaves the Kanban board and lives in the Enviados
+  // (Shipped) list. Karina ships it from the READY TO SHIP column.
+  const isShipped = (j: Job) => j.shipped === true;
+
   const deviationTableJobs = useMemo(
-    () => filteredJobs.filter((j) => isPendingDeviation(j)),
+    () => filteredJobs.filter((j) => isPendingDeviation(j) && !isShipped(j)),
     [filteredJobs]
   );
 
   const activeTableJobs = useMemo(
     () =>
       filteredJobs.filter(
-        (j) => j.departmentId !== shippedDeptId && !isPendingDeviation(j)
+        (j) => !isShipped(j) && !isPendingDeviation(j)
       ),
-    [filteredJobs, shippedDeptId]
+    [filteredJobs]
   );
 
   const shippedTableJobs = useMemo(
-    () =>
-      filteredJobs.filter(
-        (j) => j.departmentId === shippedDeptId && !isPendingDeviation(j)
-      ),
-    [filteredJobs, shippedDeptId]
+    () => filteredJobs.filter((j) => isShipped(j)),
+    [filteredJobs]
   );
 
   // Extra parts filter: matches the global search across all the identifying
@@ -752,26 +753,14 @@ export default function Home() {
     }
   };
 
-  // Move a shipped job back to the active list. Targets the department it
-  // was in right before it was shipped (from history), falling back to the
-  // first non-shipped stage. Logs the move in history.
+  // Bring a shipped job back onto the active board: clears the shipped flag so
+  // it reappears in its (READY TO SHIP) column. Logged in history.
   const handleReturnToActive = async (job: Job) => {
-    const lastToShip = [...(job.history ?? [])]
-      .reverse()
-      .find((h) => h.toDeptId === shippedDeptId && h.fromDeptId);
-    const targetDeptId =
-      lastToShip?.fromDeptId ||
-      departments.find((d) => d.id !== shippedDeptId)?.id;
-    if (!targetDeptId) return;
-
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetDeptId,
-          notes: '↩️ Returned to Active from Shipped',
-        }),
+        body: JSON.stringify({ shipAction: 'return' }),
       });
       const updatedJob = await res.json();
       setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
@@ -827,26 +816,26 @@ export default function Home() {
     }
   };
 
-  // Ship shortcut confirm: moves the job into READY TO SHIP (the Shipped list)
-  // with the chosen processor (defaults to Karina). Same path as a normal move
-  // so the move is logged in history.
-  const handleShipConfirm = async (targetDeptId: string, employeeName: string, notes: string) => {
+  // Ship confirm: sends the job to the Enviados (Shipped) list and off the
+  // Kanban board, recording the processor (defaults to Karina). The target
+  // area argument is ignored — shipping has a single destination.
+  const handleShipConfirm = async (_targetDeptId: string, employeeName: string, notes: string) => {
     if (!shipJob) return;
     try {
       const res = await fetch(`/api/jobs/${shipJob.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          targetDeptId,
+          shipAction: 'ship',
           employeeId: employees.find((e) => e.name === employeeName)?.id,
           employeeName,
-          notes: notes || '🚚 Shipped',
+          notes: notes || undefined,
         }),
       });
       const updatedJob = await res.json();
       setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
       setShipJob(null);
-      toast({ title: 'Shipped', description: 'Job moved to the Shipped list' });
+      toast({ title: 'Shipped', description: 'Job sent to the Shipped list' });
     } catch (error) {
       console.error('Error shipping job:', error);
       toast({ title: 'Error', description: 'Could not ship the job', variant: 'destructive' });
@@ -1001,7 +990,8 @@ export default function Home() {
             <div className="flex gap-3 overflow-x-auto pb-4 h-full">
               {displayDepartments.map((dept) => {
                 const deptJobs = filteredJobs
-                  .filter((j) => j.departmentId === dept.id)
+                  // Shipped jobs leave the board — they live in the Enviados list.
+                  .filter((j) => j.departmentId === dept.id && !isShipped(j))
                   // Sort by priority (P1 at top), then manual order as tiebreaker.
                   .sort(
                     (a, b) =>
@@ -1024,10 +1014,9 @@ export default function Home() {
                     onChangePriority={handleChangePriority}
                     canMoveToAnyDept={true}
                     highlightJobs={!!searchQuery.trim()}
-                    onReturnToActive={dept.id === shippedDeptId ? handleReturnToActive : undefined}
                     onReworkDeviation={handleReworkDeviation}
                     onRemakeDeviation={handleRemakeDeviation}
-                    onShip={shippedDeptId && dept.id !== shippedDeptId ? setShipJob : undefined}
+                    onShip={dept.id === shippedDeptId ? setShipJob : undefined}
                     isShippingStage={dept.id === shippedDeptId}
                   />
                 );

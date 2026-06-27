@@ -96,7 +96,20 @@ export function MoveToAnyDeptModal({
             </p>
           </div>
 
-          {/* Department selector */}
+          {/* Ship destination banner (ship mode has a single, fixed target). */}
+          {shipMode && (
+            <div className="text-center bg-green-500/10 py-3 rounded-xl border border-green-600/30">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                Sending to
+              </p>
+              <p className="font-bold text-lg uppercase tracking-tight text-green-600 dark:text-green-400">
+                Shipped / Enviados
+              </p>
+            </div>
+          )}
+
+          {/* Department selector (hidden in ship mode — destination is fixed). */}
+          {!shipMode && (
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
               Select Target Area
@@ -107,15 +120,15 @@ export function MoveToAnyDeptModal({
               </SelectTrigger>
               <SelectContent className="bg-card border-border max-h-64">
                 {departments.map((dept) => (
-                  <SelectItem 
-                    key={dept.id} 
-                    value={dept.id} 
+                  <SelectItem
+                    key={dept.id}
+                    value={dept.id}
                     className="hover:bg-muted"
                     disabled={dept.id === job.departmentId}
                   >
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
+                      <div
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: dept.color }}
                       />
                       <span>{dept.name}</span>
@@ -128,9 +141,10 @@ export function MoveToAnyDeptModal({
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {/* Selected department preview */}
-          {selectedDept && (
+          {!shipMode && selectedDept && (
             <div className="text-center bg-muted/50 py-4 rounded-xl border border-border">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
                 Move to
