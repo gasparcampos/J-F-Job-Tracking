@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2 } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Job } from '@/types';
@@ -61,7 +61,23 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
   const isPdf = typeSource.endsWith('.pdf');
   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeSource);
 
-  const isInProgress = job.inProgress;
+  // Deviation states. A PENDING deviation freezes the job: it's shown as a red
+  // alert and treated as paused so nobody keeps working on it. ACCEPTED returns
+  // the card to its normal look. REJECTED greys the card out ("REJECTED").
+  const isPendingDeviation = job.deviationStatus === 'pending';
+  const isRejectedDeviation = job.deviationStatus === 'rejected';
+
+  // A paused (pending-deviation) card overrides the in-progress orange look.
+  const isInProgress = job.inProgress && !isPendingDeviation;
+
+  // Container theme — deviation states take priority over in-progress/normal.
+  const containerTheme = isPendingDeviation
+    ? 'bg-gradient-to-br from-red-950 via-red-900 to-rose-900 border-2 border-red-500 shadow-red-500/30 shadow-lg'
+    : isRejectedDeviation
+    ? 'bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 border-2 border-zinc-600 shadow-zinc-900/40 opacity-90'
+    : isInProgress
+    ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
+    : 'bg-card border border-border hover:border-primary/50';
 
   return (
     <div
@@ -69,14 +85,43 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       style={style}
       {...attributes}
       {...listeners}
-      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden ${
-        isInProgress
-          ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
-          : 'bg-card border border-border hover:border-primary/50'
-      } ${isDragging ? 'opacity-40 shadow-2xl scale-105 border-primary ring-2 ring-primary/50 z-50' : ''} ${
+      className={`rounded-xl p-4 shadow-lg transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden ${containerTheme} ${isDragging ? 'opacity-40 shadow-2xl scale-105 border-primary ring-2 ring-primary/50 z-50' : ''} ${
         highlight ? 'search-flash' : ''
       }`}
     >
+      {/* Pending deviation — full-width red alert banner. The job is frozen
+          (paused) until the deviation is approved or rejected. */}
+      {isPendingDeviation && (
+        <div className="-mx-4 -mt-4 mb-3 px-3 py-2 bg-red-600 text-white flex items-center gap-2 shadow-md">
+          <AlertTriangle size={16} className="flex-shrink-0 animate-pulse" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider">Pending Deviation</span>
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-red-100/90 flex items-center gap-1">
+              <PauseCircle size={10} /> Paused — do not work
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected deviation — grey banner. */}
+      {isRejectedDeviation && (
+        <div className="-mx-4 -mt-4 mb-3 px-3 py-2 bg-zinc-600 text-white flex items-center gap-2 shadow-md">
+          <Ban size={16} className="flex-shrink-0" />
+          <span className="text-[11px] font-extrabold uppercase tracking-wider">Deviation Rejected</span>
+        </div>
+      )}
+
+      {/* Deviation details text (pending or rejected). */}
+      {(isPendingDeviation || isRejectedDeviation) && job.deviation && (
+        <div className={`-mt-1 mb-3 p-2 rounded-lg text-[11px] leading-snug ${
+          isPendingDeviation
+            ? 'bg-red-950/60 border border-red-700/50 text-red-100'
+            : 'bg-zinc-900/60 border border-zinc-700/60 text-zinc-200'
+        }`}>
+          {job.deviation}
+        </div>
+      )}
+
       {/* In Progress indicator */}
       {isInProgress && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500 animate-pulse" />
@@ -93,7 +138,13 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             <GripVertical size={16} />
           </span>
           <h4 className={`font-semibold text-sm truncate pr-2 flex-1 leading-tight ${
-            isInProgress ? 'text-orange-100' : 'text-card-foreground'
+            isPendingDeviation
+              ? 'text-red-50'
+              : isRejectedDeviation
+              ? 'text-zinc-100'
+              : isInProgress
+              ? 'text-orange-100'
+              : 'text-card-foreground'
           }`}>
             {job.title}
           </h4>
@@ -214,10 +265,18 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
 
       {/* Action buttons - single compact row */}
       <div className="flex gap-1.5 items-stretch" onPointerDown={(e) => e.stopPropagation()}>
-        {/* In Progress — can be started, but not stopped manually. Once in
-            progress it stays so until the job is completed/moved, which clears
-            it automatically. */}
-        {isInProgress ? (
+        {/* Pending deviation freezes the job: Progress/Complete are disabled so
+            nobody keeps working. Only Move stays available (e.g. route to QC).
+            Resolve the deviation from the job's edit screen. */}
+        {isPendingDeviation ? (
+          <div
+            className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-red-900/60 text-red-100 border border-red-600/60 cursor-not-allowed select-none"
+            title="Work is paused — deviation pending approval"
+          >
+            <PauseCircle size={12} className="mr-1" />
+            Paused
+          </div>
+        ) : isInProgress ? (
           <div
             className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-orange-600 text-white shadow-lg shadow-orange-500/30 cursor-default select-none"
             title="In progress — completing the job will stop it"
@@ -235,7 +294,15 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         )}
 
         {/* Complete or Return to Active */}
-        {onReturnToActive ? (
+        {isPendingDeviation ? (
+          <div
+            className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-red-900/40 text-red-200/60 border border-red-700/40 cursor-not-allowed select-none"
+            title="Resolve the deviation before completing"
+          >
+            <Ban size={12} className="mr-1" />
+            Locked
+          </div>
+        ) : onReturnToActive ? (
           <Button
             onClick={() => onReturnToActive(job)}
             className="flex-1 h-8 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-blue-900/20"
