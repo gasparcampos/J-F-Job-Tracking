@@ -238,6 +238,59 @@ export default function Home() {
     fetchData();
   }, [fetchData]);
 
+  // Background refresh — keeps every user's screen in sync.
+  // Since multiple people use the board at once, we re-pull jobs, departments,
+  // employees and extra parts every 15 seconds. That way a change one person
+  // saves (moving a job, editing, shipping, etc.) shows up on everyone else's
+  // screen within 15s without them having to reload the page.
+  //
+  // Unlike the initial fetchData, this one skips the /api/seed call, shows no
+  // loading spinner, and stays silent on a transient error (the next tick
+  // retries) so the sync is invisible and never flashes the UI.
+  const refreshData = useCallback(async () => {
+    try {
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes] = await Promise.all([
+        fetch('/api/jobs'),
+        fetch('/api/departments'),
+        fetch('/api/employees'),
+        fetch('/api/extra-parts'),
+      ]);
+
+      const [jobsData, deptsData, employeesData, extraPartsData] = await Promise.all([
+        jobsRes.json(),
+        deptsRes.json(),
+        employeesRes.json(),
+        extraPartsRes.json(),
+      ]);
+
+      setJobs(jobsData);
+      setDepartments(deptsData);
+      setEmployees(employeesData);
+      setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
+    } catch (error) {
+      // Silent: a dropped poll shouldn't spam toasts — the next tick retries.
+      console.error('Error refreshing data:', error);
+    }
+  }, []);
+
+  // Mirror the currently-dragged job into a ref so the polling loop can read it
+  // without re-creating the interval on every drag.
+  const activeJobRef = useRef<Job | null>(null);
+  useEffect(() => {
+    activeJobRef.current = activeJob;
+  }, [activeJob]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Don't yank the board out from under someone mid-drag — a refresh while
+      // they're moving a card would replace the job list and cancel the drag.
+      // We skip this tick and pick the changes up on the next one.
+      if (activeJobRef.current) return;
+      refreshData();
+    }, 15000);
+    return () => clearInterval(intervalId);
+  }, [refreshData]);
+
   // Deep link from a scanned Extra Part QR code (?extraPart=<id>): jump to the
   // Table view's Extra Parts tab and pop that record open in edit mode so it
   // can be pulled from inventory. Runs once the extra parts have loaded; the
