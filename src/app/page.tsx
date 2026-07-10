@@ -45,7 +45,7 @@ const PdfViewerModal = dynamic(
 // Columns hidden from the board for now. Nothing is deleted — the department
 // and any jobs inside it stay saved in Firestore; just remove the name from
 // this set to show the column again.
-const HIDDEN_DEPARTMENT_NAMES = new Set(['ARTURO']);
+const HIDDEN_DEPARTMENT_NAMES = new Set(['ARTURO', 'CUT SAW (SEGUETA)']);
 const visibleDepartments = (list: Department[]) =>
   list.filter((d) => !HIDDEN_DEPARTMENT_NAMES.has(d.name.trim().toUpperCase()));
 
