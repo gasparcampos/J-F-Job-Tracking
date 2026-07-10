@@ -454,22 +454,30 @@ export default function Home() {
       return;
     }
 
-    // Same column: reorder locally.
+    // Same column: reorder and persist so the new position is saved (was
+    // local-only before, so it snapped back on the next background refresh).
+    // Sort the column the same way the board shows it (priority, then order) so
+    // the drop index matches what the operator sees.
     if (overJob) {
-      setJobs((prev) => {
-        const deptJobs = prev.filter((j) => j.departmentId === activeJob.departmentId);
-        const otherJobs = prev.filter((j) => j.departmentId !== activeJob.departmentId);
+      const sorted = jobs
+        .filter((j) => j.departmentId === activeJob.departmentId)
+        .sort(
+          (a, b) =>
+            (a.priority ?? 3) - (b.priority ?? 3) ||
+            (a.order ?? 0) - (b.order ?? 0)
+        );
+      const oldIndex = sorted.findIndex((j) => j.id === activeId);
+      const newIndex = sorted.findIndex((j) => j.id === overId);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
-        const oldIndex = deptJobs.findIndex((j) => j.id === activeId);
-        const newIndex = deptJobs.findIndex((j) => j.id === overId);
+      const reordered = arrayMove(sorted, oldIndex, newIndex).map((j, idx) => ({
+        ...j,
+        order: idx,
+      }));
 
-        const reorderedJobs = arrayMove(deptJobs, oldIndex, newIndex).map((j, idx) => ({
-          ...j,
-          order: idx,
-        }));
-
-        return [...otherJobs, ...reorderedJobs];
-      });
+      // Optimistic local update, then persist to the backend.
+      setJobs((prev) => prev.map((j) => reordered.find((r) => r.id === j.id) ?? j));
+      void persistReorder(activeId, activeJob.departmentId, newIndex);
     }
   };
 
@@ -703,6 +711,29 @@ export default function Home() {
     await moveJobTo(movingJob, targetDepartment, employeeName, notes);
     setMovingJob(null);
     setTargetDepartment(null);
+  };
+
+  // Persist a within-column reorder so the new position survives the periodic
+  // background refresh (previously the reorder was local-only and snapped back).
+  // The endpoint renumbers the column and returns the authoritative job list.
+  const persistReorder = async (
+    jobId: string,
+    targetDeptId: string,
+    newOrder: number
+  ) => {
+    try {
+      const res = await fetch('/api/jobs/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, targetDeptId, newOrder }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.jobs)) setJobs(data.jobs);
+      }
+    } catch (error) {
+      console.error('Error saving job order:', error);
+    }
   };
 
   const handleMarkDone = (job: Job) => {
