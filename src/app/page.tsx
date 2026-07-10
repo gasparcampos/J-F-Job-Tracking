@@ -56,6 +56,7 @@ const MOVE_ONLY_DEPARTMENT_NAMES = new Set(['NEW MATERIAL', 'WOOD PALLET', 'BLUE
 // Production columns that follow a strict flow: cards show ONLY Progress +
 // Complete (no Move). The job advances through Complete, not manual moves.
 const NO_MOVE_DEPARTMENT_NAMES = new Set([
+  'NIGHT SHIFT',
   'CNC LATHE 1',
   'MANUAL LATHE',
   'LATHE DEBURR',
@@ -422,6 +423,11 @@ export default function Home() {
     const { active, over } = event;
     setActiveJob(null);
 
+    // The column the card actually started in (captured at drag start, before
+    // handleDragOver optimistically moved it). This is the reliable source of
+    // truth for whether the card really changed columns.
+    const origin = dragOriginRef.current;
+
     if (!over) return;
 
     const activeId = active.id as string;
@@ -431,46 +437,39 @@ export default function Home() {
     const activeJob = jobs.find((j) => j.id === activeId);
     if (!activeJob) return;
 
-    // Check if dropped over another job
+    // Resolve the destination department: the column dropped on, or the
+    // department of the job we dropped on top of.
     const overJob = jobs.find((j) => j.id === overId);
-    
-    if (overJob) {
-      // Reordering within same column or different column
-      if (activeJob.departmentId === overJob.departmentId) {
-        // Same column - just reorder locally
-        setJobs((prev) => {
-          const deptJobs = prev.filter((j) => j.departmentId === activeJob.departmentId);
-          const otherJobs = prev.filter((j) => j.departmentId !== activeJob.departmentId);
-          
-          const oldIndex = deptJobs.findIndex((j) => j.id === activeId);
-          const newIndex = deptJobs.findIndex((j) => j.id === overId);
-          
-          const reorderedJobs = arrayMove(deptJobs, oldIndex, newIndex).map((j, idx) => ({
-            ...j,
-            order: idx,
-          }));
-          
-          return [...otherJobs, ...reorderedJobs];
-        });
-      } else {
-        // Different column - show assign modal
-        const targetDept = departments.find((d) => d.id === overJob.departmentId);
-        if (targetDept) {
-          if (!confirmMobileMove(activeJob, targetDept)) return;
-          setMovingJob(activeJob);
-          setTargetDepartment(targetDept);
-        }
-      }
-    } else {
-      // Check if dropped over a department column
-      const targetDept = departments.find((d) => d.id === overId);
+    const targetDept = overJob
+      ? departments.find((d) => d.id === overJob.departmentId)
+      : departments.find((d) => d.id === overId);
+    if (!targetDept) return;
 
-      if (targetDept && activeJob.departmentId !== targetDept.id) {
-        // Moving to different department - show modal
-        if (!confirmMobileMove(activeJob, targetDept)) return;
-        setMovingJob(activeJob);
-        setTargetDepartment(targetDept);
-      }
+    // Cross-column move: persist it so it sticks. Previously this only updated
+    // local state (or popped a modal), so the drag never reached the backend
+    // and the 15s background refresh snapped the card back to its old column.
+    if (origin && targetDept.id !== origin) {
+      if (!confirmMobileMove(activeJob, targetDept)) return;
+      void moveJobTo(activeJob, targetDept, activeJob.assignedTo ?? '', '');
+      return;
+    }
+
+    // Same column: reorder locally.
+    if (overJob) {
+      setJobs((prev) => {
+        const deptJobs = prev.filter((j) => j.departmentId === activeJob.departmentId);
+        const otherJobs = prev.filter((j) => j.departmentId !== activeJob.departmentId);
+
+        const oldIndex = deptJobs.findIndex((j) => j.id === activeId);
+        const newIndex = deptJobs.findIndex((j) => j.id === overId);
+
+        const reorderedJobs = arrayMove(deptJobs, oldIndex, newIndex).map((j, idx) => ({
+          ...j,
+          order: idx,
+        }));
+
+        return [...otherJobs, ...reorderedJobs];
+      });
     }
   };
 
