@@ -42,6 +42,13 @@ const PdfViewerModal = dynamic(
   { ssr: false }
 );
 
+// Columns hidden from the board for now. Nothing is deleted — the department
+// and any jobs inside it stay saved in Firestore; just remove the name from
+// this set to show the column again.
+const HIDDEN_DEPARTMENT_NAMES = new Set(['ARTURO']);
+const visibleDepartments = (list: Department[]) =>
+  list.filter((d) => !HIDDEN_DEPARTMENT_NAMES.has(d.name.trim().toUpperCase()));
+
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -219,7 +226,7 @@ export default function Home() {
       const extraPartsData = await extraPartsRes.json();
 
       setJobs(jobsData);
-      setDepartments(deptsData);
+      setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
     } catch (error) {
@@ -264,7 +271,7 @@ export default function Home() {
       ]);
 
       setJobs(jobsData);
-      setDepartments(deptsData);
+      setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
     } catch (error) {
