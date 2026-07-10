@@ -62,6 +62,7 @@ const NO_MOVE_DEPARTMENT_NAMES = new Set([
   'LATHE INSPECTION',
   'MILL',
   'MILL DEBURR',
+  'FINAL INSPECTION',
 ]);
 
 // When Complete is pressed in a given column, force the job into this target
@@ -72,16 +73,14 @@ const COMPLETE_TARGET_OVERRIDES: Record<string, string> = {
   'CNC LATHE 1': 'LATHE DEBURR',
   'MANUAL LATHE': 'LATHE DEBURR',
   'LATHE DEBURR': 'LATHE INSPECTION',
-  // KARINA was inserted right after FINAL INSPECTION, so keep Final Inspection's
-  // Complete going to Stamp (its previous next-in-order) instead of KARINA.
-  'FINAL INSPECTION': 'STAMP',
 };
 
 // When Complete is pressed in these columns, pop up a small picker so the
 // operator chooses between the listed target columns instead of a single
 // default (e.g. Lathe Inspection → Mill or Karina).
 const COMPLETE_CHOICE_OVERRIDES: Record<string, string[]> = {
-  'LATHE INSPECTION': ['MILL', 'KARINA'],
+  'LATHE INSPECTION': ['MILL', 'KARINA', 'STAMP'],
+  'FINAL INSPECTION': ['KARINA', 'STAMP'],
 };
 
 export default function Home() {
