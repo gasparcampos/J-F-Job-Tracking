@@ -127,10 +127,11 @@ const DEFAULT_DEPARTMENTS: StoredDepartment[] = [
   { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
   { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
   { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
-  { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 13, defaultEmployee: 'Chito' },
-  { id: 'd15', name: 'NDE', color: '#6366f1', order: 14, defaultEmployee: '' },
-  { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 15, defaultEmployee: '' },
-  { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 16, defaultEmployee: 'Karina' },
+  { id: 'd18', name: 'KARINA', color: '#d946ef', order: 13, defaultEmployee: 'Karina' },
+  { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 14, defaultEmployee: 'Chito' },
+  { id: 'd15', name: 'NDE', color: '#6366f1', order: 15, defaultEmployee: '' },
+  { id: 'd16', name: 'O.S', color: '#0ea5e9', order: 16, defaultEmployee: '' },
+  { id: 'd17', name: 'READY TO SHIP', color: '#22c55e', order: 17, defaultEmployee: 'Karina' },
 ];
 
 const DEFAULT_EMPLOYEES: StoredEmployee[] = [

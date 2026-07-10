@@ -53,11 +53,34 @@ const visibleDepartments = (list: Department[]) =>
 // (no Progress / no Complete). The operator only routes the job onward from here.
 const MOVE_ONLY_DEPARTMENT_NAMES = new Set(['NEW MATERIAL', 'WOOD PALLET', 'BLUE PALLET']);
 
+// Production columns that follow a strict flow: cards show ONLY Progress +
+// Complete (no Move). The job advances through Complete, not manual moves.
+const NO_MOVE_DEPARTMENT_NAMES = new Set([
+  'CNC LATHE 1',
+  'MANUAL LATHE',
+  'LATHE DEBURR',
+  'LATHE INSPECTION',
+  'MILL',
+]);
+
 // When Complete is pressed in a given column, force the job into this target
 // column (by name) instead of just the next one in order. Keeps the default
 // destination correct even if columns are hidden or reordered.
 const COMPLETE_TARGET_OVERRIDES: Record<string, string> = {
   'NIGHT SHIFT': 'BLUE PALLET',
+  'CNC LATHE 1': 'LATHE DEBURR',
+  'MANUAL LATHE': 'LATHE DEBURR',
+  'LATHE DEBURR': 'LATHE INSPECTION',
+  // KARINA was inserted right after FINAL INSPECTION, so keep Final Inspection's
+  // Complete going to Stamp (its previous next-in-order) instead of KARINA.
+  'FINAL INSPECTION': 'STAMP',
+};
+
+// When Complete is pressed in these columns, pop up a small picker so the
+// operator chooses between the listed target columns instead of a single
+// default (e.g. Lathe Inspection → Mill or Karina).
+const COMPLETE_CHOICE_OVERRIDES: Record<string, string[]> = {
+  'LATHE INSPECTION': ['MILL', 'KARINA'],
 };
 
 export default function Home() {
@@ -83,6 +106,11 @@ export default function Home() {
   // Assign modal state
   const [movingJob, setMovingJob] = useState<Job | null>(null);
   const [targetDepartment, setTargetDepartment] = useState<Department | null>(null);
+
+  // Complete-with-choice state: when a column offers 2+ targets on Complete
+  // (e.g. Lathe Inspection → Mill / Karina) we ask the operator which one first.
+  const [choiceJob, setChoiceJob] = useState<Job | null>(null);
+  const [choiceTargets, setChoiceTargets] = useState<Department[]>([]);
 
   // Move to any department modal state
   const [moveToAnyJob, setMoveToAnyJob] = useState<Job | null>(null);
@@ -668,10 +696,32 @@ export default function Home() {
 
   const handleMarkDone = (job: Job) => {
     const currentDept = departments.find((d) => d.id === job.departmentId);
+    const currentName = currentDept?.name.trim().toUpperCase();
+
+    // Choice target (e.g. Lathe Inspection → Mill / Karina): ask which one.
+    const choiceNames = currentName
+      ? COMPLETE_CHOICE_OVERRIDES[currentName]
+      : undefined;
+    if (choiceNames) {
+      const targets = choiceNames
+        .map((n) => departments.find((d) => d.name.trim().toUpperCase() === n))
+        .filter((d): d is Department => !!d && d.id !== job.departmentId);
+      if (targets.length >= 2) {
+        setChoiceJob(job);
+        setChoiceTargets(targets);
+        return;
+      }
+      if (targets.length === 1) {
+        setMovingJob(job);
+        setTargetDepartment(targets[0]);
+        return;
+      }
+      // No targets found (e.g. columns hidden) — fall through to the default.
+    }
 
     // Column-specific default target (e.g. Night Shift → Blue Pallet).
-    const overrideName = currentDept
-      ? COMPLETE_TARGET_OVERRIDES[currentDept.name.trim().toUpperCase()]
+    const overrideName = currentName
+      ? COMPLETE_TARGET_OVERRIDES[currentName]
       : undefined;
     if (overrideName) {
       const target = departments.find(
@@ -695,6 +745,17 @@ export default function Home() {
         description: 'El trabajo ya está en la última etapa',
       });
     }
+  };
+
+  // Operator picked one of the Complete targets (e.g. Mill or Karina). Hand off
+  // to the normal assign/confirm flow with the chosen department.
+  const handleChooseCompleteTarget = (target: Department) => {
+    if (choiceJob) {
+      setMovingJob(choiceJob);
+      setTargetDepartment(target);
+    }
+    setChoiceJob(null);
+    setChoiceTargets([]);
   };
 
   const handleDeleteJob = async (jobId: string) => {
@@ -1091,9 +1152,9 @@ export default function Home() {
                       (a.order ?? 0) - (b.order ?? 0)
                   );
                 
-                const isMoveOnly = MOVE_ONLY_DEPARTMENT_NAMES.has(
-                  dept.name.trim().toUpperCase()
-                );
+                const deptName = dept.name.trim().toUpperCase();
+                const isMoveOnly = MOVE_ONLY_DEPARTMENT_NAMES.has(deptName);
+                const isNoMove = NO_MOVE_DEPARTMENT_NAMES.has(deptName);
 
                 return (
                   <KanbanColumn
@@ -1108,7 +1169,7 @@ export default function Home() {
                     onToggleInProgress={handleToggleInProgress}
                     onMoveToAnyDept={setMoveToAnyJob}
                     onChangePriority={handleChangePriority}
-                    canMoveToAnyDept={true}
+                    canMoveToAnyDept={!isNoMove}
                     showProgress={!isMoveOnly}
                     showComplete={!isMoveOnly}
                     highlightJobs={!!searchQuery.trim()}
@@ -1311,6 +1372,70 @@ export default function Home() {
           setTargetDepartment(null);
         }}
       />
+
+      {/* Complete-with-choice picker (e.g. Lathe Inspection → Mill / Karina).
+          Picking a target hands off to the AssignModal to confirm + assign. */}
+      {choiceJob && choiceTargets.length > 0 && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border animate-in zoom-in-95 duration-200">
+            <div className="bg-primary px-6 py-5 flex justify-between items-center text-primary-foreground">
+              <h3 className="font-bold text-sm">Where to next?</h3>
+              <button
+                onClick={() => {
+                  setChoiceJob(null);
+                  setChoiceTargets([]);
+                }}
+                className="hover:bg-white/10 p-1.5 rounded-lg transition-colors text-lg leading-none"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-muted/50 p-3 rounded-xl border border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                  Job
+                </p>
+                <p className="font-semibold text-card-foreground text-sm">
+                  {choiceJob.title}
+                </p>
+              </div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                Choose destination
+              </p>
+              <div className="flex flex-col gap-2">
+                {choiceTargets.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleChooseCompleteTarget(t)}
+                    className="w-full flex items-center gap-3 px-4 h-12 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span
+                      className="font-bold uppercase tracking-tight"
+                      style={{ color: t.color }}
+                    >
+                      {t.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  setChoiceJob(null);
+                  setChoiceTargets([]);
+                }}
+                className="w-full h-11 rounded-lg font-semibold uppercase tracking-wider border border-border text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PdfViewerModal
         job={pdfJob}
