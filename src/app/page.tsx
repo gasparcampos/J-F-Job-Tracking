@@ -49,6 +49,17 @@ const HIDDEN_DEPARTMENT_NAMES = new Set(['ARTURO', 'CUT SAW (SEGUETA)']);
 const visibleDepartments = (list: Department[]) =>
   list.filter((d) => !HIDDEN_DEPARTMENT_NAMES.has(d.name.trim().toUpperCase()));
 
+// Columns that are just hand-off stages: their cards show ONLY the Move button
+// (no Progress / no Complete). The operator only routes the job onward from here.
+const MOVE_ONLY_DEPARTMENT_NAMES = new Set(['NEW MATERIAL', 'WOOD PALLET', 'BLUE PALLET']);
+
+// When Complete is pressed in a given column, force the job into this target
+// column (by name) instead of just the next one in order. Keeps the default
+// destination correct even if columns are hidden or reordered.
+const COMPLETE_TARGET_OVERRIDES: Record<string, string> = {
+  'NIGHT SHIFT': 'BLUE PALLET',
+};
+
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -656,6 +667,23 @@ export default function Home() {
   };
 
   const handleMarkDone = (job: Job) => {
+    const currentDept = departments.find((d) => d.id === job.departmentId);
+
+    // Column-specific default target (e.g. Night Shift → Blue Pallet).
+    const overrideName = currentDept
+      ? COMPLETE_TARGET_OVERRIDES[currentDept.name.trim().toUpperCase()]
+      : undefined;
+    if (overrideName) {
+      const target = departments.find(
+        (d) => d.name.trim().toUpperCase() === overrideName
+      );
+      if (target && target.id !== job.departmentId) {
+        setMovingJob(job);
+        setTargetDepartment(target);
+        return;
+      }
+    }
+
     const currentIndex = departments.findIndex((d) => d.id === job.departmentId);
     if (currentIndex < departments.length - 1) {
       const nextDept = departments[currentIndex + 1];
@@ -1063,6 +1091,10 @@ export default function Home() {
                       (a.order ?? 0) - (b.order ?? 0)
                   );
                 
+                const isMoveOnly = MOVE_ONLY_DEPARTMENT_NAMES.has(
+                  dept.name.trim().toUpperCase()
+                );
+
                 return (
                   <KanbanColumn
                     key={dept.id}
@@ -1077,6 +1109,8 @@ export default function Home() {
                     onMoveToAnyDept={setMoveToAnyJob}
                     onChangePriority={handleChangePriority}
                     canMoveToAnyDept={true}
+                    showProgress={!isMoveOnly}
+                    showComplete={!isMoveOnly}
                     highlightJobs={!!searchQuery.trim()}
                     onReworkDeviation={handleReworkDeviation}
                     onRemakeDeviation={handleRemakeDeviation}

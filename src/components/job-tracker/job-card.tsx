@@ -19,6 +19,8 @@ interface JobCardProps {
   onMoveToAnyDept?: (job: Job) => void;
   onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
+  showProgress?: boolean;
+  showComplete?: boolean;
   highlight?: boolean;
   onReturnToActive?: (job: Job) => void;
   onReworkDeviation?: (job: Job) => void;
@@ -27,7 +29,7 @@ interface JobCardProps {
   isShippingStage?: boolean;
 }
 
-export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, highlight, onReturnToActive, onReworkDeviation, onRemakeDeviation, onShip, isShippingStage }: JobCardProps) {
+export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, onToggleInProgress, onMoveToAnyDept, onChangePriority, canMoveToAnyDept, showProgress = true, showComplete = true, highlight, onReturnToActive, onReworkDeviation, onRemakeDeviation, onShip, isShippingStage }: JobCardProps) {
   // Priority dropdown open state (click the P-badge to change priority).
   const [priorityOpen, setPriorityOpen] = useState(false);
   const {
@@ -322,7 +324,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
         {/* Pending deviation freezes the job: Progress/Complete are disabled so
             nobody keeps working. Only Move stays available (e.g. route to QC).
             Resolve the deviation from the job's edit screen. */}
-        {isPendingDeviation ? (
+        {showProgress && (isPendingDeviation ? (
           <div
             className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-red-900/60 text-red-100 border border-red-600/60 cursor-not-allowed select-none"
             title="Work is paused — deviation pending approval"
@@ -345,10 +347,10 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           >
             <Play size={12} className="mr-1" />Progress
           </Button>
-        )}
+        ))}
 
         {/* Complete or Return to Active */}
-        {isPendingDeviation ? (
+        {showComplete && (isPendingDeviation ? (
           <div
             className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] flex items-center justify-center bg-red-900/40 text-red-200/60 border border-red-700/40 cursor-not-allowed select-none"
             title="Resolve the deviation before completing"
@@ -373,7 +375,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             <Check size={12} className="mr-1" />
             Complete
           </Button>
-        )}
+        ))}
 
         {/* Move to Any Department (right) */}
         {canMoveToAnyDept && (

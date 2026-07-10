@@ -18,6 +18,8 @@ interface KanbanColumnProps {
   onMoveToAnyDept?: (job: Job) => void;
   onChangePriority?: (job: Job, priority: number) => void;
   canMoveToAnyDept?: boolean;
+  showProgress?: boolean;
+  showComplete?: boolean;
   highlightJobs?: boolean;
   onReturnToActive?: (job: Job) => void;
   onReworkDeviation?: (job: Job) => void;
@@ -38,6 +40,8 @@ export function KanbanColumn({
   onMoveToAnyDept,
   onChangePriority,
   canMoveToAnyDept,
+  showProgress,
+  showComplete,
   highlightJobs,
   onReturnToActive,
   onReworkDeviation,
@@ -95,6 +99,8 @@ export function KanbanColumn({
               onMoveToAnyDept={onMoveToAnyDept}
               onChangePriority={onChangePriority}
               canMoveToAnyDept={canMoveToAnyDept}
+              showProgress={showProgress}
+              showComplete={showComplete}
               highlight={highlightJobs}
               onReturnToActive={onReturnToActive}
               onReworkDeviation={onReworkDeviation}
