@@ -61,6 +61,7 @@ const NO_MOVE_DEPARTMENT_NAMES = new Set([
   'LATHE DEBURR',
   'LATHE INSPECTION',
   'MILL',
+  'MILL DEBURR',
 ]);
 
 // When Complete is pressed in a given column, force the job into this target
@@ -111,6 +112,7 @@ export default function Home() {
   // (e.g. Lathe Inspection → Mill / Karina) we ask the operator which one first.
   const [choiceJob, setChoiceJob] = useState<Job | null>(null);
   const [choiceTargets, setChoiceTargets] = useState<Department[]>([]);
+  const [choiceNotes, setChoiceNotes] = useState('');
 
   // Move to any department modal state
   const [moveToAnyJob, setMoveToAnyJob] = useState<Job | null>(null);
@@ -659,15 +661,21 @@ export default function Home() {
     }
   };
 
-  const handleMoveJob = async (employeeName: string, notes: string) => {
-    if (!movingJob || !targetDepartment) return;
-
+  // Core move: sends the job to `target`, assigning `employeeName` and logging
+  // `notes` in the job history. Shared by the assign modal and the Complete
+  // choice picker so every move is registered the same way.
+  const moveJobTo = async (
+    job: Job,
+    target: Department,
+    employeeName: string,
+    notes: string
+  ) => {
     try {
-      const res = await fetch(`/api/jobs/${movingJob.id}`, {
+      const res = await fetch(`/api/jobs/${job.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          targetDeptId: targetDepartment.id,
+          targetDeptId: target.id,
           employeeId: employees.find((e) => e.name === employeeName)?.id,
           notes,
         }),
@@ -678,8 +686,6 @@ export default function Home() {
         prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
       );
 
-      setMovingJob(null);
-      setTargetDepartment(null);
       toast({
         title: 'Success',
         description: 'Job moved successfully',
@@ -692,6 +698,13 @@ export default function Home() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleMoveJob = async (employeeName: string, notes: string) => {
+    if (!movingJob || !targetDepartment) return;
+    await moveJobTo(movingJob, targetDepartment, employeeName, notes);
+    setMovingJob(null);
+    setTargetDepartment(null);
   };
 
   const handleMarkDone = (job: Job) => {
@@ -747,15 +760,16 @@ export default function Home() {
     }
   };
 
-  // Operator picked one of the Complete targets (e.g. Mill or Karina). Hand off
-  // to the normal assign/confirm flow with the chosen department.
-  const handleChooseCompleteTarget = (target: Department) => {
+  // Operator picked one of the Complete targets (e.g. Mill or Karina). Move the
+  // job there right away, logging the notes typed in the picker and defaulting
+  // the assignee to the target column's default employee.
+  const handleChooseCompleteTarget = async (target: Department) => {
     if (choiceJob) {
-      setMovingJob(choiceJob);
-      setTargetDepartment(target);
+      await moveJobTo(choiceJob, target, target.defaultEmployee ?? '', choiceNotes);
     }
     setChoiceJob(null);
     setChoiceTargets([]);
+    setChoiceNotes('');
   };
 
   const handleDeleteJob = async (jobId: string) => {
@@ -1384,6 +1398,7 @@ export default function Home() {
                 onClick={() => {
                   setChoiceJob(null);
                   setChoiceTargets([]);
+                  setChoiceNotes('');
                 }}
                 className="hover:bg-white/10 p-1.5 rounded-lg transition-colors text-lg leading-none"
                 aria-label="Close"
@@ -1399,6 +1414,17 @@ export default function Home() {
                 <p className="font-semibold text-card-foreground text-sm">
                   {choiceJob.title}
                 </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+                  Process notes
+                </p>
+                <textarea
+                  value={choiceNotes}
+                  onChange={(e) => setChoiceNotes(e.target.value)}
+                  placeholder="Add updates or instructions..."
+                  className="w-full rounded-lg h-20 bg-background border border-border resize-none p-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
               </div>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                 Choose destination
@@ -1427,6 +1453,7 @@ export default function Home() {
                 onClick={() => {
                   setChoiceJob(null);
                   setChoiceTargets([]);
+                  setChoiceNotes('');
                 }}
                 className="w-full h-11 rounded-lg font-semibold uppercase tracking-wider border border-border text-muted-foreground hover:bg-muted transition-colors"
               >
