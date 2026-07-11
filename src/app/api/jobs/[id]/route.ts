@@ -104,6 +104,17 @@ export async function PUT(
           const employee = await employeesDB.findById(body.employeeId);
           if (employee) employeeName = employee.name;
         }
+
+        // Grand total worked across every department (plus any clock still
+        // running) — stamped permanently in the ship entry so the final
+        // build time is on record.
+        const totalWorked =
+          Object.values(currentJob.deptTimes ?? {}).reduce((sum, v) => sum + (v || 0), 0) +
+          (currentJob.inProgress && currentJob.inProgressAt
+            ? Math.max(0, Date.now() - new Date(currentJob.inProgressAt).getTime())
+            : 0);
+        const totalNote = totalWorked > 0 ? `⏱ Total build time: ${formatDuration(totalWorked)}` : '';
+
         await jobsDB.update(id, {
           shipped: true,
           shippedAt: new Date().toISOString(),
@@ -114,7 +125,7 @@ export async function PUT(
           toDeptId: currentJob.departmentId,
           employeeId: body.employeeId,
           employeeName: employeeName || currentJob.assignedTo,
-          notes: body.notes || '🚚 Shipped',
+          notes: [body.notes || '🚚 Shipped', totalNote].filter(Boolean).join(' — '),
         });
       } else {
         await jobsDB.update(id, { shipped: false });
