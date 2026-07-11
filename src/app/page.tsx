@@ -64,6 +64,7 @@ const NO_MOVE_DEPARTMENT_NAMES = new Set([
   'MILL',
   'MILL DEBURR',
   'FINAL INSPECTION',
+  'STAMP',
 ]);
 
 // When Complete is pressed in a given column, force the job into this target
@@ -74,6 +75,7 @@ const COMPLETE_TARGET_OVERRIDES: Record<string, string> = {
   'CNC LATHE 1': 'LATHE DEBURR',
   'MANUAL LATHE': 'LATHE DEBURR',
   'LATHE DEBURR': 'LATHE INSPECTION',
+  'STAMP': 'KARINA',
 };
 
 // When Complete is pressed in these columns, pop up a small picker so the
