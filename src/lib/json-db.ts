@@ -9,6 +9,7 @@
 import { firestore } from './firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatDuration } from './utils';
+import { workingMsBetween } from './work-hours';
 
 // ---------- Types ----------
 
@@ -214,14 +215,16 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
 }
 
 /**
- * Elapsed milliseconds of the current In Progress run, or 0 when the job
- * isn't running (or the start timestamp is unusable).
+ * Elapsed WORKING milliseconds of the current In Progress run, or 0 when the
+ * job isn't running (or the start timestamp is unusable). Only time inside
+ * the shop schedule counts — nights, Sundays and lunch are skipped, so a
+ * clock left running overnight or across the weekend doesn't inflate.
  */
 function runningElapsedMs(data: FirebaseFirestore.DocumentData): number {
   if (!data.inProgress || !data.inProgressAt) return 0;
   const started = new Date(data.inProgressAt).getTime();
   if (!Number.isFinite(started)) return 0;
-  return Math.max(0, Date.now() - started);
+  return workingMsBetween(started, Date.now());
 }
 
 /**
