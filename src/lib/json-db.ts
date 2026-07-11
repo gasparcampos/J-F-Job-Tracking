@@ -367,27 +367,42 @@ export const jobsDB = {
     return job;
   },
 
-  async update(id: string, data: Partial<StoredJob>): Promise<StoredJob | null> {
+  async update(
+    id: string,
+    data: Partial<StoredJob>,
+    opts?: { discardDeptTime?: boolean },
+  ): Promise<StoredJob | null> {
     const ref = jobsCol().doc(id);
     const doc = await ref.get();
     if (!doc.exists) return null;
 
     const patch = stripUndefined({ ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>);
 
-    // Any change that stops active work (explicit pause, department move,
-    // shipping, or a pending-deviation freeze) banks the running time into
-    // the current department first so the per-department count stays exact.
     const current = doc.data()!;
-    const stopsWork =
-      data.inProgress === false ||
-      data.shipped === true ||
-      data.deviationStatus === 'pending' ||
-      (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId);
-    if (stopsWork && current.inProgress) {
-      const times = bankDeptTime(current);
-      if (times) patch.deptTimes = times;
+    if (opts?.discardDeptTime) {
+      // Reset the stage being left: drop its accumulated time and the running
+      // clock entirely. Used when a job is sent back to a prior process, so
+      // the time spent in the current area shouldn't count at all.
+      const times: Record<string, number> = { ...(current.deptTimes ?? {}) };
+      delete times[current.departmentId];
+      patch.deptTimes = times;
       patch.inProgress = false;
       patch.inProgressAt = FieldValue.delete();
+    } else {
+      // Any change that stops active work (explicit pause, department move,
+      // shipping, or a pending-deviation freeze) banks the running time into
+      // the current department first so the per-department count stays exact.
+      const stopsWork =
+        data.inProgress === false ||
+        data.shipped === true ||
+        data.deviationStatus === 'pending' ||
+        (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId);
+      if (stopsWork && current.inProgress) {
+        const times = bankDeptTime(current);
+        if (times) patch.deptTimes = times;
+        patch.inProgress = false;
+        patch.inProgressAt = FieldValue.delete();
+      }
     }
 
     await ref.update(patch);

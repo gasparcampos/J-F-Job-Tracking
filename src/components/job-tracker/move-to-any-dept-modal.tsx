@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ArrowRight, Building2 } from 'lucide-react';
+import { X, ArrowRight, Building2, Check, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -18,7 +18,7 @@ interface MoveToAnyDeptModalProps {
   job: Job | null;
   departments: Department[];
   employees: Employee[];
-  onMove: (targetDeptId: string, employeeName: string, notes: string) => void;
+  onMove: (targetDeptId: string, employeeName: string, notes: string, discardTime: boolean) => void;
   onCancel: () => void;
   // Optional pre-fill (used by the "Ship" shortcut: target = READY TO SHIP,
   // processor = Karina). When set, the title also reflects the shipping intent.
@@ -40,11 +40,18 @@ export function MoveToAnyDeptModal({
   const [selectedDeptId, setSelectedDeptId] = useState<string>(defaultDeptId ?? '');
   const [selectedEmployee, setSelectedEmployee] = useState<string>(defaultEmployee || '__none__');
   const [notes, setNotes] = useState('');
+  // When true, the time worked in the current area is discarded on move
+  // (a "reset" for sending the job back to a previous process).
+  const [discardTime, setDiscardTime] = useState(false);
 
   if (!job) return null;
 
   // Find the selected department to get default employee
   const selectedDept = departments.find(d => d.id === selectedDeptId);
+
+  // Only offer the reset option when there's actually time to discard in the
+  // current area (banked time or a running clock).
+  const hasStageTime = (job.deptTimes?.[job.departmentId] ?? 0) > 0 || !!job.inProgress;
 
   const handleDeptChange = (deptId: string) => {
     setSelectedDeptId(deptId);
@@ -63,10 +70,11 @@ export function MoveToAnyDeptModal({
   const handleMove = () => {
     if (!selectedDeptId) return;
     const employeeName = selectedEmployee === '__none__' ? '' : selectedEmployee;
-    onMove(selectedDeptId, employeeName, notes);
+    onMove(selectedDeptId, employeeName, notes, discardTime);
     setNotes('');
     setSelectedDeptId('');
     setSelectedEmployee('__none__');
+    setDiscardTime(false);
   };
 
   return (
@@ -201,6 +209,37 @@ export function MoveToAnyDeptModal({
               className="rounded-lg h-24 bg-background border-border resize-none"
             />
           </div>
+
+          {/* Reset time option — for sending the job back to a previous
+              process. Hidden in ship mode and when there's no time to reset. */}
+          {!shipMode && hasStageTime && (
+            <button
+              type="button"
+              onClick={() => setDiscardTime((v) => !v)}
+              className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-colors ${
+                discardTime
+                  ? 'bg-amber-500/10 border-amber-500/60'
+                  : 'bg-muted/40 border-border hover:border-amber-500/40'
+              }`}
+            >
+              <div
+                className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  discardTime ? 'bg-amber-500 border-amber-500' : 'border-muted-foreground/50'
+                }`}
+              >
+                {discardTime && <Check size={14} className="text-white" strokeWidth={3} />}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-card-foreground flex items-center gap-1.5">
+                  <RotateCcw size={12} className="text-amber-500" />
+                  Reset time (don&apos;t count it)
+                </p>
+                <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+                  Use when sending the job back to a previous step. The time worked in the current area is discarded and not added to the totals.
+                </p>
+              </div>
+            </button>
+          )}
 
           {/* Actions */}
           <div className="flex flex-col gap-2 pt-2">

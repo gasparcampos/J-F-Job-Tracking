@@ -1040,7 +1040,7 @@ export default function Home() {
     }
   };
 
-  const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string) => {
+  const handleMoveToAnyDept = async (targetDeptId: string, employeeName: string, notes: string, discardTime = false) => {
     if (!moveToAnyJob) return;
 
     try {
@@ -1051,6 +1051,7 @@ export default function Home() {
           targetDeptId,
           employeeId: employees.find((e) => e.name === employeeName)?.id,
           notes,
+          discardTime,
         }),
       });
       const updatedJob = await res.json();
@@ -1062,7 +1063,9 @@ export default function Home() {
       setMoveToAnyJob(null);
       toast({
         title: 'Success',
-        description: 'Job moved to the selected area',
+        description: discardTime
+          ? 'Job moved back — time in the previous area was reset'
+          : 'Job moved to the selected area',
       });
     } catch (error) {
       console.error('Error moving job:', error);

@@ -160,31 +160,46 @@ export async function PUT(
         }
       }
 
+      // Manual "move back" reset: when the piece is sent to a prior process,
+      // the time spent in the stage being left is discarded (not counted)
+      // instead of being banked.
+      const discardTime = body.discardTime === true;
+
       // Total time worked in the stage the job is leaving (already-banked
       // time plus the running clock, if any) — logged with the move so the
       // history shows exactly how long each stage took.
-      const workedInStage =
-        (currentJob.deptTimes?.[currentJob.departmentId] ?? 0) +
-        (currentJob.inProgress && currentJob.inProgressAt
-          ? workingMsBetween(
-              new Date(currentJob.inProgressAt).getTime(),
-              Date.now(),
-              shiftForDepartment(currentJob.departmentId)
-            )
-          : 0);
+      const workedInStage = discardTime
+        ? 0
+        : (currentJob.deptTimes?.[currentJob.departmentId] ?? 0) +
+          (currentJob.inProgress && currentJob.inProgressAt
+            ? workingMsBetween(
+                new Date(currentJob.inProgressAt).getTime(),
+                Date.now(),
+                shiftForDepartment(currentJob.departmentId)
+              )
+            : 0);
 
       // Update job department. Moving to a new stage always clears the
-      // in-progress flag (a job can't stay "in progress" across stages) and
-      // banks any running time into the stage being left.
-      const updatedJob = await jobsDB.update(id, {
-        departmentId: body.targetDeptId,
-        assignedTo: employeeName || currentJob.assignedTo,
-        notes: body.notes,
-        inProgress: false,
-      });
+      // in-progress flag (a job can't stay "in progress" across stages). By
+      // default any running time is banked into the stage being left; with
+      // discardTime it's reset instead.
+      const updatedJob = await jobsDB.update(
+        id,
+        {
+          departmentId: body.targetDeptId,
+          assignedTo: employeeName || currentJob.assignedTo,
+          notes: body.notes,
+          inProgress: false,
+        },
+        { discardDeptTime: discardTime },
+      );
 
       if (updatedJob) {
-        const timeNote = workedInStage > 0 ? `⏱ Worked in stage: ${formatDuration(workedInStage)}` : '';
+        const timeNote = discardTime
+          ? '↩️ Sent back — time in previous area reset (not counted)'
+          : workedInStage > 0
+          ? `⏱ Worked in stage: ${formatDuration(workedInStage)}`
+          : '';
         await jobsDB.addHistory(id, {
           fromDeptId: currentJob.departmentId,
           toDeptId: body.targetDeptId,
