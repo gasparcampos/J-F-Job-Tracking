@@ -7,7 +7,7 @@ import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Pl
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration } from '@/lib/utils';
-import { workingMsBetween } from '@/lib/work-hours';
+import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
 import type { Job } from '@/types';
 import { FilePreview } from './file-preview';
 
@@ -92,12 +92,16 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
     return () => clearInterval(t);
   }, [isInProgress, job.inProgressAt]);
 
-  // Only time inside the shop schedule counts (Mon–Fri 7:00–5:30, Sat
-  // 7:00–2:30, minus lunch) — a clock left running overnight or over the
-  // weekend doesn't inflate the count.
+  // Only time inside the shop schedule counts (day shift Mon–Fri 7:00–5:30 /
+  // Sat 7:00–2:30; Night Shift dept Mon/Tue/Thu/Fri 6:00 PM–2:30 AM; minus
+  // lunch) — a clock left running off-hours doesn't inflate the count.
   const liveElapsed =
     isInProgress && job.inProgressAt
-      ? workingMsBetween(new Date(job.inProgressAt).getTime(), now)
+      ? workingMsBetween(
+          new Date(job.inProgressAt).getTime(),
+          now,
+          shiftForDepartment(job.departmentId)
+        )
       : 0;
   const deptMs = (job.deptTimes?.[job.departmentId] ?? 0) + liveElapsed;
   const totalMs =

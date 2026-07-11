@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jobsDB, employeesDB, departmentsDB } from '@/lib/json-db';
 import { formatDuration } from '@/lib/utils';
-import { workingMsBetween } from '@/lib/work-hours';
+import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
 
 export const runtime = 'nodejs';
 
@@ -112,7 +112,11 @@ export async function PUT(
         const totalWorked =
           Object.values(currentJob.deptTimes ?? {}).reduce((sum, v) => sum + (v || 0), 0) +
           (currentJob.inProgress && currentJob.inProgressAt
-            ? workingMsBetween(new Date(currentJob.inProgressAt).getTime(), Date.now())
+            ? workingMsBetween(
+                new Date(currentJob.inProgressAt).getTime(),
+                Date.now(),
+                shiftForDepartment(currentJob.departmentId)
+              )
             : 0);
         const totalNote = totalWorked > 0 ? `⏱ Total build time: ${formatDuration(totalWorked)}` : '';
 
@@ -162,7 +166,11 @@ export async function PUT(
       const workedInStage =
         (currentJob.deptTimes?.[currentJob.departmentId] ?? 0) +
         (currentJob.inProgress && currentJob.inProgressAt
-          ? workingMsBetween(new Date(currentJob.inProgressAt).getTime(), Date.now())
+          ? workingMsBetween(
+              new Date(currentJob.inProgressAt).getTime(),
+              Date.now(),
+              shiftForDepartment(currentJob.departmentId)
+            )
           : 0);
 
       // Update job department. Moving to a new stage always clears the

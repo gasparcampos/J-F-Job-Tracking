@@ -9,7 +9,7 @@
 import { firestore } from './firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatDuration } from './utils';
-import { workingMsBetween } from './work-hours';
+import { workingMsBetween, shiftForDepartment } from './work-hours';
 
 // ---------- Types ----------
 
@@ -224,7 +224,7 @@ function runningElapsedMs(data: FirebaseFirestore.DocumentData): number {
   if (!data.inProgress || !data.inProgressAt) return 0;
   const started = new Date(data.inProgressAt).getTime();
   if (!Number.isFinite(started)) return 0;
-  return workingMsBetween(started, Date.now());
+  return workingMsBetween(started, Date.now(), shiftForDepartment(data.departmentId));
 }
 
 /**

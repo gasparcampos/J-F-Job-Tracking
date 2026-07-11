@@ -3,7 +3,7 @@
 import { X, Clock, User, FileText, Timer, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
-import { workingMsBetween } from '@/lib/work-hours';
+import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
 import type { Job, Department } from '@/types';
 
 interface HistoryModalProps {
@@ -24,7 +24,11 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
   // job is In Progress right now (snapshot at modal open, no live ticking).
   const workedTimes: Record<string, number> = { ...(job.deptTimes ?? {}) };
   if (job.inProgress && job.inProgressAt) {
-    const live = workingMsBetween(new Date(job.inProgressAt).getTime(), Date.now());
+    const live = workingMsBetween(
+      new Date(job.inProgressAt).getTime(),
+      Date.now(),
+      shiftForDepartment(job.departmentId)
+    );
     workedTimes[job.departmentId] = (workedTimes[job.departmentId] ?? 0) + live;
   }
   const timedDepts = departments.filter((d) => (workedTimes[d.id] ?? 0) > 0);
