@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2, AlertTriangle } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2, AlertTriangle, FileClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -26,6 +26,9 @@ interface JobsTableProps {
   // When provided (Shipped tab), shows a button to move the job back to the
   // active list in case it was shipped by mistake.
   onReturnToActive?: (job: Job) => Promise<void> | void;
+  // When provided (Shipped tab), shows a button that opens the part's full
+  // time report as a PDF (departments worked + hours + movement history).
+  onTimeReport?: (job: Job) => Promise<void> | void;
 }
 
 export function JobsTable({
@@ -38,7 +41,20 @@ export function JobsTable({
   onAttachFile,
   onRemoveAttachment,
   onReturnToActive,
+  onTimeReport,
 }: JobsTableProps) {
+  // Row currently generating its PDF time report (shows a spinner).
+  const [reportingId, setReportingId] = useState<string | null>(null);
+
+  const handleTimeReport = async (job: Job) => {
+    if (!onTimeReport) return;
+    setReportingId(job.id);
+    try {
+      await onTimeReport(job);
+    } finally {
+      setReportingId(null);
+    }
+  };
   // Which row is currently uploading an attachment (shows a spinner).
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
@@ -334,6 +350,25 @@ export function JobsTable({
                   >
                     <Pencil size={16} />
                   </Button>
+                  {/* PDF time report: all departments worked + hours + total.
+                      Shown on the Shipped tab so the final build time of a
+                      sent part is one click away. */}
+                  {onTimeReport && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleTimeReport(job)}
+                      disabled={reportingId === job.id}
+                      className="h-8 w-8 text-amber-600 dark:text-amber-400 hover:text-white hover:bg-amber-500 rounded-lg"
+                      title="Part time report (PDF) — departments worked & total hours"
+                    >
+                      {reportingId === job.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <FileClock size={16} />
+                      )}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

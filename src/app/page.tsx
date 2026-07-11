@@ -976,6 +976,35 @@ export default function Home() {
     }
   };
 
+  // Generate and open the part's PDF time report: departments worked, hours
+  // per department, total build time and the full movement history.
+  const handleTimeReport = async (job: Job) => {
+    try {
+      const { generateTimeReportPdf } = await import('@/lib/time-report');
+      const blob = await generateTimeReportPdf(job, departments);
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (!win) {
+        // Popup blocked — download the file instead.
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `TimeReport_${(job.jobNumber || job.id).replace(/[^\w.-]+/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      // Give the tab time to load the blob before revoking.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      console.error('Error generating time report:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not generate the time report PDF',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Rework a rejected-deviation part: the same piece is salvageable, so it
   // goes back to its normal state (stays in its current stage) to be fixed.
   const handleReworkDeviation = async (job: Job) => {
@@ -1358,6 +1387,7 @@ export default function Home() {
                   onAttachFile={handleAttachToJob}
                   onRemoveAttachment={handleRemoveAttachment}
                   onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
+                  onTimeReport={tableTab === 'shipped' ? handleTimeReport : undefined}
                 />
               )}
             </div>
