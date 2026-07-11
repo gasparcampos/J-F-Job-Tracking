@@ -1,7 +1,8 @@
 'use client';
 
-import { X, Clock, User, FileText } from 'lucide-react';
+import { X, Clock, User, FileText, Timer, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatDuration } from '@/lib/utils';
 import type { Job, Department } from '@/types';
 
 interface HistoryModalProps {
@@ -17,6 +18,16 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
   const sortedHistory = [...job.history].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
+
+  // Time worked per department: banked totals plus the current run if the
+  // job is In Progress right now (snapshot at modal open, no live ticking).
+  const workedTimes: Record<string, number> = { ...(job.deptTimes ?? {}) };
+  if (job.inProgress && job.inProgressAt) {
+    const live = Math.max(0, Date.now() - new Date(job.inProgressAt).getTime());
+    workedTimes[job.departmentId] = (workedTimes[job.departmentId] ?? 0) + live;
+  }
+  const timedDepts = departments.filter((d) => (workedTimes[d.id] ?? 0) > 0);
+  const totalWorkedMs = Object.values(workedTimes).reduce((sum, v) => sum + (v || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
@@ -40,6 +51,43 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-6">
+          {/* Time worked per department (from In Progress → pause/complete). */}
+          {totalWorkedMs > 0 && (
+            <div className="mb-6 bg-muted/50 rounded-xl border border-border p-4">
+              <div className="flex items-center gap-1.5 mb-3 text-muted-foreground">
+                <Timer size={12} />
+                <p className="text-[9px] font-semibold uppercase tracking-widest">Time worked per department</p>
+              </div>
+              <div className="space-y-1.5">
+                {timedDepts.map((dept) => (
+                  <div key={dept.id} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: dept.color }}
+                      />
+                      <span className="text-[11px] font-semibold text-card-foreground truncate uppercase">
+                        {dept.name}
+                      </span>
+                      {job.inProgress && job.departmentId === dept.id && (
+                        <Flame size={11} className="text-orange-400 flex-shrink-0 animate-pulse" />
+                      )}
+                    </div>
+                    <span className="text-[11px] font-bold text-card-foreground tabular-nums flex-shrink-0">
+                      {formatDuration(workedTimes[dept.id])}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total</span>
+                <span className="text-sm font-extrabold text-card-foreground tabular-nums">
+                  {formatDuration(totalWorkedMs)}
+                </span>
+              </div>
+            </div>
+          )}
+
           {sortedHistory.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <Clock size={40} className="mx-auto mb-3 opacity-30" />

@@ -44,6 +44,9 @@ export interface Job {
   notes?: string;
   inProgress?: boolean;
   inProgressAt?: string;
+  // Milliseconds worked per department (keyed by departmentId). The clock
+  // runs while In Progress and is banked when work stops.
+  deptTimes?: Record<string, number>;
   // New fields for job tracking
   jobNumber?: string;
   name?: string;

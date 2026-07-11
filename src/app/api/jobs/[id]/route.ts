@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jobsDB, employeesDB, departmentsDB } from '@/lib/json-db';
+import { formatDuration } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -143,8 +144,18 @@ export async function PUT(
         }
       }
 
+      // Total time worked in the stage the job is leaving (already-banked
+      // time plus the running clock, if any) — logged with the move so the
+      // history shows exactly how long each stage took.
+      const workedInStage =
+        (currentJob.deptTimes?.[currentJob.departmentId] ?? 0) +
+        (currentJob.inProgress && currentJob.inProgressAt
+          ? Math.max(0, Date.now() - new Date(currentJob.inProgressAt).getTime())
+          : 0);
+
       // Update job department. Moving to a new stage always clears the
-      // in-progress flag (a job can't stay "in progress" across stages).
+      // in-progress flag (a job can't stay "in progress" across stages) and
+      // banks any running time into the stage being left.
       const updatedJob = await jobsDB.update(id, {
         departmentId: body.targetDeptId,
         assignedTo: employeeName || currentJob.assignedTo,
@@ -153,12 +164,13 @@ export async function PUT(
       });
 
       if (updatedJob) {
+        const timeNote = workedInStage > 0 ? `⏱ Worked in stage: ${formatDuration(workedInStage)}` : '';
         await jobsDB.addHistory(id, {
           fromDeptId: currentJob.departmentId,
           toDeptId: body.targetDeptId,
           employeeId: body.employeeId,
           employeeName: employeeName,
-          notes: body.notes,
+          notes: [body.notes, timeNote].filter(Boolean).join(' — '),
         });
       }
 

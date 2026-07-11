@@ -8,6 +8,7 @@
 
 import { firestore } from './firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { formatDuration } from './utils';
 
 // ---------- Types ----------
 
@@ -29,6 +30,10 @@ export interface StoredJob {
   notes?: string;
   inProgress: boolean;
   inProgressAt?: string;
+  // Milliseconds worked per department, keyed by departmentId. The clock runs
+  // while the job is In Progress and the elapsed time is banked here whenever
+  // work stops (pause, complete/move, ship, or a pending deviation freeze).
+  deptTimes?: Record<string, number>;
   jobNumber?: string;
   name?: string;
   customer?: string;
@@ -184,6 +189,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     notes: data.notes,
     inProgress: data.inProgress ?? false,
     inProgressAt: data.inProgressAt,
+    deptTimes: data.deptTimes,
     jobNumber: data.jobNumber,
     name: data.name,
     customer: data.customer,
@@ -205,6 +211,29 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     createdAt: data.createdAt ?? new Date().toISOString(),
     updatedAt: data.updatedAt ?? new Date().toISOString(),
   };
+}
+
+/**
+ * Elapsed milliseconds of the current In Progress run, or 0 when the job
+ * isn't running (or the start timestamp is unusable).
+ */
+function runningElapsedMs(data: FirebaseFirestore.DocumentData): number {
+  if (!data.inProgress || !data.inProgressAt) return 0;
+  const started = new Date(data.inProgressAt).getTime();
+  if (!Number.isFinite(started)) return 0;
+  return Math.max(0, Date.now() - started);
+}
+
+/**
+ * Returns the deptTimes map with the current running elapsed time added to
+ * the job's current department, or null when there's nothing to bank.
+ */
+function bankDeptTime(data: FirebaseFirestore.DocumentData): Record<string, number> | null {
+  const elapsed = runningElapsedMs(data);
+  if (elapsed <= 0 || !data.departmentId) return null;
+  const times: Record<string, number> = { ...(data.deptTimes ?? {}) };
+  times[data.departmentId] = (times[data.departmentId] ?? 0) + elapsed;
+  return times;
 }
 
 async function getNextOrder(deptId: string): Promise<number> {
@@ -341,6 +370,23 @@ export const jobsDB = {
     if (!doc.exists) return null;
 
     const patch = stripUndefined({ ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>);
+
+    // Any change that stops active work (explicit pause, department move,
+    // shipping, or a pending-deviation freeze) banks the running time into
+    // the current department first so the per-department count stays exact.
+    const current = doc.data()!;
+    const stopsWork =
+      data.inProgress === false ||
+      data.shipped === true ||
+      data.deviationStatus === 'pending' ||
+      (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId);
+    if (stopsWork && current.inProgress) {
+      const times = bankDeptTime(current);
+      if (times) patch.deptTimes = times;
+      patch.inProgress = false;
+      patch.inProgressAt = FieldValue.delete();
+    }
+
     await ref.update(patch);
 
     const updated = await ref.get();
@@ -365,11 +411,21 @@ export const jobsDB = {
     const batch = firestore.batch();
     const now = new Date().toISOString();
 
-    batch.update(ref, {
+    // Dragging the card to a different column also ends any running work in
+    // the old department, banking the elapsed time there first.
+    const data = doc.data()!;
+    const jobPatch: Record<string, unknown> = {
       departmentId: targetDeptId,
       order: newOrder,
       updatedAt: now,
-    });
+    };
+    if (targetDeptId !== data.departmentId && data.inProgress) {
+      const times = bankDeptTime(data);
+      if (times) jobPatch.deptTimes = times;
+      jobPatch.inProgress = false;
+      jobPatch.inProgressAt = FieldValue.delete();
+    }
+    batch.update(ref, jobPatch);
 
     let currentOrder = 0;
     for (const o of others) {
@@ -450,11 +506,17 @@ export const jobsDB = {
 
     const inProgress = !(data.inProgress ?? false);
     const now = new Date().toISOString();
+
+    // Pausing banks the elapsed time into the current department and leaves
+    // the amount worked in the history note.
+    const elapsed = inProgress ? 0 : runningElapsedMs(data);
     const historyEntry = {
       id: generateId(),
       jobId,
       toDeptId: data.departmentId,
-      notes: inProgress ? '🔥 In Progress started' : '⏸️ In Progress stopped',
+      notes: inProgress
+        ? '🔥 In Progress started'
+        : `⏸️ In Progress stopped${elapsed > 0 ? ` — worked ${formatDuration(elapsed)}` : ''}`,
       timestamp: now,
     };
 
@@ -466,6 +528,8 @@ export const jobsDB = {
     if (inProgress) {
       patch.inProgressAt = now;
     } else {
+      const times = bankDeptTime(data);
+      if (times) patch.deptTimes = times;
       patch.inProgressAt = FieldValue.delete();
     }
 

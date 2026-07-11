@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw, Truck, ClipboardCheck } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw, Truck, ClipboardCheck, Timer, Hourglass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatDuration } from '@/lib/utils';
 import type { Job } from '@/types';
 import { FilePreview } from './file-preview';
 
@@ -79,6 +80,24 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
 
   // A paused (pending-deviation) card overrides the in-progress orange look.
   const isInProgress = job.inProgress && !isPendingDeviation;
+
+  // Per-department time worked. `deptTimes` holds the banked milliseconds per
+  // department; while In Progress the current run is added live, ticking every
+  // second so the machinist sees the clock running.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isInProgress || !job.inProgressAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isInProgress, job.inProgressAt]);
+
+  const liveElapsed =
+    isInProgress && job.inProgressAt
+      ? Math.max(0, now - new Date(job.inProgressAt).getTime())
+      : 0;
+  const deptMs = (job.deptTimes?.[job.departmentId] ?? 0) + liveElapsed;
+  const totalMs =
+    Object.values(job.deptTimes ?? {}).reduce((sum, v) => sum + (v || 0), 0) + liveElapsed;
 
   // Container theme — deviation states take priority over in-progress/normal.
   const containerTheme = isPendingDeviation
@@ -288,6 +307,34 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             day: '2-digit',
             month: 'short'
           })}</span>
+        </div>
+      )}
+
+      {/* Time worked — this department (live while In Progress) and job total. */}
+      {(deptMs > 0 || totalMs > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3 ml-6">
+          <span
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${
+              isInProgress
+                ? 'bg-orange-950/60 border-orange-600/60 text-orange-200'
+                : 'bg-muted/60 border-border text-muted-foreground'
+            }`}
+            title="Time worked in this department"
+          >
+            <Timer size={10} className={isInProgress ? 'animate-pulse' : ''} />
+            Here: {formatDuration(deptMs)}
+          </span>
+          <span
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${
+              isInProgress
+                ? 'bg-orange-950/60 border-orange-600/60 text-orange-200'
+                : 'bg-muted/60 border-border text-muted-foreground'
+            }`}
+            title="Total time worked across all departments"
+          >
+            <Hourglass size={10} />
+            Total: {formatDuration(totalMs)}
+          </span>
         </div>
       )}
 
