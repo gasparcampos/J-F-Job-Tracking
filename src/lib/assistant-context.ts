@@ -56,7 +56,12 @@ export async function buildJobsContext(): Promise<string> {
       job.materialPo ? `M_PO: ${job.materialPo}` : null,
       job.heatNumber ? `HEAT#: ${job.heatNumber}` : null,
       job.hrc ? `HRC: ${job.hrc}` : null,
-      `Department: ${deptName(job.departmentId)}`,
+      job.shipped
+        ? `Status: SHIPPED${job.shippedAt ? ` on ${job.shippedAt.slice(0, 10)}` : ''} (off the board)`
+        : `Department: ${deptName(job.departmentId)}`,
+      job.inProgress ? 'In Progress: yes (clock running)' : null,
+      `Priority: P${job.priority ?? 3}`,
+      job.assignedTo ? `Assigned to: ${job.assignedTo}` : null,
       `Due: ${dueInfo}`,
       job.outService ? `Outside services needed: ${job.outService}` : null,
       job.notes ? `Notes: ${job.notes}` : null,
@@ -91,7 +96,7 @@ export async function buildJobsContext(): Promise<string> {
 
   return [
     `Today's date is ${todayStr}.`,
-    `Valid department names (use these exact names if asked to move a job): ${deptNames.join(', ')}.`,
+    `Departments in board order: ${deptNames.join(', ')}.`,
     `There are ${jobs.length} jobs currently in the shop:`,
     ...lines,
     activeExtras.length

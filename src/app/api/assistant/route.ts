@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { buildJobsContext } from '@/lib/assistant-context';
+import { buildAssistantTools, resolveToolCalls, type AssistantLang, type ToolCall } from '@/lib/assistant-actions';
 import { ensureZaiConfig } from '@/lib/ensure-zai-config';
-import { jobsDB, departmentsDB } from '@/lib/json-db';
+import { departmentsDB } from '@/lib/json-db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,26 +17,27 @@ const SYSTEM_PROMPT = `You are the shop-floor assistant for J&F Machine Shop's j
 Answer questions about jobs using ONLY the job data provided below -- do not invent
 job numbers, dates, or statuses that aren't listed. Jobs may be looked up by JOB#,
 PO#, DWG#, or Part#. Be concise and direct, the user is on a shop floor with limited
-time. Always reply in the same language the user wrote in (Spanish or English).
+time and your replies are often read out loud: short sentences, no tables, no markdown.
+Always reply in the same language the user wrote in (Spanish or English).
 
-If, and ONLY if, the user is clearly asking you to MOVE or TRANSFER a specific job
-to a specific department, do two things: (1) write a short confirmation question
-asking the user to confirm the move, in their language, and (2) on its own line at
-the very end of your reply, append exactly this marker with the job's JOB# and the
-exact department name from the valid list below:
-[[MOVE_JOB jobNumber="<job number>" department="<exact department name>"]]
-Do not use this marker for any other purpose, and do not use it just because the
-user asked which department a job is in -- only for an explicit move/transfer request.
+You can also CHANGE things with the tools provided (move jobs, start/pause progress,
+change priority / due date / notes / assignee, add history notes, ship or return jobs,
+store or take out extra parts). When the user asks for a change, call the matching
+tool(s) -- several at once if they ask for several changes. The app shows the user
+what will happen and asks them to confirm before anything is applied, so do NOT ask
+for confirmation yourself and never say a change is already done. If a needed detail
+is missing or ambiguous (e.g. which department, or the JOB# doesn't match any job),
+ask a short question instead of calling a tool. Only call tools for explicit change
+requests, never for plain questions.
 
 JOB DATA:
 `;
-
-const MOVE_MARKER_RE = /\[\[MOVE_JOB\s+jobNumber="([^"]+)"\s+department="([^"]+)"\]\]/i;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const messages = body.messages as ChatMessage[] | undefined;
+    const lang: AssistantLang = body.lang === 'es' ? 'es' : 'en';
     if (!messages || !messages.length) {
       return NextResponse.json({ error: 'messages required' }, { status: 400 });
     }
@@ -57,7 +59,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const jobsContext = await buildJobsContext();
+    const [jobsContext, departments] = await Promise.all([buildJobsContext(), departmentsDB.findAll()]);
+    const deptNames = departments
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((d) => d.name);
 
     const completion = await zai.chat.completions.create({
       model: 'glm-4.6',
@@ -65,39 +71,25 @@ export async function POST(request: NextRequest) {
         { role: 'system', content: SYSTEM_PROMPT + jobsContext },
         ...messages,
       ],
+      tools: buildAssistantTools(deptNames),
+      tool_choice: 'auto',
     });
 
-    const rawReply: string = completion.choices?.[0]?.message?.content ?? '';
-    const match = rawReply.match(MOVE_MARKER_RE);
-    const reply = rawReply.replace(MOVE_MARKER_RE, '').trim();
+    const message = completion.choices?.[0]?.message ?? {};
+    const toolCalls: ToolCall[] = message.tool_calls ?? [];
+    const content: string = (message.content ?? '').trim();
 
-    if (!match) {
-      return NextResponse.json({ reply });
+    if (!toolCalls.length) {
+      return NextResponse.json({ reply: content });
     }
 
-    const [, jobNumber, departmentName] = match;
-    const [job, department] = await Promise.all([
-      jobsDB.findByJobNumber(jobNumber),
-      departmentsDB.findByName(departmentName),
-    ]);
+    const { actions, errors } = await resolveToolCalls(toolCalls, lang);
+    const fallback = actions.length
+      ? lang === 'es' ? '¿Confirmas estos cambios?' : 'Confirm these changes?'
+      : '';
+    const reply = [content, ...errors].filter(Boolean).join('\n') || fallback;
 
-    if (!job || !department) {
-      return NextResponse.json({ reply });
-    }
-
-    const departments = await departmentsDB.findAll();
-    const fromDeptName = departments.find((d) => d.id === job.departmentId)?.name ?? job.departmentId;
-
-    return NextResponse.json({
-      reply,
-      pendingMove: {
-        jobId: job.id,
-        jobNumber: job.jobNumber || job.title,
-        fromDeptName,
-        toDeptId: department.id,
-        toDeptName: department.name,
-      },
-    });
+    return NextResponse.json({ reply, actions });
   } catch (error) {
     console.error('Assistant error:', error);
     return NextResponse.json(

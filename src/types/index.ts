@@ -193,3 +193,17 @@ export interface MoveJobInput {
   employeeName?: string;
   notes?: string;
 }
+
+// A change the job assistant proposes. Built and validated server-side, then
+// shown to the user and only executed (by the client, against the regular
+// API routes) once they confirm.
+export interface AssistantAction {
+  label: string;
+  method: 'POST' | 'PUT';
+  path: string;
+  body?: Record<string, unknown>;
+  // Set when the request returns a job, so the board can update in place.
+  jobId?: string;
+  // History note logged on the job after the change succeeds.
+  annotation?: string;
+}

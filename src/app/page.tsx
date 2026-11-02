@@ -1562,9 +1562,10 @@ export default function Home() {
       />
 
       <AssistantPanel
-        onJobMoved={(updated) =>
+        onJobUpdated={(updated) =>
           setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)))
         }
+        onDataChanged={refreshData}
       />
     </div>
   );
