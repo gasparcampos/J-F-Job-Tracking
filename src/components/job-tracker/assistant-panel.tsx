@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff, Check, Volume2, VolumeX, Zap } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff, Check, Volume2, VolumeX, Zap, AudioLines, PhoneOff } from 'lucide-react';
+import type { FunctionCall } from '@google/genai';
 import { Button } from '@/components/ui/button';
+import { useLiveAssistant } from '@/hooks/use-live-assistant';
 import type { AssistantAction, Job } from '@/types';
 
 interface ChatMessage {
@@ -13,6 +15,8 @@ interface ChatMessage {
 interface UiMessage extends ChatMessage {
   actions?: AssistantAction[];
   actionsState?: 'pending' | 'running' | 'done' | 'cancelled';
+  // Live (Jarvis) transcript bubble still receiving text.
+  streaming?: boolean;
 }
 
 interface AssistantPanelProps {
@@ -83,6 +87,9 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
   const inputRef = useRef('');
   const isOpenRef = useRef(false);
   const speakEnabledRef = useRef(true);
+  // While a Jarvis session is open, Gemini does the talking -- browser TTS
+  // stays quiet.
+  const liveActiveRef = useRef(false);
   const speechSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
 
   useEffect(() => {
@@ -143,7 +150,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
   const speak = (text: string, onDone?: () => void) => {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
     const clean = toSpeech(text);
-    if (!speakEnabledRef.current || !synth || !clean) {
+    if (!speakEnabledRef.current || liveActiveRef.current || !synth || !clean) {
       onDone?.();
       return;
     }
@@ -205,7 +212,8 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
 
   const appendMessage = (m: UiMessage) => setMessages((prev) => [...prev, m]);
 
-  const runActions = async (index: number, lang: Lang) => {
+  // Applies a confirmed proposal and returns a short summary of the outcome.
+  const runActions = async (index: number, lang: Lang): Promise<string> => {
     const actions = messagesRef.current[index]?.actions ?? [];
     updateMessage(index, { actionsState: 'running' });
 
@@ -248,6 +256,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       : `✅ ${t('Listo', 'Done')}: ${done.join('; ')}`;
     appendMessage({ role: 'assistant', content: summary });
     speak(failure ? summary : t('Listo.', 'Done.'));
+    return summary;
   };
 
   const cancelActions = (index: number, lang: Lang) => {
@@ -257,7 +266,146 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
     speak(text);
   };
 
+  // ---------- Jarvis (realtime voice via Gemini Live) ----------
+
+  const lastPendingIndex = () => {
+    const msgs = messagesRef.current;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].actionsState === 'pending') return i;
+    }
+    return -1;
+  };
+
+  // Language of the conversation, judged by what the user said last.
+  const liveLang = (): Lang => {
+    const lastUser = [...messagesRef.current].reverse().find((m) => m.role === 'user');
+    return lastUser ? detectLang(lastUser.content, fallbackLang) : fallbackLang;
+  };
+
+  const appendLiveText = (role: 'user' | 'assistant', chunk: string) =>
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === role && last.streaming) {
+        return [...prev.slice(0, -1), { ...last, content: last.content + chunk }];
+      }
+      return [...prev, { role, content: chunk.trimStart(), streaming: true }];
+    });
+
+  const endLiveTurn = () =>
+    setMessages((prev) => prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)));
+
+  const handleLiveToolCalls = async (calls: FunctionCall[]): Promise<Record<string, unknown>[]> => {
+    const lang = liveLang();
+    const results: Record<string, unknown>[] = calls.map(() => ({}));
+    const proposals: { index: number; call: FunctionCall }[] = [];
+
+    for (let i = 0; i < calls.length; i++) {
+      const name = calls[i].name;
+      if (name === 'confirm_pending_changes' || name === 'cancel_pending_changes') {
+        const pending = lastPendingIndex();
+        if (pending < 0) {
+          results[i] = { error: 'There are no pending changes.' };
+        } else if (name === 'confirm_pending_changes') {
+          results[i] = { result: await runActions(pending, lang) };
+        } else {
+          cancelActions(pending, lang);
+          results[i] = { result: 'Cancelled, nothing was changed.' };
+        }
+      } else {
+        proposals.push({ index: i, call: calls[i] });
+      }
+    }
+
+    if (proposals.length) {
+      const res = await fetch('/api/assistant/resolve', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ lang, calls: proposals.map((p) => ({ name: p.call.name, args: p.call.args })) }),
+      });
+      const data = await res.json();
+      const actions: AssistantAction[] = res.ok ? data.actions ?? [] : [];
+      const errors: string[] = res.ok ? data.errors ?? [] : [data.error || 'error'];
+
+      // A new proposal replaces any older one still waiting, so "sí" always
+      // applies to what was just read out.
+      setMessages((prev) => [
+        ...prev.map((m) => (m.actionsState === 'pending' ? { ...m, actionsState: 'cancelled' as const } : m)),
+        {
+          role: 'assistant',
+          content: errors.join('\n'),
+          ...(actions.length ? { actions, actionsState: 'pending' as const } : {}),
+        },
+      ]);
+
+      const payload = {
+        status: actions.length ? 'awaiting_user_confirmation' : 'nothing_to_apply',
+        proposed: actions.map((a) => a.label),
+        errors,
+      };
+      for (const p of proposals) results[p.index] = payload;
+    }
+
+    return results;
+  };
+
+  const live = useLiveAssistant({
+    onTranscript: appendLiveText,
+    onTurnEnd: endLiveTurn,
+    onToolCalls: handleLiveToolCalls,
+    onEnded: (reason) => {
+      endLiveTurn();
+      const es = fallbackLang === 'es' || liveLang() === 'es';
+      const text =
+        reason === 'idle'
+          ? es ? 'Jarvis se desconectó por inactividad.' : 'Jarvis disconnected after being idle.'
+          : reason === 'time-limit'
+          ? es ? 'Se acabó el tiempo de la sesión. Toca Jarvis para seguir.' : 'Session time is up. Tap Jarvis to continue.'
+          : reason === 'error'
+          ? '⚠️ Se perdió la conexión con Jarvis.'
+          : reason
+          ? `⚠️ ${reason}`
+          : null;
+      if (text) appendMessage({ role: 'assistant', content: text });
+    },
+  });
+  const liveActive = live.status !== 'idle';
+
+  useEffect(() => {
+    liveActiveRef.current = liveActive;
+    if (liveActive) {
+      recognitionRef.current?.stop();
+      window.speechSynthesis?.cancel();
+    }
+  }, [liveActive]);
+
+  useEffect(() => {
+    if (!isOpen) live.stop();
+  }, [isOpen, live.stop]);
+
+  const toggleLive = () => {
+    if (liveActive) live.stop();
+    else void live.start();
+  };
+
+  // Confirm/Cancel buttons; during a Jarvis session the model is told what
+  // happened so it can say so.
+  const handleConfirmClick = async (index: number, lang: Lang) => {
+    const summary = await runActions(index, lang);
+    if (liveActiveRef.current) live.sendText(`[The user confirmed with the button. Result: ${summary}]`);
+  };
+
+  const handleCancelClick = (index: number, lang: Lang) => {
+    cancelActions(index, lang);
+    if (liveActiveRef.current) live.sendText('[The user cancelled the proposed changes with the button.]');
+  };
+
   const handleUserText = async (text: string, fromVoice: boolean) => {
+    if (liveActiveRef.current) {
+      appendMessage({ role: 'user', content: text });
+      live.sendText(text);
+      return;
+    }
+
     const lang = detectLang(text, fallbackLang);
     const current = messagesRef.current;
     const last = current[current.length - 1];
@@ -362,9 +510,27 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  onClick={toggleLive}
+                  disabled={live.status === 'connecting'}
+                  title={liveActive ? 'Terminar Jarvis' : 'Jarvis: conversación por voz en tiempo real'}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    liveActive ? 'bg-white text-primary' : 'bg-white/15 hover:bg-white/25'
+                  }`}
+                >
+                  {live.status === 'connecting' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : liveActive ? (
+                    <PhoneOff size={14} />
+                  ) : (
+                    <AudioLines size={14} />
+                  )}
+                  {liveActive ? 'Terminar' : 'Jarvis'}
+                </button>
+                <button
                   onClick={toggleSpeak}
+                  disabled={liveActive}
                   title={speakEnabled ? 'Silenciar respuestas habladas' : 'Leer respuestas en voz alta'}
-                  className="hover:bg-white/10 p-1.5 rounded-lg transition-colors"
+                  className="hover:bg-white/10 p-1.5 rounded-lg transition-colors disabled:opacity-40"
                 >
                   {speakEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                 </button>
@@ -377,25 +543,56 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
               </div>
             </div>
 
+            {liveActive && (
+              <div className="px-4 py-2 border-b border-border bg-primary/10 flex items-center gap-3 flex-shrink-0">
+                <span className="relative flex h-2.5 w-2.5">
+                  {live.status === 'live' && !live.muted && (
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
+                  )}
+                  <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${live.muted ? 'bg-muted-foreground' : 'bg-primary'}`} />
+                </span>
+                <span className="flex-1 text-xs font-medium">
+                  {live.status === 'connecting'
+                    ? 'Conectando...'
+                    : live.speaking
+                    ? 'Jarvis está hablando (puedes interrumpirlo)'
+                    : live.muted
+                    ? 'Micrófono en silencio'
+                    : 'Te escucho...'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => live.setMuted(!live.muted)}
+                  disabled={live.status !== 'live'}
+                  title={live.muted ? 'Activar micrófono' : 'Silenciar micrófono'}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center border border-border hover:border-primary/40 disabled:opacity-50"
+                >
+                  {live.muted ? <MicOff size={14} /> : <Mic size={14} />}
+                </button>
+              </div>
+            )}
+
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center mt-8">
                   Pregúntame por JOB#, Part# o DWG#, o pídeme cambios: mover un job, ponerlo en progreso, cambiar
                   prioridad o fecha, agregar una nota, enviarlo, o guardar/sacar piezas extra. Usa el micrófono y
-                  responde &quot;sí&quot; para confirmar.
+                  responde &quot;sí&quot; para confirmar. Toca <b>Jarvis</b> para platicar en tiempo real.
                 </p>
               )}
               {messages.map((m, i) => (
                 <div key={i}>
-                  <div
-                    className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                      m.role === 'user'
-                        ? 'ml-auto bg-primary text-primary-foreground'
-                        : 'bg-muted text-card-foreground'
-                    }`}
-                  >
-                    {m.content}
-                  </div>
+                  {m.content && (
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                        m.role === 'user'
+                          ? 'ml-auto bg-primary text-primary-foreground'
+                          : 'bg-muted text-card-foreground'
+                      } ${m.streaming ? 'opacity-80' : ''}`}
+                    >
+                      {m.content}
+                    </div>
+                  )}
                   {m.actions && m.actions.length > 0 && (
                     <div
                       className={`mt-2 max-w-[85%] bg-muted/50 border border-border rounded-xl p-3 space-y-2 ${
@@ -418,7 +615,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => runActions(i, detectLang(`${m.content} ${m.actions!.map((a) => a.label).join(' ')}`, fallbackLang))}
+                            onClick={() => handleConfirmClick(i, detectLang(`${m.content} ${m.actions!.map((a) => a.label).join(' ')}`, fallbackLang))}
                             disabled={m.actionsState === 'running'}
                             className="h-8 flex-1 rounded-lg text-xs gap-1.5"
                           >
@@ -432,7 +629,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => cancelActions(i, detectLang(`${m.content} ${m.actions!.map((a) => a.label).join(' ')}`, fallbackLang))}
+                            onClick={() => handleCancelClick(i, detectLang(`${m.content} ${m.actions!.map((a) => a.label).join(' ')}`, fallbackLang))}
                             disabled={m.actionsState === 'running'}
                             className="h-8 flex-1 rounded-lg text-xs"
                           >
@@ -464,14 +661,14 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                     handleSend();
                   }
                 }}
-                placeholder={isRecording ? 'Escuchando...' : 'Escribe o habla...'}
+                placeholder={liveActive ? 'Jarvis te escucha; también puedes escribir...' : isRecording ? 'Escuchando...' : 'Escribe o habla...'}
                 className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none overflow-y-auto leading-snug focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {speechSupported && (
                 <button
                   type="button"
                   onClick={toggleVoiceLang}
-                  disabled={isRecording}
+                  disabled={isRecording || liveActive}
                   title="Idioma del dictado"
                   className="h-9 px-2 rounded-lg flex-shrink-0 text-[10px] font-bold uppercase tracking-wider border border-border text-muted-foreground hover:text-primary hover:border-primary/40 disabled:opacity-50 transition-colors"
                 >
@@ -484,7 +681,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                   size="icon"
                   variant={isRecording ? 'destructive' : 'outline'}
                   onClick={toggleRecording}
-                  disabled={loading}
+                  disabled={loading || liveActive}
                   title={isRecording ? 'Detener' : `Hablar (${voiceLang === 'es-MX' ? 'Español' : 'English'})`}
                   className={`h-9 w-9 rounded-lg flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
                 >
@@ -494,7 +691,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
               <Button
                 size="icon"
                 onClick={handleSend}
-                disabled={loading || !input.trim()}
+                disabled={loading || !input.trim() || live.status === 'connecting'}
                 className="h-9 w-9 rounded-lg flex-shrink-0"
               >
                 <Send size={16} />
