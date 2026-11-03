@@ -245,7 +245,17 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
       const wasActive = activeRef.current;
       activeRef.current = false;
       cleanup();
-      if (wasActive) cbRef.current.onEnded(e instanceof Error ? e.message : 'error');
+      if (!wasActive) return;
+      const name = e instanceof Error ? e.name : '';
+      cbRef.current.onEnded(
+        name === 'NotAllowedError'
+          ? 'Jarvis necesita permiso para usar el micrófono. Dale clic al candado junto a la dirección de la página, permite el micrófono y vuelve a tocar Jarvis.'
+          : name === 'NotFoundError'
+          ? 'No encontré ningún micrófono conectado.'
+          : e instanceof Error
+          ? e.message
+          : 'error'
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stop]);
