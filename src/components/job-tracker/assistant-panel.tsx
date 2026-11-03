@@ -50,8 +50,9 @@ type Lang = 'es' | 'en';
 // Rough Spanish/English guess so replies are spoken with the right voice and
 // confirmations come back in the language the user is using.
 function detectLang(text: string, fallback: Lang): Lang {
-  const es = (text.match(/[¿¡ñáéíóú]|\b(el|la|los|las|que|de|del|en|está|para|con|mueve|mover|cuál|cuáles|qué|sí|ponle|pon|trabajo|pieza)\b/gi) || []).length;
-  const en = (text.match(/\b(the|is|are|what|which|move|to|of|and|job|put|set|yes|where|when)\b/gi) || []).length;
+  const es = (text.match(/[¿¡ñáéíóú]|\b(el|la|los|las|que|de|del|en|está|para|con|mueve|mover|cuál|cuáles|qué|sí|ponle|pon|trabajo|pieza|cambiar|cambios|confirmas|nota|guardar|sacar|enviar|regresar|iniciar|pausar)\b/gi) || []).length;
+  // "JOB#" shows up in both languages, so it doesn't count as English.
+  const en = (text.match(/\b(the|is|are|what|which|move|to|of|and|put|set|yes|where|when|update|start|pause|store|take|ship|return|note|confirm)\b/gi) || []).length;
   if (es === en) return fallback;
   return es > en ? 'es' : 'en';
 }
@@ -199,7 +200,26 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
     recognition.start();
   };
 
+  // iOS Safari only lets a page speak after speech has been started from a
+  // tap; replies arrive after a network round trip, so prime it with a
+  // silent utterance on the first tap instead.
+  const speechUnlockedRef = useRef(false);
+  const unlockSpeech = () => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (speechUnlockedRef.current || !synth) return;
+    speechUnlockedRef.current = true;
+    const primer = new SpeechSynthesisUtterance(' ');
+    primer.volume = 0;
+    synth.speak(primer);
+  };
+
+  const openPanel = () => {
+    unlockSpeech();
+    setIsOpen(true);
+  };
+
   const toggleRecording = () => {
+    unlockSpeech();
     if (isRecording) {
       recognitionRef.current?.stop();
       return;
@@ -477,6 +497,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
   const handleSend = () => {
     const text = input.trim();
     if (!text || loading) return;
+    unlockSpeech();
     setInput('');
     void handleUserText(text, false);
   };
@@ -487,9 +508,9 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       {!isOpen && (
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={openPanel}
           title="Preguntar al asistente"
-          className="fixed bottom-6 right-6 z-[70] h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/40 flex items-center justify-center hover:scale-105 transition-transform"
+          className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 z-[70] h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/40 flex items-center justify-center hover:scale-105 transition-transform"
         >
           <MessageCircle size={24} />
         </button>
@@ -502,11 +523,13 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
             className="absolute inset-0 bg-background/60 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-          <div className="relative w-full max-w-sm h-full bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-            <div className="bg-primary px-5 py-4 flex items-center justify-between text-primary-foreground flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Bot size={18} />
-                <h3 className="font-bold text-sm">Asistente de Jobs</h3>
+          {/* 100dvh tracks the visible area on phones as the browser bars
+              and keyboard come and go. */}
+          <div className="relative w-full max-w-sm h-[100dvh] bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="bg-primary px-4 sm:px-5 pb-3 sm:pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-4 flex items-center justify-between gap-2 text-primary-foreground flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bot size={18} className="flex-shrink-0" />
+                <h3 className="font-bold text-sm truncate">Asistente de Jobs</h3>
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -565,7 +588,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                   onClick={() => live.setMuted(!live.muted)}
                   disabled={live.status !== 'live'}
                   title={live.muted ? 'Activar micrófono' : 'Silenciar micrófono'}
-                  className="h-7 w-7 rounded-lg flex items-center justify-center border border-border hover:border-primary/40 disabled:opacity-50"
+                  className="h-9 w-9 rounded-lg flex items-center justify-center border border-border hover:border-primary/40 disabled:opacity-50"
                 >
                   {live.muted ? <MicOff size={14} /> : <Mic size={14} />}
                 </button>
@@ -649,7 +672,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
               )}
             </div>
 
-            <div className="p-3 border-t border-border flex items-end gap-2 flex-shrink-0">
+            <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border flex items-end gap-2 flex-shrink-0">
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -662,7 +685,8 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                   }
                 }}
                 placeholder={liveActive ? 'Jarvis te escucha; también puedes escribir...' : isRecording ? 'Escuchando...' : 'Escribe o habla...'}
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none overflow-y-auto leading-snug focus:outline-none focus:ring-1 focus:ring-primary"
+                // 16px on phones: iOS zooms the page into any smaller input.
+                className="flex-1 min-w-0 bg-background border border-border rounded-lg px-3 py-2 text-base sm:text-sm resize-none overflow-y-auto leading-snug focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {speechSupported && (
                 <button

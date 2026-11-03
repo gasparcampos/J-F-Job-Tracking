@@ -20,15 +20,27 @@ export interface LiveCallbacks {
 const IDLE_TIMEOUT_MS = 2 * 60 * 1000;
 
 // Mic -> 16 kHz mono 16-bit PCM in ~100 ms chunks, which is what Gemini Live
-// expects. Inlined so there's no extra file to serve.
+// expects. The context runs at the device's native rate (Safari/iOS and
+// Firefox don't reliably honour a forced 16 kHz context), so the worklet
+// downsamples by averaging each window of input samples. Inlined so there's
+// no extra file to serve.
 const CAPTURE_WORKLET = `
 class PcmCapture extends AudioWorkletProcessor {
-  constructor() { super(); this.buf = new Int16Array(1600); this.n = 0; }
+  constructor() {
+    super();
+    this.ratio = sampleRate / 16000;
+    this.pos = 0; this.acc = 0; this.cnt = 0;
+    this.buf = new Int16Array(1600); this.n = 0;
+  }
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];
     if (ch) {
       for (let i = 0; i < ch.length; i++) {
-        const s = Math.max(-1, Math.min(1, ch[i]));
+        this.acc += ch[i]; this.cnt++; this.pos += 1;
+        if (this.pos < this.ratio) continue;
+        this.pos -= this.ratio;
+        const s = Math.max(-1, Math.min(1, this.acc / this.cnt));
+        this.acc = 0; this.cnt = 0;
         this.buf[this.n++] = s < 0 ? s * 0x8000 : s * 0x7fff;
         if (this.n === this.buf.length) {
           this.port.postMessage(this.buf.buffer.slice(0));
@@ -184,6 +196,23 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
     const ensureActive = () => {
       if (!activeRef.current) throw new Error('cancelled');
     };
+    // Create and resume both audio contexts synchronously, while still inside
+    // the tap that started the session -- iOS Safari only lets audio start
+    // from a user gesture, and the awaits below would lose it.
+    const captureCtx = new AudioContext();
+    const playCtx = new AudioContext();
+    captureCtxRef.current = captureCtx;
+    playCtxRef.current = playCtx;
+    void captureCtx.resume().catch(() => {});
+    void playCtx.resume().catch(() => {});
+    // iOS 16.4+: keep speaker output while the mic is open (otherwise iPhone
+    // can drop playback to the quiet earpiece).
+    const audioSession = (navigator as any).audioSession;
+    if (audioSession) {
+      try {
+        audioSession.type = 'play-and-record';
+      } catch {}
+    }
     try {
       const res = await fetch('/api/assistant/live-token', { method: 'POST' });
       const data = await res.json();
@@ -196,12 +225,8 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
       streamRef.current = stream;
       ensureActive();
 
-      // Both contexts are created inside the click that started the session,
-      // so autoplay rules let them run.
-      const captureCtx = new AudioContext({ sampleRate: 16000 });
-      const playCtx = new AudioContext({ sampleRate: 24000 });
-      captureCtxRef.current = captureCtx;
-      playCtxRef.current = playCtx;
+      // Some browsers suspend contexts until the mic is granted.
+      await Promise.all([captureCtx.resume(), playCtx.resume()]).catch(() => {});
 
       const ai = new GoogleGenAI({ apiKey: data.token });
       const session = await ai.live.connect({
@@ -229,6 +254,9 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
         });
       };
       source.connect(worklet);
+      // Safari only runs nodes that reach the destination; the worklet
+      // outputs silence, so this plays nothing.
+      worklet.connect(captureCtx.destination);
 
       lastActivityRef.current = Date.now();
       idleTimerRef.current = setInterval(() => {
