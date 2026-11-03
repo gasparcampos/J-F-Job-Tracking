@@ -51,6 +51,13 @@ env:
     availability:
       - RUNTIME
 
+  # Jarvis realtime voice (Gemini Live). The key lives in the Secret Manager
+  # secret named "jfjobtracking".
+  - variable: GEMINI_API_KEY
+    secret: jfjobtracking
+    availability:
+      - RUNTIME
+
   - variable: ZAI_BASE_URL
     value: https://api.z.ai/api/paas/v4
     availability:
