@@ -411,6 +411,47 @@ export const jobsDB = {
     return docToJob(updated.id, updated.data()!);
   },
 
+  // Within-department reorder: write order = index for every job in
+  // `orderedIds` that really sits in `deptId`, optionally updating the dragged
+  // job's priority. Jobs in the department but missing from the list keep
+  // their relative order after the listed ones.
+  async setDeptOrder(
+    jobId: string,
+    deptId: string,
+    orderedIds: string[],
+    priority?: number
+  ): Promise<StoredJob | null> {
+    const ref = jobsCol().doc(jobId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+
+    const deptSnap = await jobsCol().where('departmentId', '==', deptId).get();
+    const current = new Map<string, number>();
+    deptSnap.forEach((d) => current.set(d.id, (d.data().order as number) ?? 0));
+
+    const listed = orderedIds.filter((id, i) => current.has(id) && orderedIds.indexOf(id) === i);
+    const rest = [...current.keys()]
+      .filter((id) => !listed.includes(id))
+      .sort((a, b) => (current.get(a) ?? 0) - (current.get(b) ?? 0));
+    const finalOrder = [...listed, ...rest];
+
+    const batch = firestore.batch();
+    const now = new Date().toISOString();
+    finalOrder.forEach((id, idx) => {
+      const patch: Record<string, unknown> = {};
+      if (current.get(id) !== idx) patch.order = idx;
+      if (id === jobId && priority !== undefined) patch.priority = priority;
+      if (Object.keys(patch).length) {
+        patch.updatedAt = now;
+        batch.update(jobsCol().doc(id), patch);
+      }
+    });
+    await batch.commit();
+
+    const updated = await ref.get();
+    return docToJob(updated.id, updated.data()!);
+  },
+
   async reorder(jobId: string, targetDeptId: string, newOrder: number): Promise<StoredJob | null> {
     const ref = jobsCol().doc(jobId);
     const doc = await ref.get();

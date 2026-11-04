@@ -331,15 +331,76 @@ export default function Home() {
     activeJobRef.current = activeJob;
   }, [activeJob]);
 
+  // Real-time sync. Every LIVE_POLL_MS the board asks /api/live for a tiny
+  // fingerprint of the data (kept up to date on the server by a Firestore
+  // listener). When it changes — anyone moved, edited, created, shipped or
+  // deleted something on any screen — the board reloads right away, so the
+  // Kanban and the Dashboard stay current on every computer within a few
+  // seconds. A full refresh still runs every SAFETY_REFRESH_MS as a backstop.
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    const LIVE_POLL_MS = 3000;
+    const SAFETY_REFRESH_MS = 60000;
+    const FALLBACK_REFRESH_MS = 15000; // if the live endpoint is unavailable
+    let lastVersion: string | null | undefined; // undefined = not read yet
+    let lastFull = Date.now();
+    let busy = false;
+    let stopped = false;
+
+    const fullRefresh = async () => {
+      lastFull = Date.now();
+      await refreshData();
+    };
+
+    const tick = async () => {
+      if (busy || stopped) return;
+      // Hidden tab: don't spend requests; we catch up when it's shown again.
+      if (document.visibilityState === 'hidden') return;
       // Don't yank the board out from under someone mid-drag — a refresh while
       // they're moving a card would replace the job list and cancel the drag.
-      // We skip this tick and pick the changes up on the next one.
+      // lastVersion isn't updated, so the change is picked up after the drop.
       if (activeJobRef.current) return;
-      refreshData();
-    }, 15000);
-    return () => clearInterval(intervalId);
+      busy = true;
+      try {
+        let v: string | null = null;
+        try {
+          const res = await fetch('/api/live', { cache: 'no-store' });
+          if (res.ok) v = (await res.json()).v ?? null;
+        } catch {
+          v = null;
+        }
+        if (stopped || activeJobRef.current) return;
+
+        if (v === null) {
+          // Live check unavailable — fall back to plain periodic refresh.
+          if (Date.now() - lastFull >= FALLBACK_REFRESH_MS) await fullRefresh();
+        } else if (lastVersion !== undefined && v !== lastVersion) {
+          await fullRefresh();
+        } else if (Date.now() - lastFull >= SAFETY_REFRESH_MS) {
+          await fullRefresh();
+        }
+        lastVersion = v;
+      } finally {
+        busy = false;
+      }
+    };
+
+    // Coming back to the tab/window: refresh immediately.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !activeJobRef.current) {
+        void fullRefresh();
+      }
+    };
+
+    void tick();
+    const intervalId = setInterval(() => void tick(), LIVE_POLL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      stopped = true;
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, [refreshData]);
 
   // Deep link from a scanned Extra Part QR code (?extraPart=<id>): jump to the
@@ -431,7 +492,12 @@ export default function Home() {
     // truth for whether the card really changed columns.
     const origin = dragOriginRef.current;
 
-    if (!over) return;
+    // Dropped outside any column: undo the optimistic move from
+    // handleDragOver so the card doesn't sit (unsaved) in the wrong column.
+    if (!over) {
+      revertDragPreview(active.id as string);
+      return;
+    }
 
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -473,15 +539,49 @@ export default function Home() {
       const newIndex = sorted.findIndex((j) => j.id === overId);
       if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
-      const reordered = arrayMove(sorted, oldIndex, newIndex).map((j, idx) => ({
+      const moved = arrayMove(sorted, oldIndex, newIndex);
+
+      // The column sorts by priority first, so a card dropped above a
+      // higher-priority card would snap back. Take on the priority of the new
+      // neighbours instead (e.g. last P3 dragged to the top under P1 → P1),
+      // so the card stays exactly where it was dropped.
+      const above = moved[newIndex - 1];
+      const below = moved[newIndex + 1];
+      let newPriority = activeJob.priority ?? 3;
+      if (above && newPriority < (above.priority ?? 3)) newPriority = above.priority ?? 3;
+      if (below && newPriority > (below.priority ?? 3)) newPriority = below.priority ?? 3;
+
+      const reordered = moved.map((j, idx) => ({
         ...j,
         order: idx,
+        ...(j.id === activeId ? { priority: newPriority } : {}),
       }));
 
       // Optimistic local update, then persist to the backend.
       setJobs((prev) => prev.map((j) => reordered.find((r) => r.id === j.id) ?? j));
-      void persistReorder(activeId, activeJob.departmentId, newIndex);
+      void persistDeptOrder(
+        activeId,
+        activeJob.departmentId,
+        reordered.map((j) => j.id),
+        newPriority !== (activeJob.priority ?? 3) ? newPriority : undefined
+      );
     }
+  };
+
+  // Put a dragged card back in the column it started from (local only).
+  const revertDragPreview = (jobId: string) => {
+    const origin = dragOriginRef.current;
+    if (!origin) return;
+    setJobs((prev) =>
+      prev.map((j) => (j.id === jobId && j.departmentId !== origin ? { ...j, departmentId: origin } : j))
+    );
+  };
+
+  // Drag cancelled (Esc, lost pointer...): clear the drag so the live sync
+  // resumes, and undo any optimistic column change.
+  const handleDragCancel = (event: { active: { id: string | number } }) => {
+    setActiveJob(null);
+    revertDragPreview(event.active.id as string);
   };
 
   // On mobile, ask before committing a cross-column move (easy to trigger by
@@ -719,16 +819,19 @@ export default function Home() {
   // Persist a within-column reorder so the new position survives the periodic
   // background refresh (previously the reorder was local-only and snapped back).
   // The endpoint renumbers the column and returns the authoritative job list.
-  const persistReorder = async (
+  // Sends the column's exact on-screen order (and the dragged job's new
+  // priority, if it changed) so the saved order matches what was dropped.
+  const persistDeptOrder = async (
     jobId: string,
     targetDeptId: string,
-    newOrder: number
+    orderedIds: string[],
+    priority?: number
   ) => {
     try {
       const res = await fetch('/api/jobs/reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, targetDeptId, newOrder }),
+        body: JSON.stringify({ jobId, targetDeptId, orderedIds, priority }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1224,11 +1327,45 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 min-h-0 p-4 overflow-hidden">
         {viewMode === 'dashboard' ? (
-          <DashboardView
-            departments={departments}
-            jobs={filteredJobs.filter((j) => !isShipped(j))}
-            onOpenJob={setPdfJob}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <DashboardView
+              departments={departments}
+              jobs={filteredJobs.filter((j) => !isShipped(j))}
+              onOpenJob={setPdfJob}
+              getDeptOptions={(dept) => {
+                const name = dept.name.trim().toUpperCase();
+                const isMoveOnly = MOVE_ONLY_DEPARTMENT_NAMES.has(name);
+                return {
+                  canMove: !NO_MOVE_DEPARTMENT_NAMES.has(name),
+                  showProgress: !isMoveOnly,
+                  showComplete: !isMoveOnly,
+                  isShipping: dept.id === shippedDeptId,
+                };
+              }}
+              onToggleInProgress={handleToggleInProgress}
+              onMarkDone={handleMarkDone}
+              onMoveToAnyDept={setMoveToAnyJob}
+              onShip={setShipJob}
+              highlightJobs={!!searchQuery.trim()}
+            />
+            <DragOverlay>
+              {activeJob && (
+                <div className="bg-card rounded-md px-2 py-1.5 shadow-2xl border-2 border-primary cursor-grabbing">
+                  <p className="font-bold text-[11px] text-card-foreground">
+                    {activeJob.jobNumber ? `#${activeJob.jobNumber}` : activeJob.title}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">Moving...</p>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
         ) : viewMode === 'kanban' ? (
           <DndContext
             sensors={sensors}
@@ -1236,6 +1373,7 @@ export default function Home() {
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <div className="flex gap-3 overflow-x-auto pb-4 h-full">
               {displayDepartments.map((dept) => {

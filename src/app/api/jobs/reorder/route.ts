@@ -6,7 +6,25 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { jobId, targetDeptId, newOrder } = body;
+    const { jobId, targetDeptId, newOrder, orderedIds, priority } = body;
+
+    // Exact on-screen order for one department (used by within-column
+    // drag-reorder). Every listed job gets order = its index, and the dragged
+    // job can take a new priority so the priority-first sort keeps it where
+    // it was dropped.
+    if (jobId && targetDeptId && Array.isArray(orderedIds)) {
+      const job = await jobsDB.setDeptOrder(
+        jobId,
+        targetDeptId,
+        orderedIds.filter((id: unknown): id is string => typeof id === 'string'),
+        typeof priority === 'number' && priority >= 1 && priority <= 5 ? priority : undefined
+      );
+      if (!job) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
+      const allJobs = await jobsDB.findAll();
+      return NextResponse.json({ job, jobs: allJobs });
+    }
 
     if (!jobId || !targetDeptId || newOrder === undefined) {
       return NextResponse.json(
