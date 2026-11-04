@@ -19,7 +19,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X } from 'lucide-react';
+import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput } from '@/types';
@@ -34,6 +34,7 @@ import {
   AssistantPanel,
   ExtraPartsTable,
   ExtraPartFormModal,
+  DashboardView,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -90,7 +91,7 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('kanban');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
   const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts'>('active');
 
@@ -1171,6 +1172,19 @@ export default function Home() {
               <List size={14} />
               Tabla
             </Button>
+            <Button
+              variant={viewMode === 'dashboard' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('dashboard')}
+              className={`rounded-lg gap-2 ${
+                viewMode === 'dashboard'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-card-foreground'
+              }`}
+            >
+              <LayoutDashboard size={14} />
+              Dashboard
+            </Button>
           </div>
 
           <Button
@@ -1209,7 +1223,13 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="flex-1 min-h-0 p-4 overflow-hidden">
-        {viewMode === 'kanban' ? (
+        {viewMode === 'dashboard' ? (
+          <DashboardView
+            departments={departments}
+            jobs={filteredJobs.filter((j) => !isShipped(j))}
+            onOpenJob={setPdfJob}
+          />
+        ) : viewMode === 'kanban' ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}
