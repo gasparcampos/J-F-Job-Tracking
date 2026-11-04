@@ -1255,6 +1255,19 @@ export default function Home() {
 
           <div className="bg-muted p-1 rounded-xl flex border border-border">
             <Button
+              variant={viewMode === 'dashboard' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('dashboard')}
+              className={`rounded-lg gap-2 ${
+                viewMode === 'dashboard'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-card-foreground'
+              }`}
+            >
+              <LayoutDashboard size={14} />
+              Dashboard
+            </Button>
+            <Button
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('kanban')}
@@ -1279,19 +1292,6 @@ export default function Home() {
             >
               <List size={14} />
               Tabla
-            </Button>
-            <Button
-              variant={viewMode === 'dashboard' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('dashboard')}
-              className={`rounded-lg gap-2 ${
-                viewMode === 'dashboard'
-                  ? 'bg-primary text-primary-foreground shadow-lg'
-                  : 'text-muted-foreground hover:text-card-foreground'
-              }`}
-            >
-              <LayoutDashboard size={14} />
-              Dashboard
             </Button>
           </div>
 
