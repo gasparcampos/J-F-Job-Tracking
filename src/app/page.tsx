@@ -94,7 +94,7 @@ export default function Home() {
   // departments in job history entries and reports.
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('dashboard');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
   const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts'>('active');
 
