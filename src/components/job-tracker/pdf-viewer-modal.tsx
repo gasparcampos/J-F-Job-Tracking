@@ -6,8 +6,9 @@ import { X, ZoomIn, ZoomOut, RotateCw, FileText, Save, Clock, Plus, Minus, Contr
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Job } from '@/types';
+import type { Job, Department } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
+import { moveInfo } from '@/lib/history-format';
 import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
 
 // PDF.js type - will be loaded dynamically
@@ -18,9 +19,11 @@ interface PdfViewerModalProps {
   job: Job | null;
   onClose: () => void;
   onSaveAnnotation?: (jobId: string, annotation: string) => void;
+  /** Used to name the departments in move entries of the history. */
+  departments?: Department[];
 }
 
-export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModalProps) {
+export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [] }: PdfViewerModalProps) {
   const [rotation, setRotation] = useState(0);
   // Extra darkening offset on top of the auto-detected level (0 = auto).
   // The +/- buttons nudge this when a scan needs more/less than auto.
@@ -419,8 +422,10 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-4">
                   {job.history && job.history.length > 0 ? (
-                    [...job.history].reverse().map((entry, index) => (
-                      <div 
+                    [...job.history].reverse().map((entry, index) => {
+                      const move = moveInfo(entry, departments);
+                      return (
+                      <div
                         key={entry.id || index}
                         className="relative pl-6 border-l-2 border-primary/30"
                       >
@@ -440,6 +445,24 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                               minute: '2-digit'
                             })}
                           </p>
+                          {/* Department move: FROM → TO, plus who it went to. */}
+                          {move && (
+                            <div className="mt-1 p-2 rounded-lg border border-border bg-card/60">
+                              <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+                                Moved
+                              </p>
+                              <p className="text-[11px] font-bold uppercase leading-snug flex flex-wrap items-center gap-1">
+                                <span style={{ color: move.from.color }}>{move.from.name}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span style={{ color: move.to.color }}>{move.to.name}</span>
+                              </p>
+                              {entry.employeeName && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Assigned to: <span className="text-card-foreground font-semibold">{entry.employeeName}</span>
+                                </p>
+                              )}
+                            </div>
+                          )}
                           {entry.notes && (
                             <p className="text-xs text-card-foreground mt-1 bg-muted/50 p-2 rounded-lg">
                               {entry.notes}
@@ -447,7 +470,8 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation }: PdfViewerModa
                           )}
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-xs text-muted-foreground text-center py-4">
                       No history

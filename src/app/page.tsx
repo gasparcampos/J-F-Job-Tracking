@@ -90,6 +90,9 @@ const COMPLETE_CHOICE_OVERRIDES: Record<string, string[]> = {
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  // Every department, including the ones hidden from the board — used to name
+  // departments in job history entries and reports.
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('kanban');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
@@ -270,6 +273,7 @@ export default function Home() {
       const extraPartsData = await extraPartsRes.json();
 
       setJobs(jobsData);
+      setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
       setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
@@ -315,6 +319,7 @@ export default function Home() {
       ]);
 
       setJobs(jobsData);
+      setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
       setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
@@ -1087,7 +1092,7 @@ export default function Home() {
   const handleTimeReport = async (job: Job) => {
     try {
       const { generateTimeReportPdf } = await import('@/lib/time-report');
-      const blob = await generateTimeReportPdf(job, departments);
+      const blob = await generateTimeReportPdf(job, allDepartments.length ? allDepartments : departments);
       const url = URL.createObjectURL(blob);
       const win = window.open(url, '_blank');
       if (!win) {
@@ -1594,7 +1599,7 @@ export default function Home() {
 
       <HistoryModal
         job={historyJob}
-        departments={departments}
+        departments={allDepartments.length ? allDepartments : departments}
         onClose={() => setHistoryJob(null)}
       />
 
@@ -1690,6 +1695,7 @@ export default function Home() {
         job={pdfJob}
         onClose={() => setPdfJob(null)}
         onSaveAnnotation={handleSaveAnnotation}
+        departments={allDepartments.length ? allDepartments : departments}
       />
 
       <MoveToAnyDeptModal

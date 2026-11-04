@@ -19,6 +19,9 @@ export interface JobHistoryEntry {
   jobId: string;
   fromDeptId?: string;
   toDeptId: string;
+  // Department names stamped when the entry was written (newer entries only).
+  fromDeptName?: string;
+  toDeptName?: string;
   employeeId?: string;
   employeeName?: string;
   notes?: string;

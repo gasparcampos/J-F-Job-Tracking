@@ -59,6 +59,10 @@ export interface StoredJob {
     jobId: string;
     fromDeptId?: string;
     toDeptId: string;
+    // Department names at the time of the entry, so the record stays readable
+    // even if a department is later renamed or hidden.
+    fromDeptName?: string;
+    toDeptName?: string;
     employeeId?: string;
     employeeName?: string;
     notes?: string;
@@ -514,11 +518,31 @@ export const jobsDB = {
     const doc = await ref.get();
     if (!doc.exists) return null;
 
+    // Stamp the department names into a move entry (from → to) so the
+    // history always shows where the job went, by name.
+    const isMove = !!entry.fromDeptId && entry.fromDeptId !== entry.toDeptId;
+    let fromDeptName: string | undefined;
+    let toDeptName: string | undefined;
+    if (isMove) {
+      try {
+        const [fromDoc, toDoc] = await Promise.all([
+          deptsCol().doc(entry.fromDeptId!).get(),
+          deptsCol().doc(entry.toDeptId).get(),
+        ]);
+        fromDeptName = fromDoc.exists ? (fromDoc.data()!.name as string) : undefined;
+        toDeptName = toDoc.exists ? (toDoc.data()!.name as string) : undefined;
+      } catch {
+        /* names are a convenience — the ids are still recorded */
+      }
+    }
+
     const historyEntry = stripUndefined({
       id: generateId(),
       jobId,
       fromDeptId: entry.fromDeptId,
       toDeptId: entry.toDeptId,
+      fromDeptName,
+      toDeptName,
       employeeId: entry.employeeId,
       employeeName: entry.employeeName,
       notes: entry.notes,

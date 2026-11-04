@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
 import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
 import type { Job, Department } from '@/types';
+import { moveInfo, deptLabel } from '@/lib/history-format';
 
 interface HistoryModalProps {
   job: Job | null;
@@ -16,7 +17,7 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
   if (!job) return null;
 
   // Newest entries first.
-  const sortedHistory = [...job.history].sort(
+  const sortedHistory = [...(job.history ?? [])].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -100,25 +101,41 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
             </div>
           ) : (
             <div className="border-l-2 border-border ml-4 space-y-5">
-              {sortedHistory.map((log, idx) => (
+              {sortedHistory.map((log, idx) => {
+                const move = moveInfo(log, departments);
+                const toLabel = deptLabel(departments, log.toDeptId, log.toDeptName);
+                return (
                 <div key={log.id || idx} className="relative pl-8">
                   <div
                     className="absolute left-[-9px] top-1 w-4 h-4 rounded-full border-4 border-card shadow-md"
-                    style={{ backgroundColor: departments.find((d) => d.id === log.toDeptId)?.color || '#f97316' }}
+                    style={{ backgroundColor: toLabel?.color || '#f97316' }}
                   />
                   <div className="bg-muted/50 p-4 rounded-xl border border-border">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p
-                          className="text-[10px] font-bold uppercase tracking-widest"
-                          style={{ color: departments.find((d) => d.id === log.toDeptId)?.color || '#f97316' }}
-                        >
-                          {departments.find((d) => d.id === log.toDeptId)?.name || 'Desconocido'}
-                        </p>
-                        {log.employee && (
+                        {move ? (
+                          <>
+                            <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                              Moved
+                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest flex flex-wrap items-center gap-1">
+                              <span style={{ color: move.from.color }}>{move.from.name}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span style={{ color: move.to.color }}>{move.to.name}</span>
+                            </p>
+                          </>
+                        ) : (
+                          <p
+                            className="text-[10px] font-bold uppercase tracking-widest"
+                            style={{ color: toLabel?.color || '#f97316' }}
+                          >
+                            {toLabel?.name || 'Unknown area'}
+                          </p>
+                        )}
+                        {log.employeeName && (
                           <div className="flex items-center gap-1.5 text-card-foreground mt-1">
                             <User size={12} />
-                            <p className="text-xs font-semibold">{log.employee.name}</p>
+                            <p className="text-xs font-semibold">{log.employeeName}</p>
                           </div>
                         )}
                       </div>
@@ -142,7 +159,8 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
