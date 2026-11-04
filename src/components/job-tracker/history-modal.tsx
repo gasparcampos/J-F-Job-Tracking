@@ -1,6 +1,7 @@
 'use client';
 
-import { X, Clock, User, FileText, Timer, Flame } from 'lucide-react';
+import { X, Clock, User, FileText, Timer, Flame, Printer } from 'lucide-react';
+import { printJobHistory } from '@/lib/print-history';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
 import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
@@ -165,11 +166,18 @@ export function HistoryModal({ job, departments, onClose }: HistoryModalProps) {
           )}
         </div>
 
-        <div className="flex-shrink-0 p-4 bg-card border-t border-border">
+        <div className="flex-shrink-0 p-4 bg-card border-t border-border flex gap-2">
+          <Button
+            onClick={() => printJobHistory(job, departments, workedTimes)}
+            className="flex-1 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Printer size={16} />
+            Print
+          </Button>
           <Button
             variant="outline"
             onClick={onClose}
-            className="w-full"
+            className="flex-1"
           >
             Close
           </Button>
