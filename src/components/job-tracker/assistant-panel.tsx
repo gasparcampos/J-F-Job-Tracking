@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff, Check, Volume2, VolumeX, Zap, AudioLines, PhoneOff } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot, Mic, MicOff, Check, Volume2, VolumeX, Zap, AudioLines, PhoneOff, Camera, FileText } from 'lucide-react';
 import type { FunctionCall } from '@google/genai';
 import { Button } from '@/components/ui/button';
 import { useLiveAssistant } from '@/hooks/use-live-assistant';
@@ -17,6 +17,28 @@ interface UiMessage extends ChatMessage {
   actionsState?: 'pending' | 'running' | 'done' | 'cancelled';
   // Live (Jarvis) transcript bubble still receiving text.
   streaming?: boolean;
+  // Photo / PDF the user attached to find a job (local preview only).
+  imageUrl?: string;
+  fileLabel?: string;
+  // What the chat model sees for this message instead of `content`.
+  apiContent?: string;
+}
+
+// Phone photos are several MB; OCR only needs ~2400px on the long side.
+async function shrinkImage(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 4 * 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.9));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
 }
 
 interface AssistantPanelProps {
@@ -464,7 +486,7 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
             role: m.role,
             content: m.actions?.length
               ? `${m.content}\n[Proposed changes: ${m.actions.map((a) => a.label).join('; ')} — ${m.actionsState}]`
-              : m.content,
+              : m.apiContent ?? m.content,
           })),
         }),
       });
@@ -489,6 +511,56 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       });
     } catch {
       appendMessage({ role: 'assistant', content: '⚠️ No se pudo conectar con el asistente.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Photo / PDF of a print -> OCR on the server -> where that job is.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleFile = async (file: File) => {
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isImage = file.type.startsWith('image/');
+    if (!isPdf && !isImage) return;
+    unlockSpeech();
+    // Same language as the conversation so far (else the dictation setting).
+    const lang = liveLang();
+    const t = (es: string, en: string) => (lang === 'es' ? es : en);
+
+    const userMsg: UiMessage = {
+      role: 'user',
+      content: t('¿Dónde está este trabajo?', 'Where is this job?'),
+      ...(isImage ? { imageUrl: URL.createObjectURL(file) } : { fileLabel: file.name || 'PDF' }),
+    };
+    const next = [...messagesRef.current, userMsg];
+    messagesRef.current = next;
+    setMessages(next);
+    setLoading(true);
+
+    try {
+      const form = new FormData();
+      form.append('file', isImage ? await shrinkImage(file) : file, isImage ? 'photo.jpg' : file.name);
+      form.append('lang', lang);
+      const res = await fetch('/api/assistant/locate', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        appendMessage({ role: 'assistant', content: `⚠️ ${data.error || t('No se pudo leer la imagen.', 'Could not read the image.')}` });
+        return;
+      }
+      const jobsFound: string = (data.matches ?? []).map((m: { jobNumber: string }) => `JOB# ${m.jobNumber}`).join(', ');
+      // The chat model only sees text: tell it which job the photo was, so a
+      // follow-up like "muévelo a inspección" knows what "it" is.
+      userMsg.apiContent = jobsFound
+        ? `[I attached a photo/PDF of a print. It was identified as ${jobsFound}.] Where is this job?`
+        : '[I attached a photo/PDF of a print, but no job could be identified from it.]';
+      appendMessage({ role: 'assistant', content: data.reply });
+      if (liveActiveRef.current) {
+        live.sendText(`[The user uploaded a photo of a print. Result: ${data.reply}] Tell the user briefly.`);
+      } else {
+        speak(data.reply);
+      }
+    } catch {
+      appendMessage({ role: 'assistant', content: `⚠️ ${t('No se pudo conectar con el asistente.', 'Could not reach the assistant.')}` });
     } finally {
       setLoading(false);
     }
@@ -600,7 +672,8 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                 <p className="text-xs text-muted-foreground text-center mt-8">
                   Pregúntame por JOB#, Part# o DWG#, o pídeme cambios: mover un job, ponerlo en progreso, cambiar
                   prioridad o fecha, agregar una nota, enviarlo, o guardar/sacar piezas extra. Usa el micrófono y
-                  responde &quot;sí&quot; para confirmar. Toca <b>Jarvis</b> para platicar en tiempo real.
+                  responde &quot;sí&quot; para confirmar. Toca <b>Jarvis</b> para platicar en tiempo real. Toca la{' '}
+                  <b>cámara</b> para subir una foto o PDF de un print y te digo dónde está ese trabajo.
                 </p>
               )}
               {messages.map((m, i) => (
@@ -613,6 +686,20 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
                           : 'bg-muted text-card-foreground'
                       } ${m.streaming ? 'opacity-80' : ''}`}
                     >
+                      {m.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.imageUrl}
+                          alt=""
+                          className="mb-2 max-h-48 w-full rounded-lg object-contain bg-black/20"
+                        />
+                      )}
+                      {m.fileLabel && (
+                        <div className="mb-2 flex items-center gap-1.5 rounded-lg bg-black/15 px-2 py-1.5 text-xs font-semibold">
+                          <FileText size={14} className="flex-shrink-0" />
+                          <span className="truncate">{m.fileLabel}</span>
+                        </div>
+                      )}
                       {m.content}
                     </div>
                   )}
@@ -673,11 +760,43 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
             </div>
 
             <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border flex items-end gap-2 flex-shrink-0">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void handleFile(file);
+                }}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                title="Subir foto o PDF de un print para localizar el trabajo"
+                className="h-9 w-9 rounded-lg flex-shrink-0"
+              >
+                <Camera size={16} />
+              </Button>
               <textarea
                 ref={textareaRef}
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onPaste={(e) => {
+                  // Ctrl+V of a screenshot / copied image locates it too.
+                  const file = Array.from(e.clipboardData.files).find(
+                    (f) => f.type.startsWith('image/') || f.type === 'application/pdf'
+                  );
+                  if (file && !loading) {
+                    e.preventDefault();
+                    void handleFile(file);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
