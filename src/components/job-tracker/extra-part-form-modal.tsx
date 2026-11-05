@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import type { ExtraPart, Job, Employee, CreateExtraPartInput } from '@/types';
 import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
+import { printHtml, escHtml } from '@/lib/print-html';
 
 interface ExtraPartFormModalProps {
   // null = closed. {} = creating new. Otherwise = editing existing.
@@ -158,23 +159,27 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
       .filter(([, v]) => v && v.trim())
       .map(
         ([k, v]) =>
-          `<tr><td style="font-weight:700;padding:2px 8px 2px 0;white-space:nowrap;">${k}</td><td style="padding:2px 0;">${v}</td></tr>`
+          `<tr><td style="font-weight:700;padding:2px 8px 2px 0;white-space:nowrap;">${escHtml(k)}</td><td style="padding:2px 0;">${escHtml(v)}</td></tr>`
       )
       .join('');
 
-    const win = window.open('', '_blank', 'width=460,height=620');
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>Extra Part Label</title>
+    // Printed through a hidden iframe (no popup window): ad-block extensions
+    // inject scripts into blank popups, which Norton flags and blocks.
+    printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extra Part Label</title>
       <style>
+        @page { margin: 10mm; }
         * { box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 16px; color: #000; }
+        :root { color-scheme: light; }
+        html, body { background: #fff; }
+        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; }
+        .label { max-width: 90mm; margin: 0 auto; }
         .label { border: 2px solid #000; border-radius: 8px; padding: 16px; width: 100%; }
         .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align:center; }
         .qr { display:flex; justify-content:center; margin: 8px 0 14px; }
         .qr svg { width: 200px; height: 200px; }
         table { font-size: 14px; margin: 0 auto; }
         .hint { font-size: 10px; text-align:center; margin-top: 10px; color:#444; }
-      </style></head><body onload="window.print()">
+      </style></head><body>
       <div class="label">
         <div class="title">J&amp;F Machine Shop — Extra Part</div>
         <div class="qr">${qrSvg}</div>
@@ -182,7 +187,6 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
         <div class="hint">Scan to open this record</div>
       </div>
     </body></html>`);
-    win.document.close();
   };
 
   if (!part) return null;
