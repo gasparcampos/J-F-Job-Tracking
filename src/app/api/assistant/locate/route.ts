@@ -32,13 +32,14 @@ export async function POST(request: NextRequest) {
     const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    const [text, jobs, departments, extraParts] = await Promise.all([
+    const [ocrText, jobs, departments, extraParts] = await Promise.all([
       ocrBuffer(buffer, isPdf),
       jobsDB.findAll(),
       departmentsDB.findAll(),
       extraPartsDB.findAll(),
     ]);
 
+    const text = ocrText;
     const result = locateJobsFromText(text, jobs, departments, extraParts);
     const reply = !text.trim()
       ? lang === 'es'

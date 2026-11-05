@@ -11,6 +11,8 @@ export interface JobLocation {
   partNumber?: string;
   dwgNumber?: string;
   matchedBy: string[];
+  // Only matched by a DWG#/Part# that was one character off.
+  approximate?: boolean;
   status: 'board' | 'shipped' | 'deviation';
   departmentName?: string;
   departmentColor?: string;
@@ -52,39 +54,68 @@ export function locateJobsFromText(
   const compact = norm(text);
   const hasNumber = (n: string) => new RegExp(`(?<![0-9])${n}(?![0-9])`).test(upper);
   const hasCode = (code: string) => code.length >= 6 && compact.includes(code);
+  const hasWord = (w?: string) => {
+    const s = (w ?? '').trim().toUpperCase();
+    return s.length >= 4 && new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(upper);
+  };
 
+  // Drawing title blocks are small print, so OCR often gets one character
+  // wrong (D00363582 read as D00383582). Fold the usual look-alikes and
+  // allow a single different character for long codes.
+  const fold = (s: string) => s.replace(/O/g, '0').replace(/[IL]/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
+  const tokens = [...new Set(upper.split(/[^A-Z0-9]+/).filter((t) => t.length >= 6).map(fold))];
+  const nearCode = (code: string) => {
+    if (code.length < 7) return false;
+    const c = fold(code);
+    return tokens.some((tok) => {
+      for (let start = 0; start + c.length <= tok.length; start++) {
+        let diff = 0;
+        for (let k = 0; k < c.length && diff <= 1; k++) if (tok[start + k] !== c[k]) diff++;
+        if (diff <= 1) return true;
+      }
+      return false;
+    });
+  };
+
+  // Tiers: 3 = JOB# on the page, 2 = exact PO/DWG/Part, 1 = DWG/Part off by
+  // one character. Only the best tier found is reported.
   const scored = jobs
     .map((job) => {
       const matchedBy: string[] = [];
-      let score = 0;
+      let tier = 0;
       const jobNo = norm(job.jobNumber);
       if (jobNo.length >= 4 && /^\d+$/.test(jobNo) && hasNumber(jobNo)) {
-        score += 10;
+        tier = 3;
         matchedBy.push('JOB#');
       }
       if (hasCode(norm(job.poNumber))) {
-        score += 6;
+        tier = Math.max(tier, 2);
         matchedBy.push('PO#');
       }
-      if (hasCode(base(job.dwgNumber))) {
-        score += 5;
-        matchedBy.push('DWG#');
+      const dwg = base(job.dwgNumber);
+      const part = base(job.partNumber);
+      for (const [label, code] of [['DWG#', dwg], ['Part#', part !== dwg ? part : '']] as const) {
+        if (!code) continue;
+        if (hasCode(code)) {
+          tier = Math.max(tier, 2);
+          matchedBy.push(label);
+        } else if (nearCode(code)) {
+          tier = Math.max(tier, 1);
+          matchedBy.push(`${label}~`);
+        }
       }
-      if (hasCode(base(job.partNumber)) && base(job.partNumber) !== base(job.dwgNumber)) {
-        score += 5;
-        matchedBy.push('Part#');
-      }
-      return { job, score, matchedBy };
+      // Customer / part name on the print only back up a code match.
+      let support = matchedBy.length;
+      if (tier && hasWord(job.name)) support++;
+      if (tier && hasWord(job.customer)) support++;
+      return { job, tier, support, matchedBy };
     })
-    .filter((s) => s.score >= 5);
+    .filter((s) => s.tier > 0);
 
-  // Keep the strongest kind of match: a JOB# hit beats jobs that only share
-  // the same drawing (repeat orders of the same part).
-  const top = Math.max(0, ...scored.map((s) => s.score));
-  const threshold = top >= 10 ? 10 : top;
+  const topTier = Math.max(0, ...scored.map((s) => s.tier));
   const best = scored
-    .filter((s) => s.score >= threshold)
-    .sort((a, b) => Number(!!a.job.shipped) - Number(!!b.job.shipped) || b.score - a.score)
+    .filter((s) => s.tier === topTier)
+    .sort((a, b) => Number(!!a.job.shipped) - Number(!!b.job.shipped) || b.support - a.support)
     .slice(0, 6);
 
   const visibleDeptIds = new Set(
@@ -104,6 +135,7 @@ export function locateJobsFromText(
       partNumber: job.partNumber,
       dwgNumber: job.dwgNumber,
       matchedBy,
+      approximate: topTier === 1,
       status: job.shipped ? 'shipped' : job.deviationStatus === 'pending' ? 'deviation' : 'board',
       departmentName: dept?.name,
       departmentColor: dept?.color,
@@ -201,6 +233,16 @@ export function describeLocations(
       t(
         `Encontré ${matches.length} trabajos con el mismo dibujo/parte:`,
         `Found ${matches.length} jobs with the same drawing/part:`
+      )
+    );
+  }
+  if (matches.some((m) => m.approximate)) {
+    const m = matches[0];
+    const code = m.matchedBy.some((b) => b.startsWith('DWG#')) ? `DWG# ${m.dwgNumber}` : `Part# ${m.partNumber}`;
+    lines.push(
+      t(
+        `⚠️ Coincidencia aproximada: el número del plano se leyó con un carácter distinto a ${code}. Verifícalo.`,
+        `⚠️ Approximate match: the print's number was read one character off from ${code}. Please double-check.`
       )
     );
   }
