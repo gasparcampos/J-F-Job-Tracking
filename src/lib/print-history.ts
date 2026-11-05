@@ -11,8 +11,8 @@ const fmtDateTime = (iso: string) => {
 
 /**
  * Prints a job's full history as a clean white page: job details, time
- * worked per department and every history entry (oldest first). Uses a
- * hidden iframe so no popup window is needed.
+ * worked per department and every history entry (oldest first). Printed
+ * from the current page (see printHtml), no popup window.
  */
 export function printJobHistory(
   job: Job,
@@ -88,9 +88,7 @@ export function printJobHistory(
 <style>
   @page { size: letter; margin: 12mm; }
   * { box-sizing: border-box; }
-  :root { color-scheme: light; }
-  html, body { background: #fff; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; }
+  .print-page { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; background: #fff; }
   header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 10px; }
   header h1 { font-size: 18px; margin: 0; }
   header .shop { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; }

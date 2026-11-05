@@ -143,8 +143,7 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
   }, [jobLookup, jobs, isEditing, jobId]);
 
   // Print a small storage label: the QR plus the key identifying info, so it
-  // can be taped to the stored piece. Opens a clean print window with just
-  // the label (window.print on the modal would print the whole UI).
+  // can be taped to the stored piece. Only the label is printed, not the UI.
   const handlePrintLabel = () => {
     const qrSvg = qrRef.current?.querySelector('svg')?.outerHTML ?? '';
     const rows: [string, string][] = [
@@ -163,15 +162,13 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
       )
       .join('');
 
-    // Printed through a hidden iframe (no popup window): ad-block extensions
-    // inject scripts into blank popups, which Norton flags and blocks.
+    // Printed from this page (no popup/iframe): ad-block extensions inject
+    // scripts into blank windows, which Norton flags and blanks out.
     printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extra Part Label</title>
       <style>
         @page { margin: 10mm; }
         * { box-sizing: border-box; }
-        :root { color-scheme: light; }
-        html, body { background: #fff; }
-        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; }
+        .print-page { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; background: #fff; }
         .label { max-width: 90mm; margin: 0 auto; }
         .label { border: 2px solid #000; border-radius: 8px; padding: 16px; width: 100%; }
         .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align:center; }
