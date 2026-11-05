@@ -118,12 +118,37 @@ export function locateJobsFromText(
     .sort((a, b) => Number(!!a.job.shipped) - Number(!!b.job.shipped) || b.support - a.support)
     .slice(0, 6);
 
+  const located = buildLocations(
+    best.map(({ job, matchedBy }) => ({ job, matchedBy, approximate: topTier === 1 })),
+    jobs,
+    departments,
+    extraParts,
+    (n) => hasNumber(n),
+    (c) => hasCode(c)
+  );
+
+  // Numbers that look like a JOB# (43xxx) or PO# (45xxxxxxxx), for the
+  // "nothing found" reply.
+  const candidates = [...new Set(upper.match(/(?<!\d)(43\d{3}|45\d{8})(?!\d)/g) ?? [])].slice(0, 6);
+
+  return { ...located, candidates };
+}
+
+/** Board location (department, position, ...) for already-identified jobs. */
+export function buildLocations(
+  picked: { job: Job; matchedBy: string[]; approximate?: boolean }[],
+  jobs: Job[],
+  departments: Department[],
+  extraParts: ExtraPart[],
+  textHasNumber: (n: string) => boolean = () => false,
+  textHasCode: (c: string) => boolean = () => false
+): { matches: JobLocation[]; extras: ExtraLocation[] } {
   const visibleDeptIds = new Set(
     departments.filter((d) => !HIDDEN_DEPARTMENT_NAMES.has(d.name.trim().toUpperCase())).map((d) => d.id)
   );
   const onBoard = (j: Job) => !j.shipped && j.deviationStatus !== 'pending' && visibleDeptIds.has(j.departmentId);
 
-  const matches: JobLocation[] = best.map(({ job, matchedBy }) => {
+  const matches: JobLocation[] = picked.map(({ job, matchedBy, approximate }) => {
     const dept = departments.find((d) => d.id === job.departmentId);
     const column = jobs.filter((j) => j.departmentId === job.departmentId && onBoard(j)).sort(boardSort);
     const idx = column.findIndex((j) => j.id === job.id);
@@ -135,7 +160,7 @@ export function locateJobsFromText(
       partNumber: job.partNumber,
       dwgNumber: job.dwgNumber,
       matchedBy,
-      approximate: topTier === 1,
+      approximate: !!approximate,
       status: job.shipped ? 'shipped' : job.deviationStatus === 'pending' ? 'deviation' : 'board',
       departmentName: dept?.name,
       departmentColor: dept?.color,
@@ -156,16 +181,12 @@ export function locateJobsFromText(
     .filter((p) => p.active)
     .filter(
       (p) =>
-        (p.jobNumber && (matchedJobNos.has(norm(p.jobNumber)) || hasNumber(norm(p.jobNumber)))) ||
-        (base(p.partNumber) && (matchedParts.has(base(p.partNumber)) || hasCode(base(p.partNumber))))
+        (p.jobNumber && (matchedJobNos.has(norm(p.jobNumber)) || textHasNumber(norm(p.jobNumber)))) ||
+        (base(p.partNumber) && (matchedParts.has(base(p.partNumber)) || textHasCode(base(p.partNumber))))
     )
     .map((p) => ({ jobNumber: p.jobNumber, partNumber: p.partNumber, place: p.place, partQty: p.partQty }));
 
-  // Numbers that look like a JOB# (43xxx) or PO# (45xxxxxxxx), for the
-  // "nothing found" reply.
-  const candidates = [...new Set(upper.match(/(?<!\d)(43\d{3}|45\d{8})(?!\d)/g) ?? [])].slice(0, 6);
-
-  return { matches, extras, candidates };
+  return { matches, extras };
 }
 
 const fmtDue = (due: string | undefined, lang: 'es' | 'en') => {
