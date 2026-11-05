@@ -94,6 +94,36 @@ function toSpeech(text: string): string {
     .trim();
 }
 
+// iOS ships joke voices (Bubbles, Zarvox, ...) under every language; never use them.
+const NOVELTY_VOICES = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|eddy|flo|good news|grandma|grandpa|jester|junior|kathy|organ|ralph|reed|rocko|sandy|shelley|superstar|trinoids|whisper|wobble|zarvox|fred)\b/i;
+
+/**
+ * Picks the most natural-sounding installed voice for a language instead of
+ * the first one (on Windows that's the robotic desktop voice).
+ * Chrome: "Google español de Estados Unidos". Edge: "... Online (Natural)".
+ * iPhone: "Paulina (Enhanced/Premium)" if downloaded, else Paulina/Mónica.
+ */
+function pickVoice(voices: SpeechSynthesisVoice[], lang: 'es-MX' | 'en-US'): SpeechSynthesisVoice | undefined {
+  const prefix = lang.slice(0, 2);
+  const score = (v: SpeechSynthesisVoice) => {
+    const name = v.name;
+    const vLang = v.lang.replace('_', '-');
+    let s = 0;
+    if (/natural|neural/i.test(name)) s += 100;
+    else if (/premium|enhanced|mejorad/i.test(name)) s += 90;
+    else if (/^google/i.test(name)) s += 80;
+    else if (/siri/i.test(name)) s += 70;
+    else if (/^microsoft/i.test(name)) s -= 20; // old desktop SAPI voices
+    if (vLang === lang) s += 10;
+    else if (lang === 'es-MX' && vLang === 'es-US') s += 9; // Latin American
+    else if (lang === 'en-US' && vLang === 'en-GB') s += 3;
+    return s;
+  };
+  return voices
+    .filter((v) => v.lang.toLowerCase().startsWith(prefix) && !NOVELTY_VOICES.test(v.name))
+    .sort((a, b) => score(b) - score(a))[0];
+}
+
 export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -166,6 +196,17 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Chrome loads its voice list lazily; ask early so the natural voices are
+  // there by the time the first reply is spoken.
+  useEffect(() => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (!synth) return;
+    synth.getVoices();
+    const load = () => synth.getVoices();
+    synth.addEventListener?.('voiceschanged', load);
+    return () => synth.removeEventListener?.('voiceschanged', load);
+  }, []);
+
   const fallbackLang: Lang = voiceLang === 'es-MX' ? 'es' : 'en';
 
   // Reads a reply out loud; onDone fires when it finishes (or right away if
@@ -178,16 +219,26 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       return;
     }
     synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = detectLang(text, fallbackLang) === 'es' ? 'es-MX' : 'en-US';
-    const voices = synth.getVoices();
-    const voice =
-      voices.find((v) => v.lang.replace('_', '-') === utterance.lang) ||
-      voices.find((v) => v.lang.startsWith(utterance.lang.slice(0, 2)));
-    if (voice) utterance.voice = voice;
-    utterance.onend = () => onDone?.();
-    utterance.onerror = () => onDone?.();
-    synth.speak(utterance);
+    const lang = detectLang(text, fallbackLang) === 'es' ? 'es-MX' : 'en-US';
+    const voice = pickVoice(synth.getVoices(), lang);
+    // Chrome's Google voices stop after ~15 s of continuous speech, so say
+    // the reply one sentence at a time.
+    const chunks = clean.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
+    if (!chunks.length) chunks.push(clean);
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      onDone?.();
+    };
+    chunks.forEach((chunk, i) => {
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.lang = voice?.lang.replace('_', '-') || lang;
+      if (voice) utterance.voice = voice;
+      if (i === chunks.length - 1) utterance.onend = done;
+      utterance.onerror = done;
+      synth.speak(utterance);
+    });
   };
 
   const startListening = () => {
