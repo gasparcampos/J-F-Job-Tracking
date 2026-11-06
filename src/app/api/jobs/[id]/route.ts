@@ -231,6 +231,24 @@ export async function PUT(
     // Capture the prior deviation status so we can log transitions below.
     const beforeJob = await jobsDB.findById(id);
 
+    // A rejected deviation means the part will need new material: send the
+    // job to NEW MATERIAL (time in the stage it leaves is banked as usual).
+    let rejectedMove: { from: string; to: string } | null = null;
+    if (
+      beforeJob &&
+      body.deviationStatus === 'rejected' &&
+      beforeJob.deviationStatus !== 'rejected' &&
+      !body.departmentId
+    ) {
+      const departments = await departmentsDB.findAll();
+      const newMaterial = departments.find((d) => d.name.trim().toUpperCase() === 'NEW MATERIAL');
+      if (newMaterial && newMaterial.id !== beforeJob.departmentId) {
+        body.departmentId = newMaterial.id;
+        body.inProgress = false;
+        rejectedMove = { from: beforeJob.departmentId, to: newMaterial.id };
+      }
+    }
+
     // Regular update
     const job = await jobsDB.update(id, body);
 
@@ -253,9 +271,11 @@ export async function PUT(
         note = `✅ Deviation accepted${detail ? `: ${detail}` : ''}`;
       } else if (body.deviationStatus === 'rejected') {
         note = `🚫 Deviation rejected${detail ? `: ${detail}` : ''}`;
+        if (rejectedMove) note += ' → moved to NEW MATERIAL';
       }
       if (note) {
         const withHistory = await jobsDB.addHistory(id, {
+          ...(rejectedMove ? { fromDeptId: rejectedMove.from } : {}),
           toDeptId: job.departmentId,
           notes: note,
         });
