@@ -437,7 +437,7 @@ function JobRow({
         pending
           ? 'bg-red-950/60 border-red-700/60 hover:bg-red-900/60'
           : inProgress
-          ? 'bg-orange-950/60 border-orange-700/60 hover:bg-orange-900/60'
+          ? 'progress-flash'
           : rejected
           ? 'bg-zinc-800 border-zinc-600 opacity-80'
           : 'bg-card border-border/60 hover:border-primary/60 hover:bg-card/80'
@@ -452,7 +452,7 @@ function JobRow({
           <span className="text-[11px] font-bold text-card-foreground truncate">{jobLabel(job)}</span>
           <span className="text-[8px] font-bold text-muted-foreground flex-shrink-0">P{job.priority}</span>
           {pending && <AlertTriangle size={10} className="text-red-400 flex-shrink-0" />}
-          {inProgress && <Flame size={10} className="text-orange-400 animate-pulse flex-shrink-0" />}
+          {inProgress && <Flame size={10} className="text-yellow-300 animate-pulse flex-shrink-0" />}
         </span>
         <span className="block text-[9px] text-muted-foreground truncate">
           {[job.name || (job.jobNumber ? job.title : ''), job.assignedTo].filter(Boolean).join(' · ') || '—'}

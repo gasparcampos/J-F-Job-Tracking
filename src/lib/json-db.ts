@@ -154,7 +154,7 @@ const DEFAULT_EMPLOYEES: StoredEmployee[] = [
   { id: 'e7', name: 'Meno', isActive: true },
   { id: 'e8', name: 'Estrada', isActive: true },
   { id: 'e9', name: 'JR', isActive: true },
-  { id: 'e10', name: 'Daniel', isActive: true },
+  { id: 'e10', name: 'Ángel', isActive: true },
   { id: 'e11', name: 'Fedex', isActive: true },
   { id: 'e12', name: 'Chito', isActive: true },
   { id: 'e13', name: 'All', isActive: true },
