@@ -208,7 +208,9 @@ export function JobsTable({
                 </Badge>
               </TableCell>
               <TableCell className="px-6 py-3">
-                <div className="min-w-[380px] flex items-center gap-2">
+                {/* Capped width: a long deviation note must not push the
+                    File / Actions columns off screen. Full text on hover. */}
+                <div className="min-w-[380px] max-w-[560px] flex items-center gap-2">
                   <span className="text-xs text-muted-foreground truncate">
                     {job.notes || '—'}
                   </span>
@@ -226,7 +228,7 @@ export function JobsTable({
                       icon in the actions column (red = pending, green =
                       approved, gray = rejected). */}
                   {job.deviationStatus && job.deviation && (
-                    <span className={`text-[11px] whitespace-nowrap flex-shrink-0 ${
+                    <span title={job.deviation} className={`text-[11px] truncate min-w-[80px] ${
                       job.deviationStatus === 'pending'
                         ? 'text-red-600 dark:text-red-400'
                         : job.deviationStatus === 'accepted'
