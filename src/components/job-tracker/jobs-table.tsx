@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Job, Department } from '@/types';
+import { LongNote } from './long-note';
 
 interface JobsTableProps {
   jobs: Job[];
@@ -209,11 +210,15 @@ export function JobsTable({
               </TableCell>
               <TableCell className="px-6 py-3">
                 {/* Capped width: a long deviation note must not push the
-                    File / Actions columns off screen. Full text on hover. */}
+                    File / Actions columns off screen; long ones open on hover. */}
                 <div className="min-w-[380px] max-w-[560px] flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground truncate">
-                    {job.notes || '—'}
-                  </span>
+                  {job.notes && job.notes.length > 60 ? (
+                    <LongNote text={job.notes} label="Notes" className="text-muted-foreground" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground truncate">
+                      {job.notes || '—'}
+                    </span>
+                  )}
                   {job.outService && (
                     <span className="inline-flex items-center gap-1 flex-shrink-0">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
@@ -228,15 +233,17 @@ export function JobsTable({
                       icon in the actions column (red = pending, green =
                       approved, gray = rejected). */}
                   {job.deviationStatus && job.deviation && (
-                    <span title={job.deviation} className={`text-[11px] truncate min-w-[80px] ${
-                      job.deviationStatus === 'pending'
-                        ? 'text-red-600 dark:text-red-400'
-                        : job.deviationStatus === 'accepted'
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-zinc-500 dark:text-zinc-400'
-                    }`}>
-                      {job.deviation}
-                    </span>
+                    <LongNote
+                      text={job.deviation}
+                      label={`Deviation · ${job.deviationStatus === 'accepted' ? 'approved' : job.deviationStatus === 'pending' ? 'pending' : 'rejected'}`}
+                      className={
+                        job.deviationStatus === 'pending'
+                          ? 'text-red-600 dark:text-red-400'
+                          : job.deviationStatus === 'accepted'
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                      }
+                    />
                   )}
                 </div>
               </TableCell>
