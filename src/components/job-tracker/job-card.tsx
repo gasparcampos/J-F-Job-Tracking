@@ -113,7 +113,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
     : isRejectedDeviation
     ? 'bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 border-2 border-zinc-600 shadow-zinc-900/40 opacity-90'
     : isInProgress
-    ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-orange-500 shadow-orange-500/30 shadow-lg'
+    ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-yellow-400 shadow-lg progress-flash-card'
     : 'bg-card border border-border hover:border-primary/50';
 
   return (
