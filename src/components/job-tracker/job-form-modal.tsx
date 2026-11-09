@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import type { Department, Employee, CreateJobInput } from '@/types';
 import { FilePreview } from './file-preview';
+import { NewJobGuide } from './new-job-guide';
 
 interface JobFormModalProps {
   isOpen: boolean;
@@ -253,6 +254,9 @@ export function JobFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Step-by-step instructions (collapsible, printable). */}
+          <NewJobGuide />
+
           {/* File Upload */}
           <div>
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
