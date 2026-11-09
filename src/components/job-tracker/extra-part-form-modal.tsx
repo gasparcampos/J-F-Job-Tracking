@@ -112,6 +112,19 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     );
   }, [jobLookup, jobs]);
 
+  // Which identifying fields contain what was typed in the lookup. Those
+  // boxes flash green so you can confirm the part really belongs to that
+  // JOB# / DWG# / Part#.
+  const lookupQ = jobLookup.trim().toLowerCase();
+  const isHit = (v: string) => !isEditing && !!lookupQ && !!matchedJob && matchedJob.id === jobId && v.trim().toLowerCase().includes(lookupQ);
+  const hitJob = isHit(jobNumber);
+  const hitDwg = isHit(dwgNumber);
+  const hitPart = isHit(partNumber);
+  const hitClass = 'search-flash bg-green-500/15 border-2';
+  const matchBadge = (
+    <span className="ml-1.5 text-[9px] font-bold text-white bg-green-600 rounded px-1.5 py-px normal-case tracking-normal">✓ match</span>
+  );
+
   const applyMatch = () => {
     if (!matchedJob) return;
     setJobId(matchedJob.id);
@@ -326,20 +339,20 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
           {/* Identifying fields (auto-filled but editable) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#</Label>
-              <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#{hitJob && matchBadge}</Label>
+              <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} className={`rounded-lg h-10 bg-background border-border text-sm ${hitJob ? hitClass : ''}`} />
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Company</Label>
               <Input value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
             </div>
             <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
-              <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#{hitDwg && matchBadge}</Label>
+              <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} className={`rounded-lg h-10 bg-background border-border text-sm ${hitDwg ? hitClass : ''}`} />
             </div>
             <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
-              <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#{hitPart && matchBadge}</Label>
+              <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} className={`rounded-lg h-10 bg-background border-border text-sm ${hitPart ? hitClass : ''}`} />
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">PO#</Label>
