@@ -313,7 +313,7 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* JOB lookup */}
           <div className="bg-muted/30 rounded-xl p-4 space-y-3">
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">
@@ -424,71 +424,82 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Employee</Label>
-              <select
-                value={employeeName}
-                onChange={(e) => setEmployeeName(e.target.value)}
-                className="w-full rounded-lg h-10 bg-background border border-border text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="__none__">Unassigned</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.name}>{emp.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end gap-3">
-              <label className="flex items-center gap-2 cursor-pointer flex-1 h-10 px-3 rounded-lg bg-background border border-border">
-                <input
-                  type="checkbox"
-                  checked={active}
-                  onChange={(e) => setActive(e.target.checked)}
-                  className="w-4 h-4 accent-primary"
-                />
-                <span className="text-sm font-semibold uppercase tracking-wider">Active (in stock)</span>
-              </label>
-            </div>
-          </div>
-
-          {/* QR code — only for saved records. Scanning it opens this exact
-              entry in edit mode (for pulling the part during inventory). */}
-          {isEditing && qrValue && (
-            <div className="flex flex-col items-center justify-center gap-2 py-2 border border-dashed border-border rounded-xl bg-muted/20">
-              <div ref={qrRef} className="bg-white p-3 rounded-lg">
-                <QRCode value={qrValue} size={128} />
+          {/* Employee / Active / Exit date / Notes on the left, the QR on the
+              right (saved records only), so the whole form fits without
+              scrolling down to Save. */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 min-w-0 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Employee</Label>
+                  <select
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    className="w-full rounded-lg h-10 bg-background border border-border text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="__none__">Unassigned</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.name}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer flex-1 h-10 px-3 rounded-lg bg-background border border-border">
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={(e) => setActive(e.target.checked)}
+                      className="w-4 h-4 accent-primary"
+                    />
+                    <span className="text-sm font-semibold uppercase tracking-wider">Active (in stock)</span>
+                  </label>
+                </div>
               </div>
-              <p className="text-[10px] text-muted-foreground text-center">
-                Scan during inventory to open & edit this part
-              </p>
-            </div>
-          )}
 
-          {!active && (
-            <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Exit Date</Label>
-              <Input
-                type="date"
-                value={exitDate}
-                onChange={(e) => setExitDate(e.target.value)}
-                placeholder={today()}
-                className="rounded-lg h-10 bg-background border-border max-w-xs"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Leave blank to use today&apos;s date when saving.
-              </p>
-            </div>
-          )}
+              {!active && (
+                <div>
+                  <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Exit Date</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="date"
+                      value={exitDate}
+                      onChange={(e) => setExitDate(e.target.value)}
+                      placeholder={today()}
+                      className="rounded-lg h-10 bg-background border-border max-w-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Leave blank to use today&apos;s date when saving.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">Part Notes</Label>
-              <DictationButton value={partNotes} onChange={setPartNotes} />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">Part Notes</Label>
+                  <DictationButton value={partNotes} onChange={setPartNotes} />
+                </div>
+                <Textarea value={partNotes} onChange={(e) => setPartNotes(e.target.value)} placeholder="Special instructions, condition, etc." rows={2} className="rounded-lg bg-background border-border resize-none" />
+              </div>
             </div>
-            <Textarea value={partNotes} onChange={(e) => setPartNotes(e.target.value)} placeholder="Special instructions, condition, etc." rows={3} className="rounded-lg bg-background border-border resize-none" />
+
+            {/* QR code — only for saved records. Scanning it opens this exact
+                entry in edit mode (for pulling the part during inventory). */}
+            {isEditing && qrValue && (
+              <div className="flex flex-col items-center justify-center gap-1.5 p-3 border border-dashed border-border rounded-xl bg-muted/20 sm:w-40 shrink-0">
+                <div ref={qrRef} className="bg-white p-2 rounded-lg">
+                  <QRCode value={qrValue} size={104} />
+                </div>
+                <p className="text-[9px] text-muted-foreground text-center leading-tight">
+                  Scan during inventory to open &amp; edit this part
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-3">
+          {/* Save bar stays pinned to the bottom of the window, so Save is
+              always visible even if the form is taller than the screen. */}
+          <div className="sticky bottom-0 z-10 -mx-6 -mb-6 px-6 py-4 bg-card border-t border-border flex gap-3">
             <Button type="button" onClick={onClose} variant="outline" className="flex-1 h-12 rounded-lg font-semibold uppercase tracking-wider border-border">
               Cancel
             </Button>
