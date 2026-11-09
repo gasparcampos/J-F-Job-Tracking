@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Job, Employee, UpdateJobInput } from '@/types';
+import { DictationButton } from './dictation-button';
 
 interface JobEditModalProps {
   job: Job | null;
@@ -307,7 +308,10 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
           </div>
 
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Additional Notes</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">Additional Notes</Label>
+              <DictationButton value={notes} onChange={setNotes} />
+            </div>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
