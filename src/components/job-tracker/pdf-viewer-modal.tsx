@@ -10,6 +10,7 @@ import type { Job, Department } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
 import { moveInfo } from '@/lib/history-format';
 import { computeAutoBlack, levelsToDataUrl } from '@/lib/image-enhance';
+import { DictationButton } from './dictation-button';
 
 // PDF.js type - will be loaded dynamically
 type PDFDocumentProxy = any;
@@ -369,10 +370,13 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
             {/* Add note form */}
             {showAnnotationForm && (
               <div className="p-4 border-b border-border bg-muted/50">
-                <h4 className="text-sm font-bold text-card-foreground mb-2 flex items-center gap-2">
-                  <Plus size={14} className="text-primary" />
-                  Add Note
-                </h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-bold text-card-foreground flex items-center gap-2">
+                    <Plus size={14} className="text-primary" />
+                    Add Note
+                  </h4>
+                  <DictationButton value={newAnnotation} onChange={setNewAnnotation} />
+                </div>
                 <Textarea
                   value={newAnnotation}
                   onChange={(e) => setNewAnnotation(e.target.value)}

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import type { ExtraPart, Job, Employee, CreateExtraPartInput } from '@/types';
 import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
+import { DictationButton } from './dictation-button';
 
 interface ExtraPartFormModalProps {
   // null = closed. {} = creating new. Otherwise = editing existing.
@@ -412,7 +413,10 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
           )}
 
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part Notes</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">Part Notes</Label>
+              <DictationButton value={partNotes} onChange={setPartNotes} />
+            </div>
             <Textarea value={partNotes} onChange={(e) => setPartNotes(e.target.value)} placeholder="Special instructions, condition, etc." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 

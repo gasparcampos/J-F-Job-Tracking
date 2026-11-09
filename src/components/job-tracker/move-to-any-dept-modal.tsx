@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import type { Job, Department, Employee } from '@/types';
+import { DictationButton } from './dictation-button';
 
 interface MoveToAnyDeptModalProps {
   job: Job | null;
@@ -199,9 +200,12 @@ export function MoveToAnyDeptModal({
 
           {/* Notes */}
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
-              Process notes
-            </Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block">
+                Process notes
+              </Label>
+              <DictationButton value={notes} onChange={setNotes} />
+            </div>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

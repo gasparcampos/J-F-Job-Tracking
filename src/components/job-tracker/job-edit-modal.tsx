@@ -244,6 +244,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 <AlertTriangle size={13} className={deviationStatus === 'pending' ? 'text-red-500' : 'text-muted-foreground'} />
                 Deviation
               </Label>
+              <div className="flex items-center gap-2">
+                <DictationButton value={deviation} onChange={setDeviation} />
               {deviationStatus === 'pending' && (
                 <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-red-600 rounded-md px-2 py-0.5 animate-pulse">
                   Pending
@@ -259,6 +261,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                   Rejected
                 </span>
               )}
+              </div>
             </div>
             <Textarea
               value={deviation}
