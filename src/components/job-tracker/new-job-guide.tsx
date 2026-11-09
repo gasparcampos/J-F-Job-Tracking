@@ -6,7 +6,7 @@ import { printHtml, escHtml } from '@/lib/print-html';
 
 /**
  * Step-by-step instructions for loading a job, shown inside New Job as a
- * collapsible panel ("¿Cómo cargar un trabajo?") that can also be printed or
+ * collapsible panel ("How to load a job") that can also be printed or
  * saved as PDF. Edit the steps here; the panel and the printout both use them.
  */
 interface GuideStep {
@@ -16,61 +16,54 @@ interface GuideStep {
 
 const STEPS: GuideStep[] = [
   {
-    title: 'Ten a la mano la hoja del trabajo',
-    points: ['La hoja de ruta / orden del cliente, en PDF o como foto (JPG, PNG).'],
+    title: 'Have the job sheet ready',
+    points: ['The customer router / work order, as a PDF or a photo (JPG, PNG).'],
   },
   {
-    title: 'Sube el documento',
+    title: 'Upload the document',
     points: [
-      'En "Upload document (PDF or image)" toca el botón y escoge el archivo.',
-      'Espera a que termine "Reading document…": la app lee la hoja y llena sola Customer, PO#, Line Item, JOB#, Quantity, DWG#, Part#, Due Date y el título.',
-      'Abajo aparece la vista previa para que compares.',
+      'In "Upload document (PDF or image)", tap the button and pick the file.',
+      'Wait for "Reading document…" to finish: the app reads the sheet and fills in Customer, PO#, Line Item, JOB#, Quantity, DWG#, Part#, Due Date and the title automatically.',
+      'A preview appears below so you can compare.',
     ],
   },
   {
-    title: 'Revisa Job Details contra la hoja',
+    title: 'Check Job Details against the sheet',
     points: [
-      'Corrige cualquier dato que la lectura haya sacado mal o vacío.',
-      'Customer: si no es Baker, Halliburton o Liberty, escoge "Other" y escribe el nombre.',
-      'NAME (nombre de la pieza, ej. PLUG, HOUSING) no se llena solo: escríbelo.',
-      'JOB# y Due Date son obligatorios.',
-      'El JOB# no se puede repetir: si ya existe, la app avisa "Duplicate JOB#" y no lo crea.',
+      'Fix any value the reader got wrong or left empty.',
+      'Customer: if it is not Baker, Halliburton or Liberty, choose "Other" and type the name.',
+      'NAME (part name, e.g. PLUG, HOUSING) is not filled in automatically: type it.',
+      'JOB# and Due Date are required.',
+      'A JOB# cannot be repeated: if it already exists, the app shows "Duplicate JOB#" and does not create it.',
     ],
   },
   {
-    title: 'Title / Description (obligatorio)',
+    title: 'Title / Description (required)',
     points: [
-      'Se llena solo con el formato: JOB# 43765 / 37 PCS / DUE DATE: 06/10/2026.',
-      'Si quedó vacío, escríbelo con ese mismo formato.',
-    ],
-  },
-  {
-    title: 'Initial Stage y Assign To',
-    points: [
-      'Initial Stage: normalmente NEW MATERIAL.',
-      'Assign To: no hace falta escoger, la app asigna sola según el área (New Material → Gaspar).',
+      'Filled in automatically with the format: JOB# 43765 / 37 PCS / DUE DATE: 06/10/2026.',
+      'If it is empty, type it using that same format.',
     ],
   },
   {
     title: 'Priority',
     points: [
-      'Level 1 = más urgente (rojo) · Level 2 (naranja) · Level 3 = normal (amarillo) · Level 4 (azul) · Level 5 = menos urgente (verde).',
+      'Level 1 = most urgent (red) · Level 2 (orange) · Level 3 = normal (yellow) · Level 4 (blue) · Level 5 = least urgent (green).',
     ],
   },
   {
-    title: 'Attachment y Out Service (obligatorios)',
+    title: 'Attachment and Out Service (required)',
     points: [
-      'Attachment: todo trabajo debe llevar un archivo adjunto (certificado de material, plano, etc.). Sin él no se puede crear el trabajo.',
-      'Out Service: también obligatorio y en inglés. Pon si lleva NDE o NO NDE y todos los servicios de fuera que lleva el trabajo (phosphate, heat treat, plating...). Ej. "NO NDE > PHOSPHATE".',
+      'Attachment: every job must have an attached file (material cert, drawing, etc.). The job cannot be created without it.',
+      'Out Service: also required, in English. State NDE or NO NDE and every outside service the job needs (phosphate, heat treat, plating...). e.g. "NO NDE > PHOSPHATE".',
     ],
   },
   {
-    title: 'Crea el trabajo',
+    title: 'Create the job',
     points: [
-      'Toca "Create Job". Si falta JOB#, Due Date, Attachment u Out Service, se marcan en rojo y no deja crearlo.',
-      'Las mismas reglas aplican al editar un trabajo (Edit Job).',
-      'El trabajo aparece en el tablero en el área que escogiste.',
-      'Si la lectura falla o no reconoce la hoja, llena los campos a mano y créalo igual.',
+      'Tap "Create Job". If JOB#, Due Date, Attachment or Out Service is missing, it is marked in red and the job is not created.',
+      'The same rules apply when editing a job (Edit Job).',
+      'The job always starts in NEW MATERIAL and is assigned automatically.',
+      'If the reader fails or does not recognize the sheet, fill in the fields by hand and create it anyway.',
     ],
   },
 ];
@@ -82,7 +75,7 @@ function printGuide() {
         .map((p) => `<li>${escHtml(p)}</li>`)
         .join('')}</ul></li>`
   ).join('');
-  printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cómo cargar un trabajo - J&amp;F</title>
+  printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>How to load a job - J&amp;F</title>
     <style>
       @page { margin: 14mm; }
       .print-page { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
@@ -93,7 +86,7 @@ function printGuide() {
       h3 { font-size: 14px; margin: 0 0 4px; }
       ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
     </style></head><body>
-    <h1>Cómo cargar un trabajo (New Job)</h1>
+    <h1>How to load a job (New Job)</h1>
     <div class="sub">J&amp;F MACHINE SHOP — JOB TRACKER</div>
     <ol>${steps}</ol>
   </body></html>`);
@@ -111,7 +104,7 @@ export function NewJobGuide() {
         className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-primary/10 transition-colors"
       >
         <BookOpen size={16} className="text-primary flex-shrink-0" />
-        <span className="font-semibold text-sm text-card-foreground flex-1">¿Cómo cargar un trabajo? — Instrucciones paso a paso</span>
+        <span className="font-semibold text-sm text-card-foreground flex-1">How to load a job — Step-by-step instructions</span>
         <ChevronDown size={18} className={`text-primary transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -140,7 +133,7 @@ export function NewJobGuide() {
             className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-background text-xs font-semibold hover:bg-muted"
           >
             <Printer size={14} />
-            Imprimir / Guardar como PDF
+            Print / Save as PDF
           </button>
         </div>
       )}

@@ -32,13 +32,10 @@ export function JobFormModal({
   onClose,
   onSubmit,
   departments,
-  employees,
 }: JobFormModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [departmentId, setDepartmentId] = useState(departments[0]?.id || '');
   const [priority, setPriority] = useState(3);
-  const [assignedTo, setAssignedTo] = useState('__none__');
   const [outService, setOutService] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -202,12 +199,16 @@ export function JobFormModal({
     const finalCustomer =
       customer === 'Other' ? customerOther.trim() : customer;
 
+    // Every new job starts in NEW MATERIAL; the server assigns the area's
+    // person automatically (New Material -> Gaspar).
+    const newMaterial = departments.find((d) => d.name.trim().toUpperCase() === 'NEW MATERIAL');
+    const departmentId = newMaterial?.id || departments[0]?.id || '';
+
     const result = await onSubmit({
       title,
       description,
       departmentId,
       priority,
-      assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
       outService: outService.trim() || undefined,
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
@@ -231,9 +232,7 @@ export function JobFormModal({
     // Reset
     setTitle('');
     setDescription('');
-    setDepartmentId(departments[0]?.id || '');
     setPriority(3);
-    setAssignedTo('__none__');
     setOutService('');
     setUploadedFile(null);
     setAttachment(null);
@@ -404,39 +403,7 @@ export function JobFormModal({
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job title..." required className="rounded-lg h-11 bg-background border-border" />
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Initial Stage</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
-                <SelectTrigger className="rounded-lg h-11 bg-background border-border">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id} className="hover:bg-muted">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dept.color }} />
-                        {dept.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Assign To</Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger className="rounded-lg h-11 bg-background border-border">
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">{emp.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Priority</Label>
               <Select value={priority.toString()} onValueChange={(v) => setPriority(Number(v))}>
