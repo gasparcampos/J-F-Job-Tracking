@@ -275,6 +275,18 @@ async function getNextOrder(deptId: string): Promise<number> {
   return max + 1;
 }
 
+// Karina's areas: any job that lands in one of these (Move, Complete, drag)
+// is always assigned to Karina, since she handles everything from there on.
+const KARINA_DEPARTMENT_NAMES = new Set(['KARINA', 'STAMP', 'NDE', 'O.S', 'READY TO SHIP']);
+const KARINA = 'Karina';
+
+/** 'Karina' when `deptId` is one of her areas, else undefined. */
+async function fixedOwnerForDept(deptId: string): Promise<string | undefined> {
+  const d = await deptsCol().doc(deptId).get();
+  const name = String(d.data()?.name ?? '').trim().toUpperCase();
+  return KARINA_DEPARTMENT_NAMES.has(name) ? KARINA : undefined;
+}
+
 // ---------- jobsDB ----------
 
 export const jobsDB = {
@@ -404,6 +416,13 @@ export const jobsDB = {
     const patch = stripUndefined({ ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>);
 
     const current = doc.data()!;
+
+    // Moving into one of Karina's areas always assigns the job to her.
+    if (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId) {
+      const owner = await fixedOwnerForDept(data.departmentId);
+      if (owner) patch.assignedTo = owner;
+    }
+
     if (opts?.discardDeptTime) {
       // Reset the stage being left: drop its accumulated time and the running
       // clock entirely. Used when a job is sent back to a prior process, so
@@ -508,6 +527,11 @@ export const jobsDB = {
       if (times) jobPatch.deptTimes = times;
       jobPatch.inProgress = false;
       jobPatch.inProgressAt = FieldValue.delete();
+    }
+    // Dragged into one of Karina's areas: assign it to her.
+    if (targetDeptId !== data.departmentId) {
+      const owner = await fixedOwnerForDept(targetDeptId);
+      if (owner) jobPatch.assignedTo = owner;
     }
     batch.update(ref, jobPatch);
 

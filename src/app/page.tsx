@@ -55,7 +55,19 @@ const visibleDepartments = (list: Department[]) =>
 
 // Columns that are just hand-off stages: their cards show ONLY the Move button
 // (no Progress / no Complete). The operator only routes the job onward from here.
-const MOVE_ONLY_DEPARTMENT_NAMES = new Set(['NEW MATERIAL', 'WOOD PALLET', 'BLUE PALLET']);
+// Karina's five areas (KARINA, STAMP, NDE, O.S, READY TO SHIP) are Move-only
+// too; READY TO SHIP also gets Ship. Jobs entering them are auto-assigned to
+// Karina server-side (see KARINA_DEPARTMENT_NAMES in lib/json-db.ts).
+const MOVE_ONLY_DEPARTMENT_NAMES = new Set([
+  'NEW MATERIAL',
+  'WOOD PALLET',
+  'BLUE PALLET',
+  'KARINA',
+  'STAMP',
+  'NDE',
+  'O.S',
+  'READY TO SHIP',
+]);
 
 // Production columns that follow a strict flow: cards show ONLY Progress +
 // Complete (no Move). The job advances through Complete, not manual moves.
@@ -68,7 +80,6 @@ const NO_MOVE_DEPARTMENT_NAMES = new Set([
   'MILL',
   'MILL DEBURR',
   'FINAL INSPECTION',
-  'STAMP',
 ]);
 
 // When Complete is pressed in a given column, force the job into this target
