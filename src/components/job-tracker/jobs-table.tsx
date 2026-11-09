@@ -281,7 +281,12 @@ export function JobsTable({
                   {/* Double-click the note to edit it in place. */}
                   <span
                     onDoubleClick={() => openNote(job)}
-                    title={onSaveNote ? 'Doble clic para editar la nota' : undefined}
+                    // Phones/tablets: double-tap zooms (iPhone doesn't send a
+                    // double-click), so a single tap opens the editor there.
+                    onClick={() => {
+                      if (window.matchMedia('(hover: none)').matches) openNote(job);
+                    }}
+                    title={onSaveNote ? 'Doble clic para editar la nota (en teléfono: un toque)' : undefined}
                     className={`min-w-0 ${onSaveNote ? 'cursor-text rounded px-1 -mx-1 hover:bg-muted/60' : ''}`}
                   >
                     {job.notes && job.notes.length > 60 ? (
