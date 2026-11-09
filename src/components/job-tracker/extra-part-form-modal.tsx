@@ -147,19 +147,32 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
   // can be taped to the stored piece. Only the label is printed, not the UI.
   const handlePrintLabel = () => {
     const qrSvg = qrRef.current?.querySelector('svg')?.outerHTML ?? '';
+    // YYYY-MM-DD -> M/D/YYYY, like Access shows it.
+    const fmtDate = (d: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+      return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : d || '';
+    };
+    // Same fields, same order as the Access EXTRA1 form (FOR_JF dropped).
+    // Every row always prints so all labels share one fixed layout.
     const rows: [string, string][] = [
       ['JOB#', jobNumber],
-      ['Part#', partNumber],
-      ['Company', company],
-      ['Place', place],
-      ['Qty', partQty],
-      ['Heat#', heatNumber],
+      ['COMPANY', company],
+      ['DWG#', dwgNumber],
+      ['PART#', partNumber],
+      ['PO#', poNumber],
+      ['NAME', name],
+      ['PART QTY', partQty],
+      ['PLACE', place],
+      ['PART DATE', fmtDate(partDate)],
+      ['EMPLOYEE', employeeName === '__none__' ? '' : employeeName],
+      ['HEAT#', heatNumber],
+      ['PART NOTES', partNotes],
     ];
+    if (!active) rows.push(['EXIT DATE', fmtDate(exitDate || today())]);
     const rowsHtml = rows
-      .filter(([, v]) => v && v.trim())
       .map(
         ([k, v]) =>
-          `<tr><td style="font-weight:700;padding:2px 8px 2px 0;white-space:nowrap;">${escHtml(k)}</td><td style="padding:2px 0;">${escHtml(v)}</td></tr>`
+          `<tr><th>${escHtml(k)}</th><td>${escHtml((v || '').trim())}</td></tr>`
       )
       .join('');
 
@@ -170,12 +183,13 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
         @page { margin: 10mm; }
         * { box-sizing: border-box; }
         .print-page { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; background: #fff; }
-        .label { max-width: 90mm; margin: 0 auto; }
-        .label { border: 2px solid #000; border-radius: 8px; padding: 16px; width: 100%; }
-        .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align:center; }
-        .qr { display:flex; justify-content:center; margin: 8px 0 14px; }
-        .qr svg { width: 200px; height: 200px; }
-        table { font-size: 14px; margin: 0 auto; }
+        .label { max-width: 90mm; margin: 0 auto; border: 2px solid #000; border-radius: 8px; padding: 14px; width: 100%; }
+        .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; text-align:center; }
+        .qr { display:flex; justify-content:center; margin: 4px 0 12px; }
+        .qr svg { width: 170px; height: 170px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; font-weight: 700; white-space: nowrap; padding: 3px 8px 3px 0; vertical-align: top; width: 1%; }
+        td { padding: 3px 0; border-bottom: 1px solid #bbb; word-break: break-word; white-space: pre-wrap; }
         .hint { font-size: 10px; text-align:center; margin-top: 10px; color:#444; }
       </style></head><body>
       <div class="label">
@@ -308,16 +322,16 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
               <Input value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
             </div>
             <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">PO#</Label>
-              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
-            </div>
-            <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">DWG#</Label>
               <Input value={dwgNumber} onChange={(e) => setDwgNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part#</Label>
               <Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">PO#</Label>
+              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Name</Label>
