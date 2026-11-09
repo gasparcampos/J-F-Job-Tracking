@@ -143,6 +143,18 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     }
   }, [jobLookup, jobs, isEditing, jobId]);
 
+  // QTY drives stock status: typing 0 (or 00, 000...) means the part was taken
+  // out, so Active is unchecked; typing a number above 0 checks it again.
+  // A blank field (e.g. mid-edit) leaves Active as it is.
+  const handleQtyChange = (value: string) => {
+    setPartQty(value);
+    const v = value.trim();
+    if (!v) return;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return;
+    setActive(n > 0);
+  };
+
   // Print a small storage label: the QR plus the key identifying info, so it
   // can be taped to the stored piece. Only the label is printed, not the UI.
   const handlePrintLabel = () => {
@@ -343,7 +355,7 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Part Qty</Label>
-              <Input value={partQty} onChange={(e) => setPartQty(e.target.value)} placeholder="e.g. 2" className="rounded-lg h-10 bg-background border-border" />
+              <Input value={partQty} onChange={(e) => handleQtyChange(e.target.value)} placeholder="e.g. 2" className="rounded-lg h-10 bg-background border-border" />
             </div>
             <div>
               <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Heat#</Label>
