@@ -49,6 +49,9 @@ export function JobFormModal({
   } | null>(null);
   const [isAttaching, setIsAttaching] = useState(false);
   const [attachment, setAttachment] = useState<{ url: string; name: string } | null>(null);
+  // Set after a Create attempt with missing required fields, so their
+  // warnings only show once the user has tried to submit.
+  const [triedSubmit, setTriedSubmit] = useState(false);
   
   const [jobNumber, setJobNumber] = useState('');
   const [name, setName] = useState('');
@@ -173,8 +176,16 @@ export function JobFormModal({
     setTimeout(() => handleFileUpload(), 100);
   };
 
+  // Every job needs an Attachment and an Out Service entry.
+  const missingAttachment = !attachment;
+  const missingOutService = !outService.trim();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (missingAttachment || missingOutService) {
+      setTriedSubmit(true);
+      return;
+    }
     
     if (fileInputRef.current?.files?.[0] && !uploadedFile) {
       await handleFileUpload();
@@ -189,7 +200,7 @@ export function JobFormModal({
       departmentId,
       priority,
       assignedTo: assignedTo === '__none__' ? undefined : assignedTo,
-      outService: outService || undefined,
+      outService: outService.trim() || undefined,
       fileUrl: uploadedFile?.url,
       fileName: uploadedFile?.name,
       attachmentUrl: attachment?.url,
@@ -218,6 +229,7 @@ export function JobFormModal({
     setOutService('');
     setUploadedFile(null);
     setAttachment(null);
+    setTriedSubmit(false);
     setJobNumber('');
     setName('');
     setCustomer('');
@@ -432,7 +444,7 @@ export function JobFormModal({
             </div>
             {/* Attachment: one extra side file (no OCR). */}
             <div>
-              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Attachment</Label>
+              <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Attachment *</Label>
               <input
                 type="file"
                 ref={attachInputRef}
@@ -445,7 +457,9 @@ export function JobFormModal({
                 disabled={isAttaching}
                 variant="outline"
                 title={attachment?.name}
-                className="w-full h-11 rounded-lg bg-background border-border hover:bg-muted text-card-foreground font-medium justify-start gap-2 overflow-hidden"
+                className={`w-full h-11 rounded-lg bg-background hover:bg-muted text-card-foreground font-medium justify-start gap-2 overflow-hidden ${
+                  triedSubmit && missingAttachment ? 'border-red-500 ring-1 ring-red-500' : 'border-border'
+                }`}
               >
                 {isAttaching ? (
                   <Loader2 size={16} className="animate-spin flex-shrink-0" />
@@ -455,18 +469,39 @@ export function JobFormModal({
                   <Paperclip size={16} className="flex-shrink-0" />
                 )}
                 <span className="truncate text-xs">
-                  {attachment ? attachment.name : 'Attach file'}
+                  {attachment ? attachment.name : 'Attach file (required)'}
                 </span>
               </Button>
+              {triedSubmit && missingAttachment && (
+                <p className="text-[10px] text-red-500 font-semibold mt-1">Attachment is required.</p>
+              )}
             </div>
           </div>
 
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service</Label>
-            <Textarea value={outService} onChange={(e) => setOutService(e.target.value)} placeholder="Outside services (e.g. phosphate, NDE)..." rows={3} className="rounded-lg bg-background border-border resize-none" />
+            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service *</Label>
+            <Textarea
+              value={outService}
+              onChange={(e) => setOutService(e.target.value)}
+              placeholder="Required, in English. NDE or NO NDE, plus every outside service the job needs (phosphate, heat treat, plating, coating...). e.g. NO NDE > PHOSPHATE"
+              rows={3}
+              className={`rounded-lg bg-background resize-none ${
+                triedSubmit && missingOutService ? 'border-red-500 ring-1 ring-red-500' : 'border-border'
+              }`}
+            />
+            {triedSubmit && missingOutService && (
+              <p className="text-[10px] text-red-500 font-semibold mt-1">
+                Out Service is required (in English): NDE or NO NDE, and all outside services.
+              </p>
+            )}
           </div>
 
-          <Button type="submit" disabled={isUploading || isExtracting} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
+          {triedSubmit && (missingAttachment || missingOutService) && (
+            <p className="text-xs text-red-500 font-semibold text-center">
+              Before creating the job, add: {[missingAttachment && 'Attachment', missingOutService && 'Out Service'].filter(Boolean).join(' and ')}.
+            </p>
+          )}
+          <Button type="submit" disabled={isUploading || isExtracting || isAttaching} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
             {isUploading || isExtracting ? (
               <><Loader2 size={16} className="mr-2 animate-spin" />Processing...</>
             ) : (

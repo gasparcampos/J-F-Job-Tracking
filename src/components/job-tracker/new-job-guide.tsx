@@ -57,16 +57,17 @@ const STEPS: GuideStep[] = [
     ],
   },
   {
-    title: 'Opcionales',
+    title: 'Attachment y Out Service (obligatorios)',
     points: [
-      'Attachment: un archivo extra (certificado de material, plano adicional, etc.).',
-      'Out Service: servicios de fuera, ej. "NO NDE > PHOSPHATE".',
+      'Attachment: todo trabajo debe llevar un archivo adjunto (certificado de material, plano, etc.). Sin él no se puede crear el trabajo.',
+      'Out Service: también obligatorio y en inglés. Pon si lleva NDE o NO NDE y todos los servicios de fuera que lleva el trabajo (phosphate, heat treat, plating...). Ej. "NO NDE > PHOSPHATE".',
     ],
   },
   {
     title: 'Crea el trabajo',
     points: [
-      'Toca "Create Job". El trabajo aparece en el tablero en el área que escogiste.',
+      'Toca "Create Job". Si falta el Attachment o el Out Service, se marcan en rojo y no deja crearlo.',
+      'El trabajo aparece en el tablero en el área que escogiste.',
       'Si la lectura falla o no reconoce la hoja, llena los campos a mano y créalo igual.',
     ],
   },
