@@ -49,6 +49,7 @@ export interface StoredJob {
   heatNumber?: string;
   hrc?: string;
   outService?: string;
+  productionNotes?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
   // Set true once the job is shipped (sent) from READY TO SHIP. A shipped job
@@ -230,6 +231,7 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     heatNumber: data.heatNumber,
     hrc: data.hrc,
     outService: data.outService,
+    productionNotes: data.productionNotes,
     deviation: data.deviation,
     deviationStatus: data.deviationStatus,
     shipped: data.shipped ?? false,

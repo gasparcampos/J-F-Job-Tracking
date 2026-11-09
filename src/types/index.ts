@@ -67,6 +67,9 @@ export interface Job {
   // Permanent "outside services" note (e.g. phosphate, NDE). Stays anchored
   // to the job and is NOT overwritten by department moves like `notes` is.
   outService?: string;
+  // Production notes: shop-floor notes for the job, kept apart from the
+  // department-move `notes`.
+  productionNotes?: string;
   // Deviation details (free text) plus its review status. A job whose
   // deviationStatus is 'pending' is pulled out of the active list into the
   // Deviations list until it's accepted or rejected.
@@ -136,6 +139,7 @@ export interface UpdateJobInput {
   heatNumber?: string;
   hrc?: string;
   outService?: string;
+  productionNotes?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
   shipped?: boolean;
