@@ -569,16 +569,27 @@ function JobRow({
             </button>
           </>
         )}
-        {options.showComplete && !pending && (
-          <button
-            type="button"
-            onClick={act(handlers.onMarkDone)}
-            className={`${iconBtn} bg-emerald-600 hover:bg-emerald-500`}
-            title="Complete"
-          >
-            <Check size={11} />
-          </button>
-        )}
+        {/* Complete only once the job is In Progress: a job that hasn't been
+            started (or is paused) has to be started/resumed first. Areas
+            without the Progress button can complete any time. */}
+        {options.showComplete && !pending && (() => {
+          const canComplete = !options.showProgress || inProgress;
+          return (
+            <button
+              type="button"
+              onClick={canComplete ? act(handlers.onMarkDone) : stop}
+              disabled={!canComplete}
+              className={`${iconBtn} ${
+                canComplete
+                  ? 'bg-emerald-600 hover:bg-emerald-500'
+                  : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+              }`}
+              title={canComplete ? 'Complete' : 'Complete (start Progress first)'}
+            >
+              <Check size={11} />
+            </button>
+          );
+        })()}
         {options.canMove && (
           <button
             type="button"

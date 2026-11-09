@@ -444,9 +444,13 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
             Return
           </Button>
         ) : (
+          // Complete only once the job is In Progress (start/resume first).
+          // Areas without the Progress button can complete any time.
           <Button
             onClick={() => onMarkDone(job)}
-            className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20"
+            disabled={showProgress && !isInProgress}
+            title={showProgress && !isInProgress ? 'Start Progress first' : 'Complete'}
+            className="flex-1 h-8 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wide shadow-lg shadow-emerald-900/20 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:opacity-50"
           >
             <Check size={12} className="mr-1" />
             Complete
