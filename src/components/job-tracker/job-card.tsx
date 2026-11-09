@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Wrench, RefreshCw, Truck, ClipboardCheck, Timer, Hourglass } from 'lucide-react';
+import { GripVertical, Clock, FileText, Trash2, Check, ZoomIn, File, Loader2, Play, Flame, ArrowRightLeft, FileImage, Undo2, AlertTriangle, Ban, PauseCircle, Pause, Wrench, RefreshCw, Truck, ClipboardCheck, Timer, Hourglass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDuration } from '@/lib/utils';
@@ -81,6 +81,8 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
 
   // A paused (pending-deviation) card overrides the in-progress orange look.
   const isInProgress = job.inProgress && !isPendingDeviation;
+  // Paused: not running, but time was already worked in this department.
+  const isPaused = !isInProgress && !isPendingDeviation && (job.deptTimes?.[job.departmentId] ?? 0) > 0;
 
   // Per-department time worked. `deptTimes` holds the banked milliseconds per
   // department; while In Progress the current run is added live, ticking every
@@ -399,10 +401,29 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
           <Button
             onClick={() => onToggleInProgress?.(job)}
             className="flex-1 h-8 px-2 rounded-lg font-bold uppercase tracking-wide text-[9px] transition-all bg-muted hover:bg-orange-600 text-muted-foreground hover:text-white border border-border"
+            title={isPaused ? 'Resume — continue the clock' : 'Start the clock'}
           >
-            <Play size={12} className="mr-1" />Progress
+            <Play size={12} className="mr-1" />{isPaused ? 'Resume' : 'Progress'}
           </Button>
         ))}
+
+        {/* Pause (between Progress and Complete): stops the clock and banks the
+            time worked so far. Only active while the job is In Progress. */}
+        {showProgress && !isPendingDeviation && (
+          <Button
+            onClick={() => isInProgress && onToggleInProgress?.(job)}
+            disabled={!isInProgress}
+            className={`h-8 w-9 px-0 rounded-lg flex-shrink-0 transition-all ${
+              isInProgress
+                ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-900/20'
+                : 'bg-muted text-muted-foreground border border-border disabled:opacity-40'
+            }`}
+            title={isInProgress ? 'Pause' : 'Pause (start Progress first)'}
+            aria-label="Pause"
+          >
+            <Pause size={13} />
+          </Button>
+        )}
 
         {/* Complete or Return to Active */}
         {showComplete && (isPendingDeviation ? (
