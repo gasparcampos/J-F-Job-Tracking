@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import type { Job, Department } from '@/types';
 import { LongNote } from './long-note';
+import { DictationButton } from './dictation-button';
 
 interface JobsTableProps {
   jobs: Job[];
@@ -30,6 +31,9 @@ interface JobsTableProps {
   // When provided (Shipped tab), shows a button that opens the part's full
   // time report as a PDF (departments worked + hours + movement history).
   onTimeReport?: (job: Job) => Promise<void> | void;
+  // When provided, double-clicking a job's note opens a small box to edit it
+  // in place (same field as "Additional Notes" in Edit Job).
+  onSaveNote?: (job: Job, notes: string) => Promise<boolean> | boolean | void;
 }
 
 export function JobsTable({
@@ -43,7 +47,33 @@ export function JobsTable({
   onRemoveAttachment,
   onReturnToActive,
   onTimeReport,
+  onSaveNote,
 }: JobsTableProps) {
+  // Inline note editor: which row is open and its draft text.
+  const [noteJobId, setNoteJobId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  const openNote = (job: Job) => {
+    if (!onSaveNote) return;
+    setNoteJobId(job.id);
+    setNoteDraft(job.notes ?? '');
+  };
+  const closeNote = () => {
+    setNoteJobId(null);
+    setNoteDraft('');
+  };
+  const saveNote = async (job: Job) => {
+    if (!onSaveNote) return;
+    setSavingNote(true);
+    try {
+      const ok = await onSaveNote(job, noteDraft.trim());
+      if (ok !== false) closeNote();
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   // Row currently generating its PDF time report (shows a spinner).
   const [reportingId, setReportingId] = useState<string | null>(null);
 
@@ -211,14 +241,57 @@ export function JobsTable({
               <TableCell className="px-6 py-3">
                 {/* Capped width: a long deviation note must not push the
                     File / Actions columns off screen; long ones open on hover. */}
+                {noteJobId === job.id ? (
+                  // Inline editor (opened by double-clicking the note).
+                  <div className="min-w-[380px] max-w-[560px] space-y-1.5" onDoubleClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Notes</span>
+                      <DictationButton value={noteDraft} onChange={setNoteDraft} />
+                    </div>
+                    <textarea
+                      autoFocus
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') closeNote();
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void saveNote(job);
+                      }}
+                      rows={3}
+                      placeholder="Write the note..."
+                      className="w-full rounded-lg bg-background border border-primary/60 p-2 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => void saveNote(job)}
+                        disabled={savingNote}
+                        className="h-7 px-3 text-[11px] bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                        {savingNote ? <Loader2 size={12} className="mr-1 animate-spin" /> : null}
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={closeNote} disabled={savingNote} className="h-7 px-3 text-[11px]">
+                        Cancel
+                      </Button>
+                      <span className="text-[10px] text-muted-foreground">Ctrl+Enter to save · Esc to cancel</span>
+                    </div>
+                  </div>
+                ) : (
                 <div className="min-w-[380px] max-w-[560px] flex items-center gap-2">
-                  {job.notes && job.notes.length > 60 ? (
-                    <LongNote text={job.notes} label="Notes" className="text-muted-foreground" />
-                  ) : (
-                    <span className="text-xs text-muted-foreground truncate">
-                      {job.notes || '—'}
-                    </span>
-                  )}
+                  {/* Double-click the note to edit it in place. */}
+                  <span
+                    onDoubleClick={() => openNote(job)}
+                    title={onSaveNote ? 'Doble clic para editar la nota' : undefined}
+                    className={`min-w-0 ${onSaveNote ? 'cursor-text rounded px-1 -mx-1 hover:bg-muted/60' : ''}`}
+                  >
+                    {job.notes && job.notes.length > 60 ? (
+                      <LongNote text={job.notes} label="Notes" className="text-muted-foreground" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground truncate block">
+                        {job.notes || '—'}
+                      </span>
+                    )}
+                  </span>
                   {job.outService && (
                     <span className="inline-flex items-center gap-1 flex-shrink-0">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
@@ -246,6 +319,7 @@ export function JobsTable({
                     />
                   )}
                 </div>
+                )}
               </TableCell>
               <TableCell className="px-3 py-4 align-middle">
                 <div className="flex flex-row flex-nowrap items-center justify-end gap-x-1.5">

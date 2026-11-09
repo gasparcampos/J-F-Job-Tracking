@@ -1166,6 +1166,27 @@ export default function Home() {
     }
   };
 
+  // Table: double-click a note to edit it in place. Saves only the note, so
+  // it doesn't go through Edit Job's required-field checks.
+  const handleSaveNote = async (job: Job, notes: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const updatedJob = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
+      toast({ title: 'Nota guardada', description: `JOB# ${job.jobNumber || job.title}` });
+      return true;
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast({ title: 'Error', description: 'No se pudo guardar la nota', variant: 'destructive' });
+      return false;
+    }
+  };
+
   const handleSaveAnnotation = async (jobId: string, annotation: string) => {
     try {
       const res = await fetch(`/api/jobs/${jobId}`, {
@@ -1783,6 +1804,7 @@ export default function Home() {
                   onRemoveAttachment={handleRemoveAttachment}
                   onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
                   onTimeReport={tableTab === 'shipped' ? handleTimeReport : undefined}
+                  onSaveNote={handleSaveNote}
                 />
               )}
             </div>
