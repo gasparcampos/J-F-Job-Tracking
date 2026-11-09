@@ -26,6 +26,8 @@ interface PdfViewerModalProps {
 
 export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [] }: PdfViewerModalProps) {
   const [rotation, setRotation] = useState(0);
+  // Current image zoom, kept in sync by TransformWrapper's onTransformed.
+  const [imageScale, setImageScale] = useState(1);
   // Extra darkening offset on top of the auto-detected level (0 = auto).
   // The +/- buttons nudge this when a scan needs more/less than auto.
   const [extraBlack, setExtraBlack] = useState(0);
@@ -138,6 +140,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
         context.fillRect(0, 0, canvas.width, canvas.height);
 
         await page.render({
+          canvas,
           canvasContext: context,
           viewport: viewport,
           background: '#ffffff',
@@ -292,8 +295,9 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
                 maxScale={5}
                 centerOnInit={true}
                 limitToBounds={false}
+                onTransformed={(_ref, state) => setImageScale(state.scale)}
               >
-                {({ zoomIn, zoomOut, resetTransform, scale }) => (
+                {({ zoomIn, zoomOut, resetTransform }) => (
                   <>
                     {/* Zoom controls overlay */}
                     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -302,7 +306,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
                           <ZoomIn size={18} />
                         </Button>
                         <div className="text-center text-[10px] font-bold text-muted-foreground">
-                          {Math.round(scale * 100)}%
+                          {Math.round(imageScale * 100)}%
                         </div>
                         <Button variant="outline" size="sm" onClick={() => zoomOut()} className="w-10 h-10 p-0">
                           <ZoomOut size={18} />
