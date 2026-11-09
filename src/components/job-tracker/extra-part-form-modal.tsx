@@ -95,21 +95,34 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     }
   }, [part, existing]);
 
-  // Look up a job by JOB#, DWG#, or Part# (case-insensitive substring). The
-  // first match auto-fills the identifying fields; user can edit afterwards.
-  const matchedJob = useMemo(() => {
+  // Look up a job by JOB#, DWG#, or Part# (case-insensitive). Extra parts are
+  // leftovers from jobs already shipped, so shipped jobs are searched first
+  // (most recently shipped first); active jobs only if no shipped job matches.
+  // Within each group: exact JOB#, then exact DWG#, exact Part#, then partial.
+  const { matchedJob, matchCount } = useMemo(() => {
     const q = jobLookup.trim().toLowerCase();
-    if (!q) return null;
-    return (
-      jobs.find((j) => (j.jobNumber ?? '').trim().toLowerCase() === q) ||
-      jobs.find((j) => (j.dwgNumber ?? '').trim().toLowerCase() === q) ||
-      jobs.find((j) => (j.partNumber ?? '').trim().toLowerCase() === q) ||
-      jobs.find((j) =>
-        [(j.jobNumber ?? ''), (j.dwgNumber ?? ''), (j.partNumber ?? '')]
-          .some((v) => v.toLowerCase().includes(q))
-      ) ||
-      null
-    );
+    if (!q) return { matchedJob: null as Job | null, matchCount: 0 };
+    const norm = (v?: string) => (v ?? '').trim().toLowerCase();
+    const hits = (j: Job) =>
+      [j.jobNumber, j.dwgNumber, j.partNumber].some((v) => norm(v).includes(q));
+    const pick = (list: Job[]) =>
+      list.find((j) => norm(j.jobNumber) === q) ||
+      list.find((j) => norm(j.dwgNumber) === q) ||
+      list.find((j) => norm(j.partNumber) === q) ||
+      list.find(hits) ||
+      null;
+    const shipped = jobs
+      .filter((j) => j.shipped === true)
+      .sort((a, b) => (b.shippedAt ?? '').localeCompare(a.shippedAt ?? ''));
+    const notShipped = jobs.filter((j) => j.shipped !== true);
+    // Most parts are added by the J&F work order (JOB#). When the lookup is an
+    // exact JOB#, only jobs with that exact JOB# count toward the "several
+    // jobs match" warning, not DWG#/Part# numbers that happen to contain it.
+    const exactJob = jobs.filter((j) => norm(j.jobNumber) === q);
+    return {
+      matchedJob: pick(shipped) || pick(notShipped),
+      matchCount: exactJob.length > 0 ? exactJob.length : jobs.filter(hits).length,
+    };
   }, [jobLookup, jobs]);
 
   // Which identifying fields contain what was typed in the lookup. Those
@@ -143,7 +156,9 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
   useEffect(() => {
     const q = jobLookup.trim().toLowerCase();
     if (!q || isEditing) return;
-    const exactByJobNumber = jobs.find((j) => (j.jobNumber ?? '').trim().toLowerCase() === q);
+    // Same preference as the lookup: a shipped job with this JOB# wins.
+    const sameJobNumber = jobs.filter((j) => (j.jobNumber ?? '').trim().toLowerCase() === q);
+    const exactByJobNumber = sameJobNumber.find((j) => j.shipped === true) || sameJobNumber[0];
     if (exactByJobNumber && exactByJobNumber.id !== jobId) {
       setJobId(exactByJobNumber.id);
       setJobNumber(exactByJobNumber.jobNumber || '');
@@ -326,8 +341,22 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
                 {matchedJob ? (
                   <>
                     Match: <span className="font-semibold text-primary">JOB# {matchedJob.jobNumber}</span>
+                    {matchedJob.shipped ? (
+                      <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider text-white bg-green-600 rounded px-1.5 py-px">
+                        Shipped{matchedJob.shippedAt ? ` ${new Date(matchedJob.shippedAt).toLocaleDateString('en-US')}` : ''}
+                      </span>
+                    ) : (
+                      <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider text-white bg-amber-600 rounded px-1.5 py-px">
+                        Not shipped
+                      </span>
+                    )}
                     {matchedJob.customer ? ` · ${matchedJob.customer}` : ''}
                     {matchedJob.partNumber ? ` · Part ${matchedJob.partNumber}` : ''}
+                    {matchCount > 1 && (
+                      <span className="block mt-1 font-semibold text-amber-600 dark:text-amber-400">
+                        ⚠ {matchCount} trabajos coinciden con lo que escribiste. Se tomó {matchedJob.shipped ? 'el enviado más reciente' : 'el primero que se encontró'}; si no es ese, escribe el JOB# exacto.
+                      </span>
+                    )}
                   </>
                 ) : (
                   <>No matching job found — you can still type the fields manually below.</>
