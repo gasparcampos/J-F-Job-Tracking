@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDroppable, useDndMonitor } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, FileText, AlertTriangle, Users, Play, Pause, Check, ArrowRightLeft, Truck } from 'lucide-react';
+import { Flame, FileText, AlertTriangle, Users, Play, Pause, Check, ArrowRightLeft, Truck, X } from 'lucide-react';
 import type { Job, Department } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
 
@@ -91,16 +91,45 @@ export function DashboardView({
     return () => mq.removeEventListener('change', update);
   }, []);
 
+  // Tapping a name chip shows only that person's jobs (tap again, or the X,
+  // to show everyone). Departments with none of their jobs are hidden so the
+  // phone goes straight to their work.
+  const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
+  const tilesRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  // Keep the selected name fully visible in the (scrollable) chip strip.
+  useEffect(() => {
+    if (!employeeFilter) return;
+    chipsRef.current
+      ?.querySelector('[aria-pressed="true"]')
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+  }, [employeeFilter]);
+  const pickEmployee = (name: string) => {
+    setEmployeeFilter((cur) => (cur === name ? null : name));
+    tilesRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const visibleJobs = useMemo(
+    () =>
+      employeeFilter
+        ? jobs.filter((j) => (j.assignedTo?.trim() || UNASSIGNED) === employeeFilter)
+        : jobs,
+    [jobs, employeeFilter]
+  );
+
   const jobsByDept = useMemo(() => {
     const map = new Map<string, Job[]>();
-    for (const j of jobs) {
+    for (const j of visibleJobs) {
       const list = map.get(j.departmentId) ?? [];
       list.push(j);
       map.set(j.departmentId, list);
     }
     for (const list of map.values()) sortJobs(list);
     return map;
-  }, [jobs]);
+  }, [visibleJobs]);
+
+  const shownDepartments = employeeFilter
+    ? departments.filter((d) => (jobsByDept.get(d.id)?.length ?? 0) > 0)
+    : departments;
 
   // Shop-wide job count per employee (only jobs sitting in a visible column).
   const employeeTotals = useMemo(() => {
@@ -188,8 +217,8 @@ export function DashboardView({
 
   const gridStyle: React.CSSProperties = isWide
     ? {
-        gridTemplateColumns: `repeat(${Math.max(1, Math.ceil(departments.length / 2))}, minmax(0, 1fr))`,
-        gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
+        gridTemplateColumns: `repeat(${Math.max(1, Math.ceil(shownDepartments.length / 2))}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${shownDepartments.length > 1 ? 2 : 1}, minmax(0, 1fr))`,
       }
     : {
         gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
@@ -216,7 +245,7 @@ export function DashboardView({
   return (
     <div className="h-full flex flex-col gap-3 min-h-0">
       {/* Summary strip: totals + jobs per employee across the whole shop. */}
-      <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto pb-1">
+      <div ref={chipsRef} className="flex items-center gap-2 flex-shrink-0 overflow-x-auto pb-1">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex-shrink-0 shadow-lg shadow-primary/30">
           {totalJobs} jobs
         </div>
@@ -226,25 +255,54 @@ export function DashboardView({
         </div>
         <div className="w-px h-6 bg-border mx-1 flex-shrink-0" />
         <Users size={14} className="text-muted-foreground flex-shrink-0" />
-        {employeeTotals.map(([name, n]) => (
-          <div
-            key={name}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex-shrink-0 ${
-              name === UNASSIGNED
-                ? 'bg-muted/40 border-border text-muted-foreground italic'
-                : 'bg-card border-border text-card-foreground'
-            }`}
+        {employeeFilter && (
+          <button
+            type="button"
+            onClick={() => setEmployeeFilter(null)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-primary/60 text-primary text-[11px] font-semibold flex-shrink-0 hover:bg-primary/10"
+            title="Show everyone"
           >
-            {name}
-            <span className="bg-muted px-1.5 rounded text-[10px] font-bold text-primary">{n}</span>
-          </div>
-        ))}
+            <X size={12} />
+            All
+          </button>
+        )}
+        {(employeeFilter
+          ? [...employeeTotals].sort((a, b) => Number(b[0] === employeeFilter) - Number(a[0] === employeeFilter))
+          : employeeTotals
+        ).map(([name, n]) => {
+          const selected = employeeFilter === name;
+          return (
+            <button
+              type="button"
+              key={name}
+              onClick={() => pickEmployee(name)}
+              aria-pressed={selected}
+              title={selected ? 'Show everyone' : `Show only ${name}'s jobs`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex-shrink-0 transition-colors ${
+                selected
+                  ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30'
+                  : name === UNASSIGNED
+                  ? 'bg-muted/40 border-border text-muted-foreground italic hover:border-primary/60'
+                  : 'bg-card border-border text-card-foreground hover:border-primary/60'
+              }`}
+            >
+              {name}
+              <span
+                className={`px-1.5 rounded text-[10px] font-bold ${
+                  selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-primary'
+                }`}
+              >
+                {n}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Department tiles */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div ref={tilesRef} className="flex-1 min-h-0 overflow-auto">
         <div className={`grid gap-2 ${isWide ? 'h-full' : ''}`} style={gridStyle}>
-          {departments.map((dept) => (
+          {shownDepartments.map((dept) => (
             <DeptTile
               key={dept.id}
               dept={dept}

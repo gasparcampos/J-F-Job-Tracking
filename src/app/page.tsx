@@ -19,7 +19,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard } from 'lucide-react';
+import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard, ScanLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput, Fixture, CreateFixtureInput } from '@/types';
@@ -36,6 +36,7 @@ import {
   ExtraPartFormModal,
   FixturesTable,
   FixtureFormModal,
+  QrScannerModal,
   DashboardView,
 } from '@/components/job-tracker';
 
@@ -108,6 +109,9 @@ export default function Home() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   // null = closed, {} = new entry, Fixture = editing.
   const [editingFixture, setEditingFixture] = useState<Fixture | Record<string, never> | null>(null);
+  // In-app QR reader (inventory): scanning an Extra Part / Fixture label
+  // opens that record in edit mode.
+  const [isScanning, setIsScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -451,6 +455,62 @@ export default function Home() {
     const qs = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, [isLoading, extraParts]);
+
+  // In-app QR scanner result. Labels encode `<origin>/?extraPart=<id>` or
+  // `<origin>/?fixture=<id>`; open that record in edit mode on its tab. If it
+  // isn't in the loaded list yet (just created on another device), fetch it.
+  const openRecordFromQr = async (text: string) => {
+    let params: URLSearchParams;
+    try {
+      params = new URL(text, window.location.origin).searchParams;
+    } catch {
+      params = new URLSearchParams();
+    }
+    const partId = params.get('extraPart');
+    const fixtureId = params.get('fixture');
+
+    const fetchOne = async <T,>(url: string): Promise<T | null> => {
+      try {
+        const res = await fetch(url);
+        return res.ok ? ((await res.json()) as T) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    if (partId) {
+      const part =
+        extraParts.find((p) => p.id === partId) ??
+        (await fetchOne<ExtraPart>(`/api/extra-parts/${encodeURIComponent(partId)}`));
+      if (part) {
+        setViewMode('table');
+        setTableTab('extra-parts');
+        setEditingFixture(null);
+        setEditingExtraPart(part);
+        return;
+      }
+    } else if (fixtureId) {
+      const fx =
+        fixtures.find((f) => f.id === fixtureId) ??
+        (await fetchOne<Fixture>(`/api/fixtures/${encodeURIComponent(fixtureId)}`));
+      if (fx) {
+        setViewMode('table');
+        setTableTab('fixtures');
+        setEditingExtraPart(null);
+        setEditingFixture(fx);
+        return;
+      }
+    }
+
+    toast({
+      title: 'QR no reconocido',
+      description:
+        partId || fixtureId
+          ? 'No se encontró ese registro (¿lo borraron?).'
+          : 'Ese QR no es de una etiqueta de Extra Part o Fixture.',
+      variant: 'destructive',
+    });
+  };
 
   // Deep link from a scanned Fixture QR code (?fixture=<id>), same as above.
   useEffect(() => {
@@ -1321,7 +1381,7 @@ export default function Home() {
       <nav className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-3 z-40 shadow-lg flex-shrink-0">
         {/* Left cluster: logo + view toggle + New Job */}
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/30">
               <Wrench size={22} className="text-primary-foreground" />
             </div>
@@ -1333,6 +1393,17 @@ export default function Home() {
                 J&F MACHINE SHOP
               </p>
             </div>
+
+            {/* Phone: QR reader sits on the logo row (the row below is full). */}
+            <Button
+              onClick={() => setIsScanning(true)}
+              variant="outline"
+              className="sm:hidden ml-auto gap-2 border-primary/60 text-primary hover:bg-primary/10"
+              aria-label="Scan QR"
+            >
+              <ScanLine size={18} />
+              Scan QR
+            </Button>
           </div>
 
           <div className="bg-muted p-1 rounded-xl flex border border-border">
@@ -1383,6 +1454,19 @@ export default function Home() {
           >
             <Plus size={16} />
             <span className="hidden sm:inline">New Job</span>
+          </Button>
+
+          {/* QR reader for inventory: opens the scanned Extra Part / Fixture.
+              (On phones it's on the logo row instead.) */}
+          <Button
+            onClick={() => setIsScanning(true)}
+            variant="outline"
+            className="hidden sm:inline-flex gap-2 border-primary/60 text-primary hover:bg-primary/10"
+            title="Scan QR (Extra Part / Fixture)"
+            aria-label="Scan QR"
+          >
+            <ScanLine size={16} />
+            Scan QR
           </Button>
 
           {/* Search bar — sits right next to New Job. */}
@@ -1839,6 +1923,12 @@ export default function Home() {
         employees={employees}
         onSave={handleSaveExtraPart}
         onClose={() => setEditingExtraPart(null)}
+      />
+
+      <QrScannerModal
+        open={isScanning}
+        onClose={() => setIsScanning(false)}
+        onResult={(text) => void openRecordFromQr(text)}
       />
 
       <FixtureFormModal

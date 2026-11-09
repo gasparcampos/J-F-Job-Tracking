@@ -12,4 +12,5 @@ export { ExtraPartsTable } from './extra-parts-table';
 export { ExtraPartFormModal } from './extra-part-form-modal';
 export { FixturesTable } from './fixtures-table';
 export { FixtureFormModal } from './fixture-form-modal';
+export { QrScannerModal } from './qr-scanner-modal';
 export { DashboardView } from './dashboard-view';
