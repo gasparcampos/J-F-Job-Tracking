@@ -172,9 +172,15 @@ export async function POST(request: NextRequest) {
     console.log('PDF buffer size:', pdfBuffer.length);
 
     // Extract text from PDF using pdf-parse
-    const pdfParse = (await import('pdf-parse')).default;
-    const pdfData = await pdfParse(pdfBuffer);
-    const fullText = pdfData.text;
+    // pdf-parse v2 exposes a PDFParse class instead of a default function.
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    let fullText: string;
+    try {
+      fullText = (await parser.getText()).text;
+    } finally {
+      await parser.destroy();
+    }
 
     console.log('Extracted text length:', fullText.length);
 

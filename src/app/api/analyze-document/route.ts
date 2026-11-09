@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
     if (isPdf) {
       try {
         // Convert PDF to image and return the first page
-        const pdfToImg = (await import('pdf-to-img')).default;
+        // pdf-to-img v5 has a named `pdf` export (no default export).
+        const { pdf: pdfToImages } = await import('pdf-to-img');
         
         let fileBuffer: Buffer;
         if (fileUrl.startsWith('/uploads/')) {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Convert PDF to images
-        const pdf = await pdfToImg.pdf(fileBuffer, { scale: 2 });
+        const pdf = await pdfToImages(fileBuffer, { scale: 2 });
         const pages: string[] = [];
         
         for await (const page of pdf) {
