@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Pencil, Save, AlertTriangle, Check, Ban } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Pencil, Save, AlertTriangle, Check, Ban, Paperclip, Loader2, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +46,12 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
   const [deviation, setDeviation] = useState('');
   const [deviationStatus, setDeviationStatus] = useState<'pending' | 'accepted' | 'rejected' | ''>('');
   const [isSaving, setIsSaving] = useState(false);
+  // Every attachment of the job (legacy single attachment merged in).
+  const [attachments, setAttachments] = useState<Array<{ url: string; name: string }>>([]);
+  const [isAttaching, setIsAttaching] = useState(false);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  // Required-field warnings show only after a Save attempt.
+  const [triedSubmit, setTriedSubmit] = useState(false);
 
   // Load the job's current values whenever a new job is opened for editing.
   useEffect(() => {
@@ -70,12 +76,54 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     setOutService(job.outService ?? '');
     setDeviation(job.deviation ?? '');
     setDeviationStatus(job.deviationStatus ?? '');
+    const list = [...(job.attachments ?? [])];
+    if (job.attachmentUrl) list.unshift({ url: job.attachmentUrl, name: job.attachmentName || 'Attachment' });
+    setAttachments(list);
+    setTriedSubmit(false);
   }, [job]);
 
   if (!job) return null;
 
+  // Required on every job (same rule as New Job): JOB#, Due Date, at least
+  // one Attachment, and Out Service.
+  const missing = {
+    jobNumber: !jobNumber.trim(),
+    dueDate: !dueDate,
+    attachment: attachments.length === 0,
+    outService: !outService.trim(),
+  };
+  const missingNames = [
+    missing.jobNumber && 'JOB#',
+    missing.dueDate && 'Due Date',
+    missing.attachment && 'Attachment',
+    missing.outService && 'Out Service',
+  ].filter(Boolean) as string[];
+  const warn = (field: keyof typeof missing) => triedSubmit && missing[field];
+
+  const handleAddAttachment = async () => {
+    const file = attachInputRef.current?.files?.[0];
+    if (!file) return;
+    setIsAttaching(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) setAttachments((prev) => [...prev, { url: data.fileUrl, name: data.fileName }]);
+    } catch (error) {
+      console.error('Attachment upload error:', error);
+    } finally {
+      setIsAttaching(false);
+      if (attachInputRef.current) attachInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (missingNames.length) {
+      setTriedSubmit(true);
+      return;
+    }
     setIsSaving(true);
     try {
       const result = await onSave(job.id, {
@@ -99,6 +147,9 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
         deviation: deviation.trim() || undefined,
         // Always send the status (incl. '') so resolving a deviation clears it.
         deviationStatus,
+        attachments,
+        attachmentUrl: '',
+        attachmentName: '',
       });
       // Keep the modal open if the save failed (e.g. duplicate JOB#).
       if (result === false) return;
@@ -150,8 +201,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 <Input value={line} onChange={(e) => setLine(e.target.value)} placeholder="Line" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
               <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#</Label>
-                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB# *</Label>
+                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className={`rounded-lg h-9 bg-background text-xs ${warn('jobNumber') ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`} />
               </div>
               <div>
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Quantity</Label>
@@ -175,8 +226,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
               <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date *</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={`rounded-lg h-9 bg-background text-xs ${warn('dueDate') ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`} />
               </div>
             </div>
           </div>
@@ -232,8 +283,55 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
           </div>
 
           <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service</Label>
-            <Textarea value={outService} onChange={(e) => setOutService(e.target.value)} placeholder="Outside services (e.g. phosphate, NDE)..." rows={2} className="rounded-lg bg-background border-border resize-none" />
+            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Out Service *</Label>
+            <Textarea
+              value={outService}
+              onChange={(e) => setOutService(e.target.value)}
+              placeholder="Required, in English. NDE or NO NDE, plus every outside service the job needs (phosphate, heat treat, plating, coating...). e.g. NO NDE > PHOSPHATE"
+              rows={2}
+              className={`rounded-lg bg-background resize-none ${warn('outService') ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`}
+            />
+            {warn('outService') && (
+              <p className="text-[10px] text-red-500 font-semibold mt-1">Out Service is required (in English): NDE or NO NDE, and all outside services.</p>
+            )}
+          </div>
+
+          {/* Attachments: a job must always keep at least one. */}
+          <div>
+            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">Attachments *</Label>
+            <div className={`rounded-lg border p-2 space-y-1.5 ${warn('attachment') ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`}>
+              {attachments.map((a, i) => (
+                <div key={`${a.url}-${i}`} className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5">
+                  <FileText size={14} className="text-primary flex-shrink-0" />
+                  <a href={a.url} target="_blank" rel="noreferrer" className="text-xs truncate flex-1 hover:underline" title={a.name}>
+                    {a.name}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                    title="Remove attachment"
+                    aria-label={`Remove ${a.name}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <input type="file" ref={attachInputRef} className="hidden" onChange={handleAddAttachment} />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => attachInputRef.current?.click()}
+                disabled={isAttaching}
+                className="w-full h-9 rounded-lg border-dashed text-xs gap-2"
+              >
+                {isAttaching ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                {isAttaching ? 'Uploading…' : attachments.length ? 'Add another attachment' : 'Attach file (required)'}
+              </Button>
+            </div>
+            {warn('attachment') && (
+              <p className="text-[10px] text-red-500 font-semibold mt-1">Every job needs at least one attachment.</p>
+            )}
           </div>
 
           {/* Deviation: details + workflow button. A pending deviation moves
@@ -318,11 +416,17 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={3} className="rounded-lg bg-background border-border resize-none" />
           </div>
 
+          {triedSubmit && missingNames.length > 0 && (
+            <p className="text-xs text-red-500 font-semibold text-center">
+              Before saving, fill in: {missingNames.join(', ')}.
+            </p>
+          )}
+
           <div className="flex gap-3">
             <Button type="button" onClick={onClose} variant="outline" className="flex-1 h-12 rounded-lg font-semibold uppercase tracking-wider border-border">
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
+            <Button type="submit" disabled={isSaving || isAttaching} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">
               <Save size={16} className="mr-2" />
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>

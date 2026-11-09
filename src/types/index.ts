@@ -140,6 +140,11 @@ export interface UpdateJobInput {
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
   shipped?: boolean;
   shippedAt?: string;
+  // Full attachment list (Edit Job). The legacy single attachmentUrl/Name
+  // are cleared ('') when this is sent so there's one source of truth.
+  attachments?: Array<{ url: string; name: string }>;
+  attachmentUrl?: string;
+  attachmentName?: string;
 }
 
 // Leftover machined pieces stored in racks/shelves (Extra Parts tab).

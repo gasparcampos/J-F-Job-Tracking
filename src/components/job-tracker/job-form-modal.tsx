@@ -179,10 +179,18 @@ export function JobFormModal({
   // Every job needs an Attachment and an Out Service entry.
   const missingAttachment = !attachment;
   const missingOutService = !outService.trim();
+  const missingJobNumber = !jobNumber.trim();
+  const missingDueDate = !dueDate;
+  const missingNames = [
+    missingJobNumber && 'JOB#',
+    missingDueDate && 'Due Date',
+    missingAttachment && 'Attachment',
+    missingOutService && 'Out Service',
+  ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (missingAttachment || missingOutService) {
+    if (missingNames.length) {
       setTriedSubmit(true);
       return;
     }
@@ -359,8 +367,8 @@ export function JobFormModal({
               </div>
               {/* 4. Job# */}
               <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB#</Label>
-                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">JOB# *</Label>
+                <Input value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} placeholder="Job Number" className={`rounded-lg h-9 bg-background text-xs ${triedSubmit && missingJobNumber ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`} />
               </div>
               {/* 5. Quantity */}
               <div>
@@ -385,8 +393,8 @@ export function JobFormModal({
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg h-9 bg-background border-border text-xs" />
               </div>
               <div>
-                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded-lg h-9 bg-background border-border text-xs" />
+                <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block">Due Date *</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={`rounded-lg h-9 bg-background text-xs ${triedSubmit && missingDueDate ? 'border-red-500 ring-1 ring-red-500' : 'border-border'}`} />
               </div>
             </div>
           </div>
@@ -496,9 +504,9 @@ export function JobFormModal({
             )}
           </div>
 
-          {triedSubmit && (missingAttachment || missingOutService) && (
+          {triedSubmit && missingNames.length > 0 && (
             <p className="text-xs text-red-500 font-semibold text-center">
-              Before creating the job, add: {[missingAttachment && 'Attachment', missingOutService && 'Out Service'].filter(Boolean).join(' and ')}.
+              Before creating the job, fill in: {missingNames.join(', ')}.
             </p>
           )}
           <Button type="submit" disabled={isUploading || isExtracting || isAttaching} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30 disabled:opacity-50">

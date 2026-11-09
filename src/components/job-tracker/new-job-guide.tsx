@@ -33,6 +33,7 @@ const STEPS: GuideStep[] = [
       'Corrige cualquier dato que la lectura haya sacado mal o vacío.',
       'Customer: si no es Baker, Halliburton o Liberty, escoge "Other" y escribe el nombre.',
       'NAME (nombre de la pieza, ej. PLUG, HOUSING) no se llena solo: escríbelo.',
+      'JOB# y Due Date son obligatorios.',
       'El JOB# no se puede repetir: si ya existe, la app avisa "Duplicate JOB#" y no lo crea.',
     ],
   },
@@ -66,7 +67,8 @@ const STEPS: GuideStep[] = [
   {
     title: 'Crea el trabajo',
     points: [
-      'Toca "Create Job". Si falta el Attachment o el Out Service, se marcan en rojo y no deja crearlo.',
+      'Toca "Create Job". Si falta JOB#, Due Date, Attachment u Out Service, se marcan en rojo y no deja crearlo.',
+      'Las mismas reglas aplican al editar un trabajo (Edit Job).',
       'El trabajo aparece en el tablero en el área que escogiste.',
       'Si la lectura falla o no reconoce la hoja, llena los campos a mano y créalo igual.',
     ],
