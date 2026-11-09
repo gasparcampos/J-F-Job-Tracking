@@ -109,17 +109,38 @@ export interface StoredExtraPart {
   updatedAt: string;
 }
 
+export interface StoredFixture {
+  id: string;
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  name?: string;
+  place?: string;
+  qty?: string;
+  dateIn?: string;
+  active: boolean;
+  dateOut?: string;
+  employeeName?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------- Collections ----------
 
 const JOBS = 'jobs';
 const DEPARTMENTS = 'departments';
 const EMPLOYEES = 'employees';
 const EXTRA_PARTS = 'extraParts';
+const FIXTURES = 'fixtures';
 
 const jobsCol = () => firestore.collection(JOBS);
 const deptsCol = () => firestore.collection(DEPARTMENTS);
 const empsCol = () => firestore.collection(EMPLOYEES);
 const extraPartsCol = () => firestore.collection(EXTRA_PARTS);
+const fixturesCol = () => firestore.collection(FIXTURES);
 
 // ---------- Defaults / Seed data ----------
 
@@ -844,6 +865,87 @@ export const extraPartsDB = {
 
   async delete(id: string): Promise<boolean> {
     const ref = extraPartsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return false;
+    await ref.delete();
+    return true;
+  },
+};
+
+// ---------- fixturesDB ----------
+
+const FIXTURE_FIELDS = [
+  'jobId', 'jobNumber', 'company', 'dwgNumber', 'partNumber', 'name',
+  'place', 'qty', 'dateIn', 'dateOut', 'employeeName', 'notes',
+] as const;
+
+function docToFixture(id: string, data: FirebaseFirestore.DocumentData): StoredFixture {
+  const out: Record<string, unknown> = { id };
+  for (const k of FIXTURE_FIELDS) out[k] = data[k];
+  out.active = data.active ?? true;
+  out.createdAt = data.createdAt ?? new Date().toISOString();
+  out.updatedAt = data.updatedAt ?? new Date().toISOString();
+  return out as unknown as StoredFixture;
+}
+
+// Only known fields are written, so a stray client field never lands in
+// Firestore.
+function pickFixtureFields(data: Partial<StoredFixture>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of FIXTURE_FIELDS) if (k in data) out[k] = data[k];
+  if ('active' in data) out.active = data.active;
+  return out;
+}
+
+export const fixturesDB = {
+  async findAll(): Promise<StoredFixture[]> {
+    const snap = await fixturesCol().get();
+    const out: StoredFixture[] = [];
+    snap.forEach((d) => out.push(docToFixture(d.id, d.data())));
+    // Newest first; toggling active doesn't move the row around.
+    return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  async findById(id: string): Promise<StoredFixture | null> {
+    const doc = await fixturesCol().doc(id).get();
+    if (!doc.exists) return null;
+    return docToFixture(doc.id, doc.data()!);
+  },
+
+  async create(data: Partial<StoredFixture>): Promise<StoredFixture> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const payload = {
+      ...pickFixtureFields(data),
+      active: data.active ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await fixturesCol().doc(id).set(stripUndefined(payload));
+    return docToFixture(id, payload);
+  },
+
+  async update(id: string, data: Partial<StoredFixture>): Promise<StoredFixture | null> {
+    const ref = fixturesCol().doc(id);
+    const before = await ref.get();
+    if (!before.exists) return null;
+
+    const patch: Record<string, unknown> = { ...pickFixtureFields(data), updatedAt: new Date().toISOString() };
+
+    // Auto-fill FIX_DATE OUT when the fixture goes active -> inactive, unless
+    // the user typed their own date.
+    const wasActive = (before.data()?.active ?? true) === true;
+    if (wasActive && data.active === false && !data.dateOut) {
+      patch.dateOut = new Date().toISOString().slice(0, 10);
+    }
+
+    await ref.update(stripUndefined(patch));
+    const after = await ref.get();
+    return docToFixture(after.id, after.data()!);
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const ref = fixturesCol().doc(id);
     const doc = await ref.get();
     if (!doc.exists) return false;
     await ref.delete();

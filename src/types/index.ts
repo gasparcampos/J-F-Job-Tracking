@@ -189,6 +189,33 @@ export interface CreateExtraPartInput {
 
 export type UpdateExtraPartInput = Partial<CreateExtraPartInput>;
 
+// A fixture (holding/machining fixture) kept for a job, so it can be found
+// again when the part is re-ordered. Same idea as ExtraPart; mirrors the
+// Access ADD-FIX form (FIX_PLACE, FIX_QTY, FIX_DATE IN/OUT, FIX-ACTIVE...).
+export interface Fixture {
+  id: string;
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  name?: string;
+  place?: string;
+  qty?: string;
+  dateIn?: string;
+  // While `active` is true the fixture is still on the shelf. When set to
+  // false, dateOut is auto-filled with today server-side.
+  active: boolean;
+  dateOut?: string;
+  employeeName?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateFixtureInput = Partial<Omit<Fixture, 'id' | 'createdAt' | 'updatedAt'>>;
+export type UpdateFixtureInput = CreateFixtureInput;
+
 export interface MoveJobInput {
   jobId: string;
   targetDeptId: string;

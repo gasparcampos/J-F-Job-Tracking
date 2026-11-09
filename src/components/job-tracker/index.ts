@@ -10,4 +10,6 @@ export { MoveToAnyDeptModal } from './move-to-any-dept-modal';
 export { AssistantPanel } from './assistant-panel';
 export { ExtraPartsTable } from './extra-parts-table';
 export { ExtraPartFormModal } from './extra-part-form-modal';
+export { FixturesTable } from './fixtures-table';
+export { FixtureFormModal } from './fixture-form-modal';
 export { DashboardView } from './dashboard-view';

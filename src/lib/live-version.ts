@@ -13,7 +13,7 @@ import { firestore } from './firebase-admin';
  * every few seconds and only re-download the full board when it changes.
  */
 
-const COLLECTIONS = ['jobs', 'departments', 'employees', 'extraParts'];
+const COLLECTIONS = ['jobs', 'departments', 'employees', 'extraParts', 'fixtures'];
 
 // 32-bit FNV-1a.
 function fnv(str: string): number {

@@ -11,6 +11,7 @@ import type { ExtraPart, Job, Employee, CreateExtraPartInput } from '@/types';
 import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
 import { DictationButton } from './dictation-button';
+import { lookupJob, exactJobByNumber, fmtAccessDate } from '@/lib/job-lookup';
 
 interface ExtraPartFormModalProps {
   // null = closed. {} = creating new. Otherwise = editing existing.
@@ -95,35 +96,8 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     }
   }, [part, existing]);
 
-  // Look up a job by JOB#, DWG#, or Part# (case-insensitive). Extra parts are
-  // leftovers from jobs already shipped, so shipped jobs are searched first
-  // (most recently shipped first); active jobs only if no shipped job matches.
-  // Within each group: exact JOB#, then exact DWG#, exact Part#, then partial.
-  const { matchedJob, matchCount } = useMemo(() => {
-    const q = jobLookup.trim().toLowerCase();
-    if (!q) return { matchedJob: null as Job | null, matchCount: 0 };
-    const norm = (v?: string) => (v ?? '').trim().toLowerCase();
-    const hits = (j: Job) =>
-      [j.jobNumber, j.dwgNumber, j.partNumber].some((v) => norm(v).includes(q));
-    const pick = (list: Job[]) =>
-      list.find((j) => norm(j.jobNumber) === q) ||
-      list.find((j) => norm(j.dwgNumber) === q) ||
-      list.find((j) => norm(j.partNumber) === q) ||
-      list.find(hits) ||
-      null;
-    const shipped = jobs
-      .filter((j) => j.shipped === true)
-      .sort((a, b) => (b.shippedAt ?? '').localeCompare(a.shippedAt ?? ''));
-    const notShipped = jobs.filter((j) => j.shipped !== true);
-    // Most parts are added by the J&F work order (JOB#). When the lookup is an
-    // exact JOB#, only jobs with that exact JOB# count toward the "several
-    // jobs match" warning, not DWG#/Part# numbers that happen to contain it.
-    const exactJob = jobs.filter((j) => norm(j.jobNumber) === q);
-    return {
-      matchedJob: pick(shipped) || pick(notShipped),
-      matchCount: exactJob.length > 0 ? exactJob.length : jobs.filter(hits).length,
-    };
-  }, [jobLookup, jobs]);
+  // Shipped jobs first; see lookupJob in lib/job-lookup.ts.
+  const { matchedJob, matchCount } = useMemo(() => lookupJob(jobs, jobLookup), [jobLookup, jobs]);
 
   // Which identifying fields contain what was typed in the lookup. Those
   // boxes flash green so you can confirm the part really belongs to that
@@ -157,8 +131,7 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
     const q = jobLookup.trim().toLowerCase();
     if (!q || isEditing) return;
     // Same preference as the lookup: a shipped job with this JOB# wins.
-    const sameJobNumber = jobs.filter((j) => (j.jobNumber ?? '').trim().toLowerCase() === q);
-    const exactByJobNumber = sameJobNumber.find((j) => j.shipped === true) || sameJobNumber[0];
+    const exactByJobNumber = exactJobByNumber(jobs, jobLookup);
     if (exactByJobNumber && exactByJobNumber.id !== jobId) {
       setJobId(exactByJobNumber.id);
       setJobNumber(exactByJobNumber.jobNumber || '');
@@ -187,15 +160,12 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
   // can be taped to the stored piece. Only the label is printed, not the UI.
   const handlePrintLabel = () => {
     const qrSvg = qrRef.current?.querySelector('svg')?.outerHTML ?? '';
-    // YYYY-MM-DD -> M/D/YYYY, like Access shows it.
-    const fmtDate = (d: string) => {
-      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
-      return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : d || '';
-    };
+    const fmtDate = fmtAccessDate;
     // Same fields, same order as the Access EXTRA1 form (FOR_JF dropped).
     // Every row always prints so all labels share one fixed layout.
+    // JOB# is not a row: it prints big and bold under the QR, since the
+    // work order number is what parts are located by on the shelf.
     const rows: [string, string][] = [
-      ['JOB#', jobNumber],
       ['COMPANY', company],
       ['DWG#', dwgNumber],
       ['PART#', partNumber],
@@ -227,6 +197,8 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
         .title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; text-align:center; }
         .qr { display:flex; justify-content:center; margin: 4px 0 12px; }
         .qr svg { width: 170px; height: 170px; }
+        .job { text-align: center; font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: 1px; margin: 0 0 12px; word-break: break-all; }
+        .job small { display: block; font-size: 11px; font-weight: 700; letter-spacing: 2px; margin-bottom: 2px; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
         th { text-align: left; font-weight: 700; white-space: nowrap; padding: 3px 8px 3px 0; vertical-align: top; width: 1%; }
         td { padding: 3px 0; border-bottom: 1px solid #bbb; word-break: break-word; white-space: pre-wrap; }
@@ -235,6 +207,7 @@ export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: E
       <div class="label">
         <div class="title">J&amp;F Machine Shop — Extra Part</div>
         <div class="qr">${qrSvg}</div>
+        <div class="job"><small>JOB#</small>${escHtml(jobNumber.trim())}</div>
         <table>${rowsHtml}</table>
         <div class="hint">Scan to open this record</div>
       </div>

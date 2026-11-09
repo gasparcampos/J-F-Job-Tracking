@@ -11,19 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { ExtraPart } from '@/types';
-
-// A part counts as in stock while its QTY is a number above zero.
-// Blank, "0", "000", etc. mean it was taken out.
-function qtyInStock(qty?: string): boolean {
-  const n = Number((qty ?? '').trim());
-  return Number.isFinite(n) && n > 0;
-}
-
-// YYYY-MM-DD -> M/D/YYYY, like Access shows it.
-function fmtDate(d?: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
-  return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : d || '';
-}
+import { qtyInStock, fmtAccessDate } from '@/lib/job-lookup';
 
 interface ExtraPartsTableProps {
   parts: ExtraPart[];
@@ -76,7 +64,7 @@ export function ExtraPartsTable({ parts, onEdit, onDelete }: ExtraPartsTableProp
                 <TableCell className={`px-3 py-2 text-center text-xs font-bold ${qty ? 'bg-green-600 text-white' : ''}`}>
                   {qty ? p.partQty!.trim() : ''}
                 </TableCell>
-                <TableCell className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(p.partDate)}</TableCell>
+                <TableCell className="px-3 py-2 text-xs whitespace-nowrap">{fmtAccessDate(p.partDate)}</TableCell>
                 <TableCell className="px-3 py-2 text-xs">{p.heatNumber || ''}</TableCell>
                 <TableCell className="px-3 py-2 text-xs font-medium text-primary">{p.place || ''}</TableCell>
                 <TableCell className="px-3 py-2">

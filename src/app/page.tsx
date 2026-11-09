@@ -22,7 +22,7 @@ import {
 import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput } from '@/types';
+import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput, Fixture, CreateFixtureInput } from '@/types';
 import {
   KanbanColumn,
   JobFormModal,
@@ -34,6 +34,8 @@ import {
   AssistantPanel,
   ExtraPartsTable,
   ExtraPartFormModal,
+  FixturesTable,
+  FixtureFormModal,
   DashboardView,
 } from '@/components/job-tracker';
 
@@ -96,12 +98,16 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('dashboard');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures'>('active');
 
   // Extra Parts inventory (leftover stocked pieces).
   const [extraParts, setExtraParts] = useState<ExtraPart[]>([]);
   // null = closed, {} = new entry, ExtraPart = editing.
   const [editingExtraPart, setEditingExtraPart] = useState<ExtraPart | Record<string, never> | null>(null);
+  // Fixtures kept for shipped jobs (same flow as Extra Parts).
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  // null = closed, {} = new entry, Fixture = editing.
+  const [editingFixture, setEditingFixture] = useState<Fixture | Record<string, never> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -238,6 +244,17 @@ export default function Home() {
     );
   }, [extraParts, searchQuery]);
 
+  // Fixtures filter: same global search box (Part#, DWG#, JOB#, ...).
+  const filteredFixtures = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return fixtures;
+    return fixtures.filter((f) =>
+      [f.jobNumber, f.dwgNumber, f.partNumber, f.company, f.name, f.place, f.employeeName, f.notes]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [fixtures, searchQuery]);
+
   // For Kanban: when searching, pull every column that has a match to the
   // front (far left) so the result is easy to spot without scrolling. A column
   // matches if it holds a matching job (e.g. a JOB#) or its own name matches.
@@ -260,23 +277,26 @@ export default function Home() {
     try {
       await fetch('/api/seed');
 
-      const [jobsRes, deptsRes, employeesRes, extraPartsRes] = await Promise.all([
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch('/api/departments'),
         fetch('/api/employees'),
         fetch('/api/extra-parts'),
+        fetch('/api/fixtures'),
       ]);
 
       const jobsData = await jobsRes.json();
       const deptsData = await deptsRes.json();
       const employeesData = await employeesRes.json();
       const extraPartsData = await extraPartsRes.json();
+      const fixturesData = await fixturesRes.json().catch(() => []);
 
       setJobs(jobsData);
       setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
       setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
+      setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -304,18 +324,20 @@ export default function Home() {
   // retries) so the sync is invisible and never flashes the UI.
   const refreshData = useCallback(async () => {
     try {
-      const [jobsRes, deptsRes, employeesRes, extraPartsRes] = await Promise.all([
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch('/api/departments'),
         fetch('/api/employees'),
         fetch('/api/extra-parts'),
+        fetch('/api/fixtures'),
       ]);
 
-      const [jobsData, deptsData, employeesData, extraPartsData] = await Promise.all([
+      const [jobsData, deptsData, employeesData, extraPartsData, fixturesData] = await Promise.all([
         jobsRes.json(),
         deptsRes.json(),
         employeesRes.json(),
         extraPartsRes.json(),
+        fixturesRes.json().catch(() => []),
       ]);
 
       setJobs(jobsData);
@@ -323,6 +345,7 @@ export default function Home() {
       setDepartments(visibleDepartments(deptsData));
       setEmployees(employeesData);
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
+      setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
     } catch (error) {
       // Silent: a dropped poll shouldn't spam toasts — the next tick retries.
       console.error('Error refreshing data:', error);
@@ -428,6 +451,23 @@ export default function Home() {
     const qs = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, [isLoading, extraParts]);
+
+  // Deep link from a scanned Fixture QR code (?fixture=<id>), same as above.
+  useEffect(() => {
+    if (isLoading || !fixtures.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('fixture');
+    if (!id) return;
+    const fx = fixtures.find((f) => f.id === id);
+    if (fx) {
+      setViewMode('table');
+      setTableTab('fixtures');
+      setEditingFixture(fx);
+    }
+    params.delete('fixture');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [isLoading, fixtures]);
 
   // The dragged job's original department, captured at drag start (before
   // handleDragOver optimistically mutates state) so a cancelled move can be
@@ -969,6 +1009,48 @@ export default function Home() {
     } catch (error) {
       console.error('Error deleting extra part:', error);
       toast({ title: 'Error', description: 'Could not delete extra part', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveFixture = async (data: CreateFixtureInput, existingId?: string): Promise<boolean> => {
+    try {
+      const res = await fetch(existingId ? `/api/fixtures/${existingId}` : '/api/fixtures', {
+        method: existingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: err.error || 'Could not save fixture', variant: 'destructive' });
+        return false;
+      }
+      const saved: Fixture = await res.json();
+      setFixtures((prev) => {
+        const idx = prev.findIndex((f) => f.id === saved.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...prev];
+      });
+      toast({ title: 'Success', description: existingId ? 'Fixture updated' : 'Fixture saved' });
+      return true;
+    } catch (error) {
+      console.error('Error saving fixture:', error);
+      toast({ title: 'Error', description: 'Could not save fixture', variant: 'destructive' });
+      return false;
+    }
+  };
+
+  const handleDeleteFixture = async (fixture: Fixture) => {
+    try {
+      await fetch(`/api/fixtures/${fixture.id}`, { method: 'DELETE' });
+      setFixtures((prev) => prev.filter((f) => f.id !== fixture.id));
+      toast({ title: 'Deleted', description: 'Fixture removed' });
+    } catch (error) {
+      console.error('Error deleting fixture:', error);
+      toast({ title: 'Error', description: 'Could not delete fixture', variant: 'destructive' });
     }
   };
 
@@ -1515,6 +1597,24 @@ export default function Home() {
                   {filteredExtraParts.length}
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setTableTab('fixtures')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'fixtures'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Fixtures
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'fixtures' ? 'bg-primary-foreground/20' : 'bg-background'
+                  }`}
+                >
+                  {filteredFixtures.length}
+                </span>
+              </button>
 
               {tableTab === 'extra-parts' && (
                 <Button
@@ -1526,6 +1626,16 @@ export default function Home() {
                   Add Extra Part
                 </Button>
               )}
+              {tableTab === 'fixtures' && (
+                <Button
+                  onClick={() => setEditingFixture({})}
+                  className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
+                  size="sm"
+                >
+                  <Plus size={14} />
+                  Add Fixture
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
@@ -1534,6 +1644,12 @@ export default function Home() {
                   parts={filteredExtraParts}
                   onEdit={(p) => setEditingExtraPart(p)}
                   onDelete={handleDeleteExtraPart}
+                />
+              ) : tableTab === 'fixtures' ? (
+                <FixturesTable
+                  fixtures={filteredFixtures}
+                  onEdit={(f) => setEditingFixture(f)}
+                  onDelete={handleDeleteFixture}
                 />
               ) : (
                 <JobsTable
@@ -1723,6 +1839,14 @@ export default function Home() {
         employees={employees}
         onSave={handleSaveExtraPart}
         onClose={() => setEditingExtraPart(null)}
+      />
+
+      <FixtureFormModal
+        fixture={editingFixture}
+        jobs={jobs}
+        employees={employees}
+        onSave={handleSaveFixture}
+        onClose={() => setEditingFixture(null)}
       />
 
       <AssistantPanel
