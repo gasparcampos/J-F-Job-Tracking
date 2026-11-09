@@ -23,6 +23,8 @@ interface FixtureFormModalProps {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+// Fixtures are stored at AA-8, so new fixtures start there (still editable).
+const DEFAULT_FIXTURE_PLACE = 'AA-8';
 const LABEL = 'text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block';
 
 /**
@@ -41,7 +43,7 @@ export function FixtureFormModal({ fixture, jobs, employees, onSave, onClose }: 
   const [dwgNumber, setDwgNumber] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [name, setName] = useState('');
-  const [place, setPlace] = useState('');
+  const [place, setPlace] = useState(DEFAULT_FIXTURE_PLACE);
   const [qty, setQty] = useState('');
   const [dateIn, setDateIn] = useState(today());
   const [dateOut, setDateOut] = useState('');
@@ -81,7 +83,7 @@ export function FixtureFormModal({ fixture, jobs, employees, onSave, onClose }: 
       setDwgNumber('');
       setPartNumber('');
       setName('');
-      setPlace('');
+      setPlace(DEFAULT_FIXTURE_PLACE);
       setQty('');
       setDateIn(today());
       setDateOut('');
