@@ -1111,10 +1111,10 @@ export default function Home() {
         prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
       );
       toast({
-        title: updatedJob.inProgress ? 'En Progreso' : 'Detenido',
-        description: updatedJob.inProgress 
-          ? '🔥 Job marked in progress' 
-          : '⏸️ Job stopped',
+        title: updatedJob.inProgress ? 'En Progreso' : 'Pausado',
+        description: updatedJob.inProgress
+          ? '🔥 Job marked in progress'
+          : '⏸️ Job paused — time worked saved',
         className: updatedJob.inProgress ? 'bg-orange-600 text-white' : undefined,
       });
     } catch (error) {

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDroppable, useDndMonitor } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, FileText, AlertTriangle, Users, Play, Check, ArrowRightLeft, Truck } from 'lucide-react';
+import { Flame, FileText, AlertTriangle, Users, Play, Pause, Check, ArrowRightLeft, Truck } from 'lucide-react';
 import type { Job, Department } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
 
@@ -411,6 +411,9 @@ function JobRow({
   const pending = job.deviationStatus === 'pending';
   const rejected = job.deviationStatus === 'rejected';
   const inProgress = job.inProgress && !pending;
+  // Paused: the clock isn't running but time was already worked in this
+  // department (In Progress was started and then paused).
+  const paused = !inProgress && !pending && (job.deptTimes?.[job.departmentId] ?? 0) > 0;
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const act = (fn: (job: Job) => void) => (e: React.MouseEvent) => {
@@ -453,6 +456,11 @@ function JobRow({
           <span className="text-[8px] font-bold text-muted-foreground flex-shrink-0">P{job.priority}</span>
           {pending && <AlertTriangle size={10} className="text-red-400 flex-shrink-0" />}
           {inProgress && <Flame size={10} className="text-yellow-300 animate-pulse flex-shrink-0" />}
+          {paused && (
+            <span title="Paused" className="flex-shrink-0">
+              <Pause size={10} className="text-sky-400" />
+            </span>
+          )}
         </span>
         <span className="block text-[9px] text-muted-foreground truncate">
           {[job.name || (job.jobNumber ? job.title : ''), job.assignedTo].filter(Boolean).join(' · ') || '—'}
@@ -471,15 +479,37 @@ function JobRow({
         onMouseEnter={handlers.onLeave}
         onMouseLeave={(e) => handlers.onEnter(job, e.currentTarget.parentElement as HTMLElement)}
       >
-        {options.showProgress && !pending && !inProgress && (
-          <button
-            type="button"
-            onClick={act(handlers.onToggleInProgress)}
-            className={`${iconBtn} bg-muted text-muted-foreground hover:bg-orange-600 hover:text-white`}
-            title="Progress"
-          >
-            <Play size={10} />
-          </button>
+        {/* Progress | Pause | Complete. Progress starts (or resumes) the
+            clock; Pause stops it and banks the time worked so far. */}
+        {options.showProgress && !pending && (
+          <>
+            <button
+              type="button"
+              onClick={inProgress ? stop : act(handlers.onToggleInProgress)}
+              disabled={inProgress}
+              className={`${iconBtn} ${
+                inProgress
+                  ? 'bg-orange-600 cursor-default'
+                  : 'bg-muted text-muted-foreground hover:bg-orange-600 hover:text-white'
+              }`}
+              title={inProgress ? 'In progress' : paused ? 'Resume' : 'Progress'}
+            >
+              <Play size={10} />
+            </button>
+            <button
+              type="button"
+              onClick={inProgress ? act(handlers.onToggleInProgress) : stop}
+              disabled={!inProgress}
+              className={`${iconBtn} ${
+                inProgress
+                  ? 'bg-sky-600 hover:bg-sky-500'
+                  : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+              }`}
+              title={inProgress ? 'Pause' : 'Pause (start Progress first)'}
+            >
+              <Pause size={10} />
+            </button>
+          </>
         )}
         {options.showComplete && !pending && (
           <button
