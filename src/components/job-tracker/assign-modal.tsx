@@ -4,16 +4,11 @@ import { useState, useEffect } from 'react';
 import { X, User, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import type { Job, Department, Employee } from '@/types';
 import { DictationButton } from './dictation-button';
+import { AssigneePicker, assigneeToSend } from './assignee-picker';
+import { assignmentForDept } from '@/lib/dept-assignments';
 
 interface AssignModalProps {
   job: Job | null;
@@ -35,7 +30,10 @@ export function AssignModal({
 
   // Pre-select default employee when target department changes
   useEffect(() => {
-    if (targetDepartment?.defaultEmployee) {
+    // Areas where the person is chosen (Night Shift, Mill) start with nobody
+    // picked, so the mover has to choose.
+    const mustChoose = assignmentForDept(targetDepartment?.name)?.kind === 'choice';
+    if (!mustChoose && targetDepartment?.defaultEmployee) {
       // Check if the default employee exists in the employees list
       const employeeExists = employees.some(e => e.name === targetDepartment.defaultEmployee);
       if (employeeExists) {
@@ -54,9 +52,12 @@ export function AssignModal({
 
   if (!job || !targetDepartment) return null;
 
+  // Follows the area's assignee rule (fixed person / nobody / pick one).
+  const employeeToSend = assigneeToSend(targetDepartment.name, selectedEmployee);
+
   const handleAssign = () => {
-    const employeeName = selectedEmployee === '__none__' ? '' : selectedEmployee;
-    onAssign(employeeName, notes);
+    if (employeeToSend === null) return;
+    onAssign(employeeToSend, notes);
     setNotes('');
     setSelectedEmployee('__none__');
   };
@@ -105,31 +106,14 @@ export function AssignModal({
                 {targetDepartment.name}
               </p>
             </div>
-            {targetDepartment.defaultEmployee && (
-              <p className="text-[10px] text-muted-foreground mt-2">
-                Default assignee: <span className="font-bold text-primary">{targetDepartment.defaultEmployee}</span>
-              </p>
-            )}
           </div>
 
-          <div>
-            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 block">
-              Who processes this job?
-            </Label>
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-              <SelectTrigger className="w-full rounded-lg h-11 bg-background border-border">
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">
-                    {emp.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <AssigneePicker
+            deptName={targetDepartment.name}
+            employees={employees}
+            value={selectedEmployee}
+            onChange={setSelectedEmployee}
+          />
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -149,6 +133,7 @@ export function AssignModal({
           <div className="flex flex-col gap-2 pt-2">
             <Button
               onClick={handleAssign}
+              disabled={employeeToSend === null}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-lg font-semibold uppercase tracking-wider shadow-lg shadow-primary/30"
             >
               <ArrowRight size={16} className="mr-2" />

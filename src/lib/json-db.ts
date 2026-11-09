@@ -7,6 +7,7 @@
  */
 
 import { firestore } from './firebase-admin';
+import { resolveAssignee } from './dept-assignments';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatDuration } from './utils';
 import { workingMsBetween, shiftForDepartment } from './work-hours';
@@ -275,16 +276,14 @@ async function getNextOrder(deptId: string): Promise<number> {
   return max + 1;
 }
 
-// Karina's areas: any job that lands in one of these (Move, Complete, drag)
-// is always assigned to Karina, since she handles everything from there on.
-const KARINA_DEPARTMENT_NAMES = new Set(['KARINA', 'STAMP', 'NDE', 'O.S', 'READY TO SHIP']);
-const KARINA = 'Karina';
-
-/** 'Karina' when `deptId` is one of her areas, else undefined. */
-async function fixedOwnerForDept(deptId: string): Promise<string | undefined> {
+// Per-area assignee rules (lib/dept-assignments.ts): a job landing in an
+// area (Move, Complete, drag, or created there) gets that area's person —
+// e.g. NEW MATERIAL → Gaspar, CNC LATHE 1 → German, Karina's areas → Karina,
+// WOOD/BLUE PALLET → nobody, NIGHT SHIFT → Aldo or Mazo (the mover picks).
+/** Assignee for a job entering `deptId`, or undefined when the area has no rule. */
+async function assigneeForDept(deptId: string, requested?: string): Promise<string | undefined> {
   const d = await deptsCol().doc(deptId).get();
-  const name = String(d.data()?.name ?? '').trim().toUpperCase();
-  return KARINA_DEPARTMENT_NAMES.has(name) ? KARINA : undefined;
+  return resolveAssignee(String(d.data()?.name ?? ''), requested);
 }
 
 // ---------- jobsDB ----------
@@ -357,6 +356,8 @@ export const jobsDB = {
     const id = generateId();
     const order = await getNextOrder(data.departmentId);
     const now = new Date().toISOString();
+    // A new job starts in its area's person (e.g. NEW MATERIAL → Gaspar).
+    const ruleAssignee = await assigneeForDept(data.departmentId, data.assignedTo);
 
     const job: StoredJob = {
       id,
@@ -365,7 +366,7 @@ export const jobsDB = {
       priority: data.priority || 3,
       departmentId: data.departmentId,
       order,
-      assignedTo: data.assignedTo,
+      assignedTo: ruleAssignee !== undefined ? ruleAssignee || undefined : data.assignedTo,
       fileUrl: data.fileUrl,
       fileName: data.fileName,
       attachmentUrl: data.attachmentUrl,
@@ -417,10 +418,10 @@ export const jobsDB = {
 
     const current = doc.data()!;
 
-    // Moving into one of Karina's areas always assigns the job to her.
+    // Moving into an area with an assignee rule applies it.
     if (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId) {
-      const owner = await fixedOwnerForDept(data.departmentId);
-      if (owner) patch.assignedTo = owner;
+      const owner = await assigneeForDept(data.departmentId, data.assignedTo ?? current.assignedTo);
+      if (owner !== undefined) patch.assignedTo = owner;
     }
 
     if (opts?.discardDeptTime) {
@@ -528,10 +529,10 @@ export const jobsDB = {
       jobPatch.inProgress = false;
       jobPatch.inProgressAt = FieldValue.delete();
     }
-    // Dragged into one of Karina's areas: assign it to her.
+    // Dragged into an area with an assignee rule: apply it.
     if (targetDeptId !== data.departmentId) {
-      const owner = await fixedOwnerForDept(targetDeptId);
-      if (owner) jobPatch.assignedTo = owner;
+      const owner = await assigneeForDept(targetDeptId, data.assignedTo);
+      if (owner !== undefined) jobPatch.assignedTo = owner;
     }
     batch.update(ref, jobPatch);
 

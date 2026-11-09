@@ -204,7 +204,8 @@ export async function PUT(
           fromDeptId: currentJob.departmentId,
           toDeptId: body.targetDeptId,
           employeeId: body.employeeId,
-          employeeName: employeeName,
+          // The area's assignee rule may have replaced the picked person.
+          employeeName: updatedJob.assignedTo || employeeName,
           notes: [body.notes, timeNote].filter(Boolean).join(' — '),
         });
       }

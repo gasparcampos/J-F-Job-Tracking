@@ -22,6 +22,7 @@ import {
 import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard, ScanLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import { assignmentForDept } from '@/lib/dept-assignments';
 import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput, Fixture, CreateFixtureInput } from '@/types';
 import {
   KanbanColumn,
@@ -635,6 +636,14 @@ export default function Home() {
     // and the 15s background refresh snapped the card back to its old column.
     if (origin && targetDept.id !== origin) {
       if (!confirmMobileMove(activeJob, targetDept)) return;
+      // Areas where the person is picked (Night Shift -> Aldo/Mazo, Mill ->
+      // JR/Angel/Fedex): open the move dialog so it asks who.
+      if (assignmentForDept(targetDept.name)?.kind === 'choice') {
+        revertDragPreview(activeJob.id);
+        setMovingJob(activeJob);
+        setTargetDepartment(targetDept);
+        return;
+      }
       void moveJobTo(activeJob, targetDept, activeJob.assignedTo ?? '', '');
       return;
     }
@@ -1015,6 +1024,16 @@ export default function Home() {
   // job there right away, logging the notes typed in the picker and defaulting
   // the assignee to the target column's default employee.
   const handleChooseCompleteTarget = async (target: Department) => {
+    // Picking an area where the person must be chosen (e.g. Mill -> JR /
+    // Angel / Fedex): hand off to the move dialog so it asks who.
+    if (choiceJob && assignmentForDept(target.name)?.kind === 'choice') {
+      setMovingJob(choiceJob);
+      setTargetDepartment(target);
+      setChoiceJob(null);
+      setChoiceTargets([]);
+      setChoiceNotes('');
+      return;
+    }
     if (choiceJob) {
       await moveJobTo(choiceJob, target, target.defaultEmployee ?? '', choiceNotes);
     }
