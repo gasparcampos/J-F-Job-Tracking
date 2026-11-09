@@ -278,6 +278,17 @@ export function JobsTable({
                   </div>
                 ) : (
                 <div className="min-w-[380px] max-w-[560px] flex items-center gap-2">
+                  {/* Out Service first, then the note to its right. */}
+                  {job.outService && (
+                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
+                        Out Service
+                      </span>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-300 whitespace-nowrap">
+                        {job.outService}
+                      </span>
+                    </span>
+                  )}
                   {/* Double-click the note to edit it in place. */}
                   <span
                     onDoubleClick={() => openNote(job)}
@@ -297,16 +308,6 @@ export function JobsTable({
                       </span>
                     )}
                   </span>
-                  {job.outService && (
-                    <span className="inline-flex items-center gap-1 flex-shrink-0">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
-                        Out Service
-                      </span>
-                      <span className="text-[11px] text-amber-700 dark:text-amber-300 whitespace-nowrap">
-                        {job.outService}
-                      </span>
-                    </span>
-                  )}
                   {/* Deviation reason text, colored to match the unified DEV
                       icon in the actions column (red = pending, green =
                       approved, gray = rejected). */}
