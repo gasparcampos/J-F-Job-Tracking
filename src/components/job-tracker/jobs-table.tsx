@@ -31,10 +31,12 @@ interface JobsTableProps {
   // When provided (Shipped tab), shows a button that opens the part's full
   // time report as a PDF (departments worked + hours + movement history).
   onTimeReport?: (job: Job) => Promise<void> | void;
-  // When provided, double-clicking a job's note opens a small box to edit it
-  // in place (same field as "Additional Notes" in Edit Job).
-  onSaveNote?: (job: Job, notes: string) => Promise<boolean> | boolean | void;
+  // When provided, double-clicking a job's note (or its Out Service) opens a
+  // small box to edit it in place (same fields as in Edit Job).
+  onSaveNote?: (job: Job, value: string, field: NoteField) => Promise<boolean> | boolean | void;
 }
+
+export type NoteField = 'notes' | 'outService';
 
 export function JobsTable({
   jobs,
@@ -52,12 +54,14 @@ export function JobsTable({
   // Inline note editor: which row is open and its draft text.
   const [noteJobId, setNoteJobId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [noteField, setNoteField] = useState<NoteField>('notes');
   const [savingNote, setSavingNote] = useState(false);
 
-  const openNote = (job: Job) => {
+  const openNote = (job: Job, field: NoteField = 'notes') => {
     if (!onSaveNote) return;
     setNoteJobId(job.id);
-    setNoteDraft(job.notes ?? '');
+    setNoteField(field);
+    setNoteDraft((field === 'outService' ? job.outService : job.notes) ?? '');
   };
   const closeNote = () => {
     setNoteJobId(null);
@@ -65,9 +69,11 @@ export function JobsTable({
   };
   const saveNote = async (job: Job) => {
     if (!onSaveNote) return;
+    // Out Service is required on every job: don't allow clearing it.
+    if (noteField === 'outService' && !noteDraft.trim()) return;
     setSavingNote(true);
     try {
-      const ok = await onSaveNote(job, noteDraft.trim());
+      const ok = await onSaveNote(job, noteDraft.trim(), noteField);
       if (ok !== false) closeNote();
     } finally {
       setSavingNote(false);
@@ -245,7 +251,9 @@ export function JobsTable({
                   // Inline editor (opened by double-clicking the note).
                   <div className="min-w-[380px] max-w-[560px] space-y-1.5" onDoubleClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Notes</span>
+                      <span className={`text-[10px] font-semibold uppercase tracking-widest ${noteField === 'outService' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                        {noteField === 'outService' ? 'Out Service *' : 'Notes'}
+                      </span>
                       <DictationButton value={noteDraft} onChange={setNoteDraft} />
                     </div>
                     <textarea
@@ -257,14 +265,14 @@ export function JobsTable({
                         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void saveNote(job);
                       }}
                       rows={3}
-                      placeholder="Write the note..."
+                      placeholder={noteField === 'outService' ? 'Required, in English. e.g. NO NDE > PHOSPHATE' : 'Write the note...'}
                       className="w-full rounded-lg bg-background border border-primary/60 p-2 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => void saveNote(job)}
-                        disabled={savingNote}
+                        disabled={savingNote || (noteField === 'outService' && !noteDraft.trim())}
                         className="h-7 px-3 text-[11px] bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         {savingNote ? <Loader2 size={12} className="mr-1 animate-spin" /> : null}
@@ -280,7 +288,14 @@ export function JobsTable({
                 <div className="min-w-[380px] max-w-[560px] flex items-center gap-2">
                   {/* Out Service first, then the note to its right. */}
                   {job.outService && (
-                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                    <span
+                      onDoubleClick={() => openNote(job, 'outService')}
+                      onClick={() => {
+                        if (window.matchMedia('(hover: none)').matches) openNote(job, 'outService');
+                      }}
+                      title={onSaveNote ? 'Double-click to edit Out Service (on phone: one tap)' : undefined}
+                      className={`inline-flex items-center gap-1 flex-shrink-0 ${onSaveNote ? 'cursor-text rounded px-1 -mx-1 hover:bg-muted/60' : ''}`}
+                    >
                       <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-400/15 border border-amber-400/30 rounded-md px-1.5 py-0.5">
                         Out Service
                       </span>
