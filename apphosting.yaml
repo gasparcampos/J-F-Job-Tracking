@@ -61,7 +61,7 @@ env:
   # PIN login. "false" = app stays open (login works but isn't required).
   # Set to "true" once every user has a PIN in Usuarios.
   - variable: AUTH_ENABLED
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
 
