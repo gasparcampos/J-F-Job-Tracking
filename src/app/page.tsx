@@ -604,7 +604,7 @@ export default function Home() {
     if (origin && targetDept.id !== origin) {
       if (!confirmMobileMove(activeJob, targetDept)) return;
       // Areas where the person is picked (Night Shift -> Aldo/Francisco, Mill ->
-      // JR/Angel/Fedex): open the move dialog so it asks who.
+      // JR/Angel/Federico): open the move dialog so it asks who.
       if (assignmentForDept(targetDept.name)?.kind === 'choice') {
         revertDragPreview(activeJob.id);
         setMovingJob(activeJob);
@@ -992,7 +992,7 @@ export default function Home() {
   // the assignee to the target column's default employee.
   const handleChooseCompleteTarget = async (target: Department) => {
     // Picking an area where the person must be chosen (e.g. Mill -> JR /
-    // Angel / Fedex): hand off to the move dialog so it asks who.
+    // Angel / Federico): hand off to the move dialog so it asks who.
     if (choiceJob && assignmentForDept(target.name)?.kind === 'choice') {
       setMovingJob(choiceJob);
       setTargetDepartment(target);
