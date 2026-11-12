@@ -1521,11 +1521,11 @@ export default function Home() {
           )}
           {(me?.user?.role === 'admin' || (me && !me.authEnabled)) && (
             <Button variant="outline" size="sm" onClick={() => setShowUsers(true)} className="gap-1.5">
-              <Users size={14} /> Usuarios
+              <Users size={14} /> Users
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => (window.location.href = '/floor')} className="gap-1.5" title="Pantalla de los maquinistas">
-            <HardHat size={14} /> Piso
+          <Button variant="outline" size="sm" onClick={() => (window.location.href = '/floor')} className="gap-1.5" title="Machinists floor screen">
+            <HardHat size={14} /> Floor
           </Button>
           {me?.user ? (
             <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-muted-foreground">
@@ -1533,7 +1533,7 @@ export default function Home() {
             </Button>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => (window.location.href = '/login')} className="gap-1.5 text-muted-foreground">
-              <LogIn size={14} /> Entrar
+              <LogIn size={14} /> Login
             </Button>
           )}
         </div>

@@ -227,7 +227,7 @@ export default function FloorPage() {
 
       {myDepts.length === 0 ? (
         <p className="text-center text-muted-foreground p-10">
-          No tienes departamentos asignados. Pídele a un administrador que te los asigne en Usuarios.
+          No tienes departamentos asignados. Pídele a un administrador que te los asigne en Users.
         </p>
       ) : (
         <>

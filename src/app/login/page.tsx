@@ -120,7 +120,7 @@ export default function LoginPage() {
             </div>
           ) : users.length === 0 ? (
             <p className="text-center text-muted-foreground">
-              Todavía no hay usuarios con PIN. Un administrador debe darlos de alta en <b>Usuarios</b>.
+              Todavía no hay usuarios con PIN. Un administrador debe darlos de alta en <b>Users</b>.
             </p>
           ) : (
             <div className="space-y-6">

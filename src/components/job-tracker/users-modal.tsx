@@ -105,7 +105,7 @@ export function UsersModal({ open, departments, onClose }: UsersModalProps) {
               <Users size={18} className="text-primary-foreground" />
             </div>
             <div>
-              <h2 className="font-bold text-card-foreground">Usuarios</h2>
+              <h2 className="font-bold text-card-foreground">Users</h2>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Acceso con PIN</p>
             </div>
           </div>
