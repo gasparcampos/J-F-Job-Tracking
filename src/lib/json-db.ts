@@ -651,7 +651,7 @@ export const jobsDB = {
     return docToJob(updated.id, updated.data()!);
   },
 
-  async toggleInProgress(jobId: string): Promise<StoredJob | null> {
+  async toggleInProgress(jobId: string, startedBy?: string): Promise<StoredJob | null> {
     const ref = jobsCol().doc(jobId);
     const doc = await ref.get();
     if (!doc.exists) return null;
@@ -668,7 +668,7 @@ export const jobsDB = {
       jobId,
       toDeptId: data.departmentId,
       notes: inProgress
-        ? '🔥 In Progress started'
+        ? `🔥 In Progress started${startedBy ? ` by ${startedBy} (PIN)` : ''}`
         : `⏸️ In Progress stopped${elapsed > 0 ? ` — worked ${formatDuration(elapsed)}` : ''}`,
       timestamp: now,
     };

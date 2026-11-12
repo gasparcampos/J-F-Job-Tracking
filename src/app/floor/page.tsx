@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Wrench, LogOut, Loader2, FileText, Play, Pause, Check, NotebookPen, X, Flame, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { Wrench, LogOut, Loader2, FileText, Play, Pause, Check, NotebookPen, X, Flame, ArrowRight, LayoutDashboard, Delete, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import type { Job, Department } from '@/types';
 import { visibleDepartments, completeTargets } from '@/lib/dept-flow';
 import { assignmentForDept } from '@/lib/dept-assignments';
+import { sameName } from '@/lib/names';
 import { DictationButton } from '@/components/job-tracker/dictation-button';
 import {
   HoverPreview,
@@ -58,6 +59,8 @@ export default function FloorPage() {
   const [notesJob, setNotesJob] = useState<Job | null>(null);
   const [notesText, setNotesText] = useState('');
   const [complete, setComplete] = useState<CompleteState | null>(null);
+  // Start and Complete ask the machinist for their PIN; run() returns an error to show, or null when done.
+  const [pinAsk, setPinAsk] = useState<{ title: string; run: (pin: string) => Promise<string | null> } | null>(null);
 
   // Hovering the Router button floats the PDF (same window as the dashboard);
   // clicking it still opens the full viewer.
@@ -147,16 +150,13 @@ export default function FloorPage() {
   // flashing notice so they go see their manager instead of grabbing someone else's job.
   const hasNoAssignedJob = useMemo(() => {
     if (!me?.user || me.user.role !== 'machinist') return false;
-    const norm = (v: string) => v.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
-    const myName = norm(me.user.name);
     const depts = new Set(me.user.depts);
     return !jobs.some(
       (j) =>
         depts.has(j.departmentId) &&
         !j.shipped &&
         j.deviationStatus !== 'pending' &&
-        !!j.assignedTo &&
-        norm(j.assignedTo) === myName,
+        sameName(j.assignedTo, me.user!.name),
     );
   }, [me, jobs]);
 
@@ -170,17 +170,40 @@ export default function FloorPage() {
     toast({ title: 'Error', description: data.error || 'No se pudo completar', variant: 'destructive' });
   };
 
-  const toggleProgress = async (job: Job) => {
+  const isMachinist = me?.user?.role === 'machinist';
+  // Machinists can only Start/Complete the jobs assigned to them.
+  const isMine = (job: Job) => !isMachinist || sameName(job.assignedTo, me?.user?.name);
+
+  const errorText = async (res: Response) => {
+    const data = await res.json().catch(() => ({}));
+    return (data.error as string) || 'No se pudo completar';
+  };
+
+  const doToggle = async (job: Job, pin?: string): Promise<string | null> => {
     setBusyId(job.id);
     try {
-      const res = await fetch(`/api/jobs/${job.id}/in-progress`, { method: 'POST' });
-      if (!res.ok) return apiError(res);
+      const res = await fetch(`/api/jobs/${job.id}/in-progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pin ? { pin } : {}),
+      });
+      if (!res.ok) return errorText(res);
       const updated: Job = await res.json();
       replaceJob(updated);
       toast({ title: updated.inProgress ? '🔥 En progreso' : '⏸️ Pausado' });
+      return null;
     } finally {
       setBusyId(null);
     }
+  };
+
+  const toggleProgress = async (job: Job) => {
+    if (!job.inProgress && isMachinist) {
+      setPinAsk({ title: `Start ${job.jobNumber ? '#' + job.jobNumber : job.title}`, run: (pin) => doToggle(job, pin) });
+      return;
+    }
+    const err = await doToggle(job);
+    if (err) toast({ title: 'Error', description: err, variant: 'destructive' });
   };
 
   const startComplete = (job: Job) => {
@@ -197,9 +220,9 @@ export default function FloorPage() {
     return rule?.kind === 'choice' ? rule.names : null;
   };
 
-  const confirmComplete = async () => {
-    if (!complete?.target) return;
-    const { job, target, person, notes } = complete;
+  const doComplete = async (state: CompleteState, pin?: string): Promise<string | null> => {
+    const { job, target, person, notes } = state;
+    if (!target) return 'Escoge a dónde va';
     setBusyId(job.id);
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
@@ -209,15 +232,31 @@ export default function FloorPage() {
           targetDeptId: target.id,
           employeeName: person || target.defaultEmployee || '',
           notes: notes.trim(),
+          ...(pin ? { pin } : {}),
         }),
       });
-      if (!res.ok) return apiError(res);
+      if (!res.ok) return errorText(res);
       replaceJob(await res.json());
       toast({ title: '✔ Completado', description: `Enviado a ${target.name}` });
       setComplete(null);
+      return null;
     } finally {
       setBusyId(null);
     }
+  };
+
+  const confirmComplete = async () => {
+    if (!complete?.target) return;
+    const state = complete;
+    if (isMachinist) {
+      setPinAsk({
+        title: `Complete ${state.job.jobNumber ? '#' + state.job.jobNumber : state.job.title}`,
+        run: (pin) => doComplete(state, pin),
+      });
+      return;
+    }
+    const err = await doComplete(state);
+    if (err) toast({ title: 'Error', description: err, variant: 'destructive' });
   };
 
   const saveNotes = async () => {
@@ -380,16 +419,16 @@ export default function FloorPage() {
                     </Button>
                     <Button
                       type="button"
-                      disabled={busy}
+                      disabled={busy || (!job.inProgress && !isMine(job))}
                       onClick={() => toggleProgress(job)}
-                      className={`h-12 gap-2 font-bold text-white ${job.inProgress ? 'bg-sky-600 hover:bg-sky-500' : 'bg-orange-600 hover:bg-orange-500'}`}
+                      className={`h-12 gap-2 font-bold text-white disabled:bg-muted disabled:text-muted-foreground ${job.inProgress ? 'bg-sky-600 hover:bg-sky-500' : 'bg-orange-600 hover:bg-orange-500'}`}
                     >
                       {busy ? <Loader2 size={18} className="animate-spin" /> : job.inProgress ? <Pause size={18} /> : <Play size={18} />}
                       {job.inProgress ? 'Pausar' : 'Start'}
                     </Button>
                     <Button
                       type="button"
-                      disabled={busy || !job.inProgress}
+                      disabled={busy || !job.inProgress || !isMine(job)}
                       onClick={() => startComplete(job)}
                       title={job.inProgress ? 'Completar' : 'Primero dale Start'}
                       className="h-12 gap-2 font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground"
@@ -397,6 +436,11 @@ export default function FloorPage() {
                       <Check size={18} /> Complete
                     </Button>
                   </div>
+                  {!isMine(job) && (
+                    <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground -mt-1">
+                      <Lock size={12} /> {job.assignedTo ? `Asignado a ${job.assignedTo}` : 'Sin asignar — habla con tu manager'}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -414,6 +458,8 @@ export default function FloorPage() {
           hint="Click Router to open the full viewer"
         />
       )}
+
+      {pinAsk && <PinSheet title={pinAsk.title} run={pinAsk.run} onClose={() => setPinAsk(null)} />}
 
       {pdfJob && <PdfViewerModal job={pdfJob} onClose={() => setPdfJob(null)} departments={departments} />}
 
@@ -526,6 +572,99 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
           </button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+const PIN_LEN = 6;
+
+/** PIN pad shown before Start / Complete: confirms the assigned person is the one doing it. */
+function PinSheet({
+  title,
+  run,
+  onClose,
+}: {
+  title: string;
+  run: (pin: string) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const press = useCallback(
+    async (d: string) => {
+      if (busy || pin.length >= PIN_LEN) return;
+      setError('');
+      const next = pin + d;
+      setPin(next);
+      if (next.length < PIN_LEN) return;
+      setBusy(true);
+      const err = await run(next).catch(() => 'Sin conexión. Intenta de nuevo.');
+      setBusy(false);
+      if (err) {
+        setError(err);
+        setPin('');
+      } else {
+        onClose();
+      }
+    },
+    [busy, pin, run, onClose],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (/^\d$/.test(e.key)) void press(e.key);
+      else if (e.key === 'Backspace') setPin((p) => p.slice(0, -1));
+      else if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [press, onClose]);
+
+  const key = 'h-14 rounded-xl bg-muted/40 border border-border text-2xl font-bold text-card-foreground hover:bg-muted active:scale-95 transition';
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card w-full max-w-xs rounded-2xl border border-border p-5 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+        <div className="self-stretch flex items-center justify-between mb-1">
+          <h2 className="font-bold text-card-foreground">{title}</h2>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-card-foreground" aria-label="Cerrar">
+            <X size={20} />
+          </button>
+        </div>
+        <p className="self-start text-xs text-muted-foreground mb-4">Escribe tu PIN para confirmar</p>
+        <div className="flex gap-3 mb-2" aria-label="PIN">
+          {Array.from({ length: PIN_LEN }).map((_, i) => (
+            <span
+              key={i}
+              className={`w-4 h-4 rounded-full border-2 ${i < pin.length ? 'bg-primary border-primary' : 'border-muted-foreground/50'}`}
+            />
+          ))}
+        </div>
+        <p className="min-h-5 text-sm text-red-500 font-semibold mb-3 text-center">
+          {busy ? <Loader2 size={16} className="animate-spin inline text-muted-foreground" /> : error}
+        </p>
+        <div className="grid grid-cols-3 gap-2.5 w-full">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+            <button key={d} type="button" onClick={() => press(d)} className={key}>
+              {d}
+            </button>
+          ))}
+          <span />
+          <button type="button" onClick={() => press('0')} className={key}>
+            0
+          </button>
+          <button
+            type="button"
+            onClick={() => setPin((p) => p.slice(0, -1))}
+            className="h-14 rounded-xl text-muted-foreground hover:text-card-foreground flex items-center justify-center"
+            aria-label="Borrar"
+          >
+            <Delete size={22} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { usersDB } from '@/lib/json-db';
-import { checkPin, isValidPin, MAX_FAILED_ATTEMPTS, LOCKOUT_MS } from '@/lib/pin';
+import { isValidPin } from '@/lib/pin';
+import { verifyPinAttempt } from '@/lib/pin-attempt';
 import {
   SESSION_COOKIE,
   SESSION_LONG_MS,
@@ -20,27 +21,8 @@ export async function POST(request: NextRequest) {
     const user = await usersDB.getAuth(userId);
     if (!user || !user.isActive || !user.role || !user.hasPin) return fail('PIN incorrecto');
 
-    if (user.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now()) {
-      const mins = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
-      return fail(`Demasiados intentos. Intenta de nuevo en ${mins} min.`, 429);
-    }
-
-    if (!checkPin(pin, user.pinHash, user.pinSalt)) {
-      const attempts = user.failedAttempts + 1;
-      if (attempts >= MAX_FAILED_ATTEMPTS) {
-        await usersDB.update(user.id, {
-          failedAttempts: 0,
-          lockedUntil: new Date(Date.now() + LOCKOUT_MS).toISOString(),
-        });
-        return fail('Demasiados intentos. Bloqueado 15 min.', 429);
-      }
-      await usersDB.update(user.id, { failedAttempts: attempts });
-      return fail(`PIN incorrecto (${MAX_FAILED_ATTEMPTS - attempts} intentos restantes)`);
-    }
-
-    if (user.failedAttempts || user.lockedUntil) {
-      await usersDB.update(user.id, { failedAttempts: 0, lockedUntil: null });
-    }
+    const check = await verifyPinAttempt(user, pin);
+    if (!check.ok) return fail(check.error, check.status);
 
     const ttl = remember ? SESSION_LONG_MS : SESSION_SHORT_MS;
     const token = await signSession({

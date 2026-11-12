@@ -10,9 +10,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const denied = await machinistJobGuard(request, id, 'toggle');
+    // The floor screen sends { pin } when a machinist presses Start.
+    const body: Record<string, unknown> = await request.json().catch(() => ({}));
+    const denied = await machinistJobGuard(request, id, 'toggle', body);
     if (denied) return denied;
-    const job = await jobsDB.toggleInProgress(id);
+    const startedBy = typeof body.startedBy === 'string' ? body.startedBy : undefined;
+    const job = await jobsDB.toggleInProgress(id, startedBy);
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
