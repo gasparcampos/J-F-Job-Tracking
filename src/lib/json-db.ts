@@ -52,7 +52,9 @@ export interface StoredJob {
   productionNotes?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
-  deviationHistory?: Array<{ text: string; acceptedAt?: string }>;
+  deviationHistory?: Array<{ text: string; sentAt?: string; acceptedAt?: string }>;
+  deviationSentAt?: string;
+  deviationResolvedAt?: string;
   // Set true once the job is shipped (sent) from READY TO SHIP. A shipped job
   // leaves the Kanban board and lives in the Enviados (Shipped) list.
   shipped?: boolean;
@@ -236,6 +238,8 @@ function docToJob(id: string, data: FirebaseFirestore.DocumentData): StoredJob {
     deviation: data.deviation,
     deviationStatus: data.deviationStatus,
     deviationHistory: Array.isArray(data.deviationHistory) ? data.deviationHistory : [],
+    deviationSentAt: data.deviationSentAt || undefined,
+    deviationResolvedAt: data.deviationResolvedAt || undefined,
     shipped: data.shipped ?? false,
     shippedAt: data.shippedAt,
     history: Array.isArray(data.history) ? data.history : [],

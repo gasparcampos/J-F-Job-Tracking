@@ -17,6 +17,28 @@ import type { Job, Employee, UpdateJobInput, DeviationRecord } from '@/types';
 import { MAX_DEVIATIONS } from '@/types';
 import { DictationButton } from './dictation-button';
 
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleString([], { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+// When the job's current deviation was sent and accepted/rejected. Uses the
+// stamped fields; for deviations made before those existed, falls back to the
+// latest matching entries in the job's history log.
+function currentDeviationDates(job: Job | null): { sentAt?: string; resolvedAt?: string; acceptedAt?: string } {
+  if (!job) return {};
+  const hist = [...(job.history ?? [])].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+  const sentAt = job.deviationSentAt || hist.find((h) => h.notes?.startsWith('🚩 Sent to Deviations'))?.timestamp;
+  const resolvedAt =
+    job.deviationResolvedAt ||
+    (job.deviationStatus === 'accepted' || job.deviationStatus === 'rejected'
+      ? hist.find((h) => /^(✅|🚫) Deviation/.test(h.notes ?? ''))?.timestamp
+      : undefined);
+  return {
+    sentAt: sentAt || undefined,
+    resolvedAt: resolvedAt || undefined,
+    acceptedAt: job.deviationStatus === 'accepted' ? resolvedAt || new Date().toISOString() : undefined,
+  };
+}
+
 interface JobEditModalProps {
   job: Job | null;
   employees: Employee[];
@@ -353,11 +375,11 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                       <summary className="cursor-pointer list-none flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-green-500">
                         <CheckCircle2 size={12} className="flex-shrink-0" />
                         Deviation #{i + 1} · Approved
-                        {d.acceptedAt && (
-                          <span className="font-normal normal-case tracking-normal text-muted-foreground ml-1">
-                            {new Date(d.acceptedAt).toLocaleDateString()}
-                          </span>
-                        )}
+                        <span className="font-normal normal-case tracking-normal text-muted-foreground ml-1">
+                          {[d.sentAt && `Sent ${fmtDate(d.sentAt)}`, d.acceptedAt && `Approved ${fmtDate(d.acceptedAt)}`]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
                         <span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground truncate max-w-[55%] group-open:hidden">
                           {d.text}
                         </span>
@@ -371,6 +393,15 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                   <AlertTriangle size={12} className={deviationStatus === 'pending' ? 'text-red-500' : 'text-muted-foreground'} />
                   Deviation{deviationHistory.length > 0 ? ` #${deviationHistory.length + 1}` : ''}
+                  {/* Dates of the current deviation (as saved — not for a fresh, unsent one). */}
+                  {deviationStatus && deviationStatus === job.deviationStatus && (() => {
+                    const { sentAt, resolvedAt } = currentDeviationDates(job);
+                    const verb = deviationStatus === 'accepted' ? 'Approved' : deviationStatus === 'rejected' ? 'Rejected' : '';
+                    const txt = [sentAt && `Sent ${fmtDate(sentAt)}`, verb && resolvedAt && `${verb} ${fmtDate(resolvedAt)}`]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return txt ? <span className="normal-case tracking-normal font-normal ml-1 text-card-foreground/70">{txt}</span> : null;
+                  })()}
                   <span className="normal-case tracking-normal font-normal ml-1">(applies on Save Changes)</span>
                 </Label>
                 <div className="flex items-center gap-2">
@@ -422,9 +453,10 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                         type="button"
                         disabled={atMax}
                         onClick={() => {
+                          const { sentAt, acceptedAt } = currentDeviationDates(job);
                           setDeviationHistory((h) => [
                             ...h,
-                            { text: deviation.trim(), acceptedAt: new Date().toISOString() },
+                            { text: deviation.trim(), sentAt, acceptedAt },
                           ]);
                           setDeviation('');
                           setDeviationStatus('');

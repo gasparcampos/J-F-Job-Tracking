@@ -252,6 +252,21 @@ export async function PUT(
       }
     }
 
+    // Stamp when the current deviation was sent / resolved so each one keeps
+    // its real dates when it's archived by "New Deviation".
+    if (beforeJob && typeof body.deviationStatus === 'string' && body.deviationStatus !== (beforeJob.deviationStatus ?? '')) {
+      const now = new Date().toISOString();
+      if (body.deviationStatus === 'pending') {
+        body.deviationSentAt = now;
+        body.deviationResolvedAt = '';
+      } else if (body.deviationStatus === 'accepted' || body.deviationStatus === 'rejected') {
+        body.deviationResolvedAt = now;
+      } else if (body.deviationStatus === '') {
+        body.deviationSentAt = '';
+        body.deviationResolvedAt = '';
+      }
+    }
+
     // Regular update
     const job = await jobsDB.update(id, body);
 
