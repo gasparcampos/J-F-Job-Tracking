@@ -630,6 +630,9 @@ function HoverPreview({
 }) {
   const { isPdf, isImage } = fileKind(job);
   const src = toProxyUrl(job.fileUrl);
+  // "#2", "#3" once the part has earlier approved deviations.
+  const prevDevs = job.deviationHistory?.length ?? 0;
+  const devTag = prevDevs > 0 ? ` #${prevDevs + 1}` : '';
 
   return (
     <div
@@ -658,7 +661,7 @@ function HoverPreview({
       </div>
       {job.deviationStatus === 'pending' && (
         <div className="flex-shrink-0 bg-red-600 text-white text-center py-2 px-3 border-b-2 border-red-800 animate-pulse">
-          <p className="text-2xl font-black tracking-wider uppercase leading-tight">⚠ Pending Deviation</p>
+          <p className="text-2xl font-black tracking-wider uppercase leading-tight">⚠ Pending Deviation{devTag}</p>
           {job.deviation ? (
             <p className="text-xs font-semibold opacity-90 line-clamp-2 mt-0.5">{job.deviation}</p>
           ) : null}
@@ -666,7 +669,7 @@ function HoverPreview({
       )}
       {job.deviationStatus === 'accepted' && (
         <div className="flex-shrink-0 bg-emerald-600 text-white text-center py-2 px-3 border-b-2 border-emerald-800">
-          <p className="text-2xl font-black tracking-wider uppercase leading-tight">✔ Deviation Approved</p>
+          <p className="text-2xl font-black tracking-wider uppercase leading-tight">✔ Deviation{devTag} Approved</p>
           {job.deviation ? (
             <p className="text-xs font-semibold opacity-90 line-clamp-2 mt-0.5">{job.deviation}</p>
           ) : null}

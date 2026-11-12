@@ -77,6 +77,8 @@ export async function PUT(
         await jobsDB.update(id, {
           deviationStatus: '',
           deviation: '',
+          // Scrapped part restarts as new: its earlier deviations no longer apply.
+          deviationHistory: [],
           inProgress: false,
           departmentId: targetDeptId,
         });
@@ -265,13 +267,15 @@ export async function PUT(
       body.deviationStatus !== (beforeJob.deviationStatus ?? '')
     ) {
       const detail = (body.deviation ?? job.deviation ?? '').trim();
+      const devNum = (job.deviationHistory?.length ?? 0) + 1;
+      const tag = devNum > 1 ? ` #${devNum}` : '';
       let note = '';
       if (body.deviationStatus === 'pending') {
-        note = `🚩 Sent to Deviations${detail ? `: ${detail}` : ''}`;
+        note = `🚩 Sent to Deviations${tag}${detail ? `: ${detail}` : ''}`;
       } else if (body.deviationStatus === 'accepted') {
-        note = `✅ Deviation accepted${detail ? `: ${detail}` : ''}`;
+        note = `✅ Deviation${tag} accepted${detail ? `: ${detail}` : ''}`;
       } else if (body.deviationStatus === 'rejected') {
-        note = `🚫 Deviation rejected${detail ? `: ${detail}` : ''}`;
+        note = `🚫 Deviation${tag} rejected${detail ? `: ${detail}` : ''}`;
         if (rejectedMove) note += ' → moved to NEW MATERIAL';
       }
       if (note) {

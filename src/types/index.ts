@@ -75,6 +75,10 @@ export interface Job {
   // Deviations list until it's accepted or rejected.
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
+  // Earlier deviations on this job that were already approved. The current
+  // one lives in deviation/deviationStatus; "New Deviation" archives it here.
+  // Max MAX_DEVIATIONS total (history + current).
+  deviationHistory?: DeviationRecord[];
   // Shipped (sent) from READY TO SHIP. A shipped job leaves the Kanban board
   // and shows in the Enviados (Shipped) list until returned to active.
   shipped?: boolean;
@@ -83,6 +87,14 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface DeviationRecord {
+  text: string;
+  acceptedAt?: string;
+}
+
+// A part can carry at most this many deviations (approved history + current).
+export const MAX_DEVIATIONS = 3;
 
 // API Types
 export interface CreateJobInput {
@@ -142,6 +154,7 @@ export interface UpdateJobInput {
   productionNotes?: string;
   deviation?: string;
   deviationStatus?: 'pending' | 'accepted' | 'rejected' | '';
+  deviationHistory?: DeviationRecord[];
   shipped?: boolean;
   shippedAt?: string;
   // Full attachment list (Edit Job). The legacy single attachmentUrl/Name

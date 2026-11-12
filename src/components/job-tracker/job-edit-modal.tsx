@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Pencil, Save, AlertTriangle, Check, Ban, Paperclip, Loader2, Trash2, FileText } from 'lucide-react';
+import { X, Pencil, Save, AlertTriangle, Check, Ban, Paperclip, Loader2, Trash2, FileText, Plus, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Job, Employee, UpdateJobInput } from '@/types';
+import type { Job, Employee, UpdateJobInput, DeviationRecord } from '@/types';
+import { MAX_DEVIATIONS } from '@/types';
 import { DictationButton } from './dictation-button';
 
 interface JobEditModalProps {
@@ -46,6 +47,8 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
   const [outService, setOutService] = useState('');
   const [deviation, setDeviation] = useState('');
   const [deviationStatus, setDeviationStatus] = useState<'pending' | 'accepted' | 'rejected' | ''>('');
+  // Earlier, already-approved deviations (read-only blocks above the current one).
+  const [deviationHistory, setDeviationHistory] = useState<DeviationRecord[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   // Every attachment of the job (legacy single attachment merged in).
   const [attachments, setAttachments] = useState<Array<{ url: string; name: string }>>([]);
@@ -78,6 +81,7 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
     setOutService(job.outService ?? '');
     setDeviation(job.deviation ?? '');
     setDeviationStatus(job.deviationStatus ?? '');
+    setDeviationHistory(job.deviationHistory ?? []);
     const list = [...(job.attachments ?? [])];
     if (job.attachmentUrl) list.unshift({ url: job.attachmentUrl, name: job.attachmentName || 'Attachment' });
     setAttachments(list);
@@ -148,9 +152,11 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
         heatNumber: heatNumber.trim() || undefined,
         hrc: hrc.trim() || undefined,
         outService: outService.trim() || undefined,
-        deviation: deviation.trim() || undefined,
+        // Always sent (incl. '') so starting a New Deviation clears the old text.
+        deviation: deviation.trim(),
         // Always send the status (incl. '') so resolving a deviation clears it.
         deviationStatus,
+        deviationHistory,
         attachments,
         attachmentUrl: '',
         attachmentName: '',
@@ -339,10 +345,32 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                 deviation moves the job into the Deviations list until
                 accepted/rejected. */}
             <div className={`rounded-xl p-3 border ${deviationStatus === 'pending' ? 'border-red-500/60 bg-red-500/5' : 'border-border bg-muted/30'}`}>
+              {/* Earlier approved deviations, read-only. */}
+              {deviationHistory.length > 0 && (
+                <div className="space-y-1.5 mb-2.5">
+                  {deviationHistory.map((d, i) => (
+                    <details key={i} className="group rounded-lg border border-green-600/40 bg-green-600/10 px-2.5 py-1.5">
+                      <summary className="cursor-pointer list-none flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-green-500">
+                        <CheckCircle2 size={12} className="flex-shrink-0" />
+                        Deviation #{i + 1} · Approved
+                        {d.acceptedAt && (
+                          <span className="font-normal normal-case tracking-normal text-muted-foreground ml-1">
+                            {new Date(d.acceptedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                        <span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground truncate max-w-[55%] group-open:hidden">
+                          {d.text}
+                        </span>
+                      </summary>
+                      <p className="text-xs text-card-foreground whitespace-pre-wrap mt-1.5">{d.text || '—'}</p>
+                    </details>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center justify-between mb-1.5">
                 <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                   <AlertTriangle size={12} className={deviationStatus === 'pending' ? 'text-red-500' : 'text-muted-foreground'} />
-                  Deviation
+                  Deviation{deviationHistory.length > 0 ? ` #${deviationHistory.length + 1}` : ''}
                   <span className="normal-case tracking-normal font-normal ml-1">(applies on Save Changes)</span>
                 </Label>
                 <div className="flex items-center gap-2">
@@ -385,6 +413,36 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                       Rejected
                     </Button>
                   </div>
+                ) : deviationStatus === 'accepted' ? (
+                  // Approved: archive it and open a fresh block for the next one.
+                  (() => {
+                    const atMax = deviationHistory.length + 1 >= MAX_DEVIATIONS;
+                    return (
+                      <Button
+                        type="button"
+                        disabled={atMax}
+                        onClick={() => {
+                          setDeviationHistory((h) => [
+                            ...h,
+                            { text: deviation.trim(), acceptedAt: new Date().toISOString() },
+                          ]);
+                          setDeviation('');
+                          setDeviationStatus('');
+                        }}
+                        className="sm:w-44 h-auto min-h-9 rounded-lg text-xs font-semibold uppercase tracking-wider bg-orange-600 hover:bg-orange-700 text-white whitespace-normal disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                        title={atMax ? `A part can have at most ${MAX_DEVIATIONS} deviations` : 'Start a new deviation'}
+                      >
+                        {atMax ? (
+                          <>Max {MAX_DEVIATIONS} deviations</>
+                        ) : (
+                          <>
+                            <Plus size={14} className="mr-1.5 flex-shrink-0" />
+                            New Deviation
+                          </>
+                        )}
+                      </Button>
+                    );
+                  })()
                 ) : (
                   <Button
                     type="button"
