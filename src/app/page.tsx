@@ -603,7 +603,7 @@ export default function Home() {
     // and the 15s background refresh snapped the card back to its old column.
     if (origin && targetDept.id !== origin) {
       if (!confirmMobileMove(activeJob, targetDept)) return;
-      // Areas where the person is picked (Night Shift -> Aldo/Mazo, Mill ->
+      // Areas where the person is picked (Night Shift -> Aldo/Francisco, Mill ->
       // JR/Angel/Fedex): open the move dialog so it asks who.
       if (assignmentForDept(targetDept.name)?.kind === 'choice') {
         revertDragPreview(activeJob.id);

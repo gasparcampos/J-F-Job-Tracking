@@ -158,10 +158,10 @@ const DEFAULT_DEPARTMENTS: StoredDepartment[] = [
   { id: 'd6', name: 'ARTURO', color: '#10b981', order: 5, defaultEmployee: 'Arturo' },
   { id: 'd7', name: 'CNC Lathe 1', color: '#f97316', order: 6, defaultEmployee: 'German' },
   { id: 'd8', name: 'Manual Lathe', color: '#06b6d4', order: 7, defaultEmployee: 'Romulo' },
-  { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'Meno' },
+  { id: 'd9', name: 'LATHE DEBURR', color: '#84cc16', order: 8, defaultEmployee: 'José Sena' },
   { id: 'd10', name: 'LATHE INSPECTION', color: '#eab308', order: 9, defaultEmployee: 'Estrada' },
   { id: 'd11', name: 'MILL', color: '#ec4899', order: 10, defaultEmployee: 'JR' },
-  { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'Meno' },
+  { id: 'd12', name: 'MILL DEBURR', color: '#a855f7', order: 11, defaultEmployee: 'José Sena' },
   { id: 'd13', name: 'FINAL INSPECTION', color: '#14b8a6', order: 12, defaultEmployee: 'Estrada' },
   { id: 'd18', name: 'KARINA', color: '#d946ef', order: 13, defaultEmployee: 'Karina' },
   { id: 'd14', name: 'STAMP', color: '#f43f5e', order: 14, defaultEmployee: 'Chito' },
@@ -173,11 +173,11 @@ const DEFAULT_DEPARTMENTS: StoredDepartment[] = [
 const DEFAULT_EMPLOYEES: StoredEmployee[] = [
   { id: 'e1', name: 'Gaspar', isActive: true },
   { id: 'e2', name: 'Aldo', isActive: true },
-  { id: 'e3', name: 'Mazo', isActive: true },
+  { id: 'e3', name: 'Francisco', isActive: true },
   { id: 'e4', name: 'Arturo', isActive: true },
   { id: 'e5', name: 'German', isActive: true },
   { id: 'e6', name: 'Romulo', isActive: true },
-  { id: 'e7', name: 'Meno', isActive: true },
+  { id: 'e7', name: 'José Sena', isActive: true },
   { id: 'e8', name: 'Estrada', isActive: true },
   { id: 'e9', name: 'JR', isActive: true },
   { id: 'e10', name: 'Ángel', isActive: true },
@@ -287,7 +287,7 @@ async function getNextOrder(deptId: string): Promise<number> {
 // Per-area assignee rules (lib/dept-assignments.ts): a job landing in an
 // area (Move, Complete, drag, or created there) gets that area's person —
 // e.g. NEW MATERIAL → Gaspar, CNC LATHE 1 → German, Karina's areas → Karina,
-// WOOD/BLUE PALLET → nobody, NIGHT SHIFT → Aldo or Mazo (the mover picks).
+// WOOD/BLUE PALLET → nobody, NIGHT SHIFT → Aldo or Francisco (the mover picks).
 /** Assignee for a job entering `deptId`, or undefined when the area has no rule. */
 async function assigneeForDept(deptId: string, requested?: string): Promise<string | undefined> {
   const d = await deptsCol().doc(deptId).get();

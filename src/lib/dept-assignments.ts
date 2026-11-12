@@ -17,14 +17,14 @@ export type DeptAssignment =
 export const DEPT_ASSIGNMENTS: Record<string, DeptAssignment> = {
   'NEW MATERIAL': { kind: 'fixed', name: 'Gaspar' },
   'WOOD PALLET': { kind: 'none' },
-  'NIGHT SHIFT': { kind: 'choice', names: ['Aldo', 'Mazo'] },
+  'NIGHT SHIFT': { kind: 'choice', names: ['Aldo', 'Francisco'] },
   'BLUE PALLET': { kind: 'none' },
   'CNC LATHE 1': { kind: 'fixed', name: 'German' },
   // Víctor is "Romulo" in the employee list.
   'MANUAL LATHE': { kind: 'fixed', name: 'Romulo' },
-  // José Meño.
-  'LATHE DEBURR': { kind: 'fixed', name: 'Meno' },
-  'MILL DEBURR': { kind: 'fixed', name: 'Meno' },
+  // José Sena (was "Meno").
+  'LATHE DEBURR': { kind: 'fixed', name: 'José Sena' },
+  'MILL DEBURR': { kind: 'fixed', name: 'José Sena' },
   // José Estrada.
   'LATHE INSPECTION': { kind: 'fixed', name: 'Estrada' },
   'FINAL INSPECTION': { kind: 'fixed', name: 'Estrada' },
