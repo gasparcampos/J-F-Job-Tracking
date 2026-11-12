@@ -143,6 +143,23 @@ export default function FloorPage() {
     [jobs, tab],
   );
 
+  // A machinist with nothing assigned to them (in any of their areas) gets a big
+  // flashing notice so they go see their manager instead of grabbing someone else's job.
+  const hasNoAssignedJob = useMemo(() => {
+    if (!me?.user || me.user.role !== 'machinist') return false;
+    const norm = (v: string) => v.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
+    const myName = norm(me.user.name);
+    const depts = new Set(me.user.depts);
+    return !jobs.some(
+      (j) =>
+        depts.has(j.departmentId) &&
+        !j.shipped &&
+        j.deviationStatus !== 'pending' &&
+        !!j.assignedTo &&
+        norm(j.assignedTo) === myName,
+    );
+  }, [me, jobs]);
+
   const countFor = (deptId: string) =>
     jobs.filter((j) => j.departmentId === deptId && !j.shipped && j.deviationStatus !== 'pending').length;
 
@@ -281,6 +298,13 @@ export default function FloorPage() {
               </button>
             ))}
           </div>
+
+          {hasNoAssignedJob && (
+            <div className="mx-4 mt-4 rounded-2xl border-4 border-red-500 bg-red-600/90 px-6 py-8 text-center text-white shadow-2xl shadow-red-600/40 animate-pulse">
+              <p className="text-3xl sm:text-5xl font-black uppercase tracking-wide">⚠ Aún no tienes trabajo asignado</p>
+              <p className="mt-3 text-lg sm:text-2xl font-bold">Habla con tu manager.</p>
+            </div>
+          )}
 
           <main className="flex-1 p-4 grid gap-3 content-start sm:grid-cols-2 xl:grid-cols-3">
             {tabJobs.length === 0 && (
