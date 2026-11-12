@@ -182,19 +182,7 @@ export function DashboardView({
     clearTimers();
     openTimer.current = setTimeout(() => {
       if (draggingRef.current) return;
-      const r = el.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const margin = 12;
-      const w = Math.min(POPUP_W, vw - margin * 2);
-      const h = Math.min(POPUP_H, vh - margin * 2);
-      // Prefer the right side of the row; flip left if there's no room.
-      let left = r.right + 10;
-      if (left + w > vw - margin) left = r.left - w - 10;
-      if (left < margin) left = Math.max(margin, Math.min(vw - w - margin, r.left));
-      let top = r.top + r.height / 2 - h / 2;
-      top = Math.max(margin, Math.min(vh - h - margin, top));
-      setPreview({ job, top, left, w, h });
+      setPreview({ job, ...previewPlacement(el) });
     }, preview ? 60 : HOVER_OPEN_MS);
   };
 
@@ -654,18 +642,41 @@ function DueCountdown({ dueDate }: { dueDate?: string }) {
   );
 }
 
-function HoverPreview({
+export const PREVIEW_OPEN_MS = HOVER_OPEN_MS;
+export const PREVIEW_CLOSE_MS = HOVER_CLOSE_MS;
+
+/** Where to float the PDF preview next to `el`, clamped to the viewport. */
+export function previewPlacement(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 12;
+  const w = Math.min(POPUP_W, vw - margin * 2);
+  const h = Math.min(POPUP_H, vh - margin * 2);
+  // Prefer the right side of the element; flip left if there's no room.
+  let left = r.right + 10;
+  if (left + w > vw - margin) left = r.left - w - 10;
+  if (left < margin) left = Math.max(margin, Math.min(vw - w - margin, r.left));
+  let top = r.top + r.height / 2 - h / 2;
+  top = Math.max(margin, Math.min(vh - h - margin, top));
+  return { top, left, w, h };
+}
+
+export function HoverPreview({
   job,
   department,
   style,
   onMouseEnter,
   onMouseLeave,
+  hint = 'Click the job to open the full viewer · drag it to move or reorder',
 }: {
   job: Job;
   department?: Department;
   style: React.CSSProperties;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  /** Footer line under the PDF. */
+  hint?: string;
 }) {
   const { isPdf, isImage } = fileKind(job);
   const src = toProxyUrl(job.fileUrl);
@@ -737,7 +748,7 @@ function HoverPreview({
         )}
       </div>
       <p className="text-[9px] text-center text-muted-foreground py-1 border-t border-border flex-shrink-0">
-        Click the job to open the full viewer · drag it to move or reorder
+        {hint}
       </p>
     </div>
   );

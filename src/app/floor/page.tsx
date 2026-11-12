@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Wrench, LogOut, Loader2, FileText, Play, Pause, Check, NotebookPen, X, Flame, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,12 @@ import type { Job, Department } from '@/types';
 import { visibleDepartments, completeTargets } from '@/lib/dept-flow';
 import { assignmentForDept } from '@/lib/dept-assignments';
 import { DictationButton } from '@/components/job-tracker/dictation-button';
+import {
+  HoverPreview,
+  previewPlacement,
+  PREVIEW_OPEN_MS,
+  PREVIEW_CLOSE_MS,
+} from '@/components/job-tracker/dashboard-view';
 
 const PdfViewerModal = dynamic(
   () => import('@/components/job-tracker/pdf-viewer-modal').then((m) => m.PdfViewerModal),
@@ -52,6 +58,33 @@ export default function FloorPage() {
   const [notesJob, setNotesJob] = useState<Job | null>(null);
   const [notesText, setNotesText] = useState('');
   const [complete, setComplete] = useState<CompleteState | null>(null);
+
+  // Hovering the Router button floats the PDF (same window as the dashboard);
+  // clicking it still opens the full viewer.
+  const [hover, setHover] = useState<{ job: Job; top: number; left: number; w: number; h: number } | null>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHoverTimers = () => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    openTimer.current = closeTimer.current = null;
+  };
+  const hoverRouter = (job: Job, el: HTMLElement) => {
+    if (window.matchMedia('(hover: none)').matches || !job.fileUrl) return; // touch: tap opens it
+    clearHoverTimers();
+    openTimer.current = setTimeout(() => setHover({ job, ...previewPlacement(el) }), hover ? 60 : PREVIEW_OPEN_MS);
+  };
+  const leaveRouter = () => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    openTimer.current = null;
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setHover(null), PREVIEW_CLOSE_MS);
+  };
+  const keepHover = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  useEffect(() => clearHoverTimers, []);
 
   const loadData = useCallback(async () => {
     const [jr, dr] = await Promise.all([
@@ -299,7 +332,13 @@ export default function FloorPage() {
                       type="button"
                       variant="outline"
                       disabled={!job.fileUrl}
-                      onClick={() => setPdfJob(job)}
+                      onMouseEnter={(e) => hoverRouter(job, e.currentTarget)}
+                      onMouseLeave={leaveRouter}
+                      onClick={() => {
+                        clearHoverTimers();
+                        setHover(null);
+                        setPdfJob(job);
+                      }}
                       className="h-12 gap-2 font-semibold"
                     >
                       <FileText size={18} /> Router
@@ -339,6 +378,17 @@ export default function FloorPage() {
             })}
           </main>
         </>
+      )}
+
+      {hover && (
+        <HoverPreview
+          job={hover.job}
+          department={departments.find((d) => d.id === hover.job.departmentId)}
+          style={{ top: hover.top, left: hover.left, width: hover.w, height: hover.h }}
+          onMouseEnter={keepHover}
+          onMouseLeave={leaveRouter}
+          hint="Click Router to open the full viewer"
+        />
       )}
 
       {pdfJob && <PdfViewerModal job={pdfJob} onClose={() => setPdfJob(null)} departments={departments} />}
