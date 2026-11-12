@@ -656,6 +656,22 @@ function HoverPreview({
           P{job.priority}
         </span>
       </div>
+      {job.deviationStatus === 'pending' && (
+        <div className="flex-shrink-0 bg-red-600 text-white text-center py-2 px-3 border-b-2 border-red-800 animate-pulse">
+          <p className="text-2xl font-black tracking-wider uppercase leading-tight">⚠ Pending Deviation</p>
+          {job.deviation ? (
+            <p className="text-xs font-semibold opacity-90 line-clamp-2 mt-0.5">{job.deviation}</p>
+          ) : null}
+        </div>
+      )}
+      {job.deviationStatus === 'accepted' && (
+        <div className="flex-shrink-0 bg-emerald-600 text-white text-center py-2 px-3 border-b-2 border-emerald-800">
+          <p className="text-2xl font-black tracking-wider uppercase leading-tight">✔ Deviation Approved</p>
+          {job.deviation ? (
+            <p className="text-xs font-semibold opacity-90 line-clamp-2 mt-0.5">{job.deviation}</p>
+          ) : null}
+        </div>
+      )}
       <div className="flex-1 min-h-0 bg-white">
         {isPdf ? (
           <iframe
