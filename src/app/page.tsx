@@ -1559,7 +1559,9 @@ export default function Home() {
           >
             <DashboardView
               departments={departments}
-              jobs={filteredJobs.filter((j) => !isShipped(j))}
+              // Pending deviations leave the board (they live in the Deviations
+              // list) and return to their department once approved.
+              jobs={filteredJobs.filter((j) => !isShipped(j) && !isPendingDeviation(j))}
               onOpenJob={setPdfJob}
               getDeptOptions={(dept) => {
                 const name = dept.name.trim().toUpperCase();
@@ -1601,7 +1603,8 @@ export default function Home() {
               {displayDepartments.map((dept) => {
                 const deptJobs = filteredJobs
                   // Shipped jobs leave the board — they live in the Enviados list.
-                  .filter((j) => j.departmentId === dept.id && !isShipped(j))
+                  // Pending deviations too — they live in the Deviations list.
+                  .filter((j) => j.departmentId === dept.id && !isShipped(j) && !isPendingDeviation(j))
                   // Sort by priority (P1 at top), then manual order as tiebreaker.
                   .sort(
                     (a, b) =>
