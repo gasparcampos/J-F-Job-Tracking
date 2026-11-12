@@ -220,7 +220,7 @@ export default function FloorPage() {
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={logout} className="gap-1.5">
-            <LogOut size={14} /> Salir
+            <LogOut size={14} /> Logout
           </Button>
         </div>
       </nav>

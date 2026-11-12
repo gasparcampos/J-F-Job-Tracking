@@ -1529,7 +1529,7 @@ export default function Home() {
           </Button>
           {me?.user ? (
             <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-muted-foreground">
-              <LogOut size={14} /> Salir
+              <LogOut size={14} /> Logout
             </Button>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => (window.location.href = '/login')} className="gap-1.5 text-muted-foreground">
