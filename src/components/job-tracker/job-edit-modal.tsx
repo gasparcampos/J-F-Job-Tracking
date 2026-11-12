@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Job, Employee, UpdateJobInput, DeviationRecord } from '@/types';
+import type { Job, Employee, UpdateJobInput, DeviationRecord, Department } from '@/types';
+import { assignmentForDept } from '@/lib/dept-assignments';
 import { MAX_DEVIATIONS } from '@/types';
 import { DictationButton } from './dictation-button';
 
@@ -42,13 +43,15 @@ function currentDeviationDates(job: Job | null): { sentAt?: string; resolvedAt?:
 interface JobEditModalProps {
   job: Job | null;
   employees: Employee[];
+  /** To know the job's area (pallets only take machinists). */
+  departments?: Department[];
   // Returns true if saved. When false (e.g. duplicate JOB#), the modal
   // stays open so the user can fix the value.
   onSave: (jobId: string, data: UpdateJobInput) => Promise<boolean> | void;
   onClose: () => void;
 }
 
-export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalProps) {
+export function JobEditModal({ job, employees, departments, onSave, onClose }: JobEditModalProps) {
   const [title, setTitle] = useState('');
   const [jobNumber, setJobNumber] = useState('');
   const [name, setName] = useState('');
@@ -275,7 +278,12 @@ export function JobEditModal({ job, employees, onSave, onClose }: JobEditModalPr
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="__none__" className="hover:bg-muted">Unassigned</SelectItem>
-                    {employees.map((emp) => (
+                    {/* In a pallet only machinists can be assigned (admins don't machine);
+                        the current assignee stays listed so the field isn't blank. */}
+                    {(assignmentForDept(departments?.find((d) => d.id === job.departmentId)?.name)?.kind === 'machinists'
+                      ? employees.filter((e) => e.role === 'machinist' || e.name === job.assignedTo)
+                      : employees
+                    ).map((emp) => (
                       <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">{emp.name}</SelectItem>
                     ))}
                   </SelectContent>

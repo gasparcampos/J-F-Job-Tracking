@@ -6,19 +6,22 @@
  *  - fixed:  always this person.
  *  - none:   nobody (the job sits unassigned there).
  *  - choice: one of these people; the move dialog asks which one.
+ *  - machinists: optional, but only someone with the machinist role (admins
+ *    don't machine); the dialog lists just them.
  *
  * Areas not listed keep whoever the mover picked.
  */
 export type DeptAssignment =
   | { kind: 'fixed'; name: string }
   | { kind: 'none' }
-  | { kind: 'choice'; names: string[] };
+  | { kind: 'choice'; names: string[] }
+  | { kind: 'machinists' };
 
 export const DEPT_ASSIGNMENTS: Record<string, DeptAssignment> = {
   'NEW MATERIAL': { kind: 'fixed', name: 'Gaspar' },
-  'WOOD PALLET': { kind: 'none' },
+  'WOOD PALLET': { kind: 'machinists' },
   'NIGHT SHIFT': { kind: 'choice', names: ['Aldo', 'Francisco'] },
-  'BLUE PALLET': { kind: 'none' },
+  'BLUE PALLET': { kind: 'machinists' },
   'CNC LATHE 1': { kind: 'fixed', name: 'German' },
   // Víctor is "Romulo" in the employee list.
   'MANUAL LATHE': { kind: 'fixed', name: 'Romulo' },
@@ -50,12 +53,22 @@ const fold = (s: string) =>
  * Assignee a job must have after moving into `deptName`, given who the mover
  * picked (`requested`). Returns undefined when the area has no rule.
  * For a `choice` area, a pick outside the list becomes '' (unassigned).
+ * For a `machinists` area, `machinistNames` is the allowed list (anyone else
+ * becomes ''); without it the area isn't enforced.
  */
-export function resolveAssignee(deptName: string | undefined, requested: string | undefined): string | undefined {
+export function resolveAssignee(
+  deptName: string | undefined,
+  requested: string | undefined,
+  machinistNames?: string[],
+): string | undefined {
   const rule = assignmentForDept(deptName);
   if (!rule) return undefined;
   if (rule.kind === 'fixed') return rule.name;
   if (rule.kind === 'none') return '';
+  if (rule.kind === 'machinists') {
+    if (!machinistNames) return undefined;
+    return machinistNames.find((n) => fold(n) === fold(requested ?? '')) ?? '';
+  }
   const pick = rule.names.find((n) => fold(n) === fold(requested ?? ''));
   return pick ?? '';
 }

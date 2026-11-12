@@ -20,6 +20,7 @@ const NONE = '__none__';
  *  - fixed  → shows the person, locked.
  *  - none   → shows "Sin asignar", locked.
  *  - choice → one button per person; the mover must pick one.
+ *  - machinists → the list, but only machinists (or Unassigned).
  *  - no rule → the regular employee list.
  * `value` is an employee name or '__none__'.
  */
@@ -91,16 +92,19 @@ export function AssigneePicker({
     );
   }
 
+  // Pallets: only machinists (admins don't machine), or nobody.
+  const options = rule?.kind === 'machinists' ? machinistsOnly(employees) : employees;
+
   return (
     <div>
       {label}
-      <Select value={value} onValueChange={onChange}>
+      <Select value={rule?.kind === 'machinists' && !options.some((e) => e.name === value) ? NONE : value} onValueChange={onChange}>
         <SelectTrigger className="w-full rounded-lg h-11 bg-background border-border">
           <SelectValue placeholder="Select employee" />
         </SelectTrigger>
         <SelectContent className="bg-card border-border">
           <SelectItem value={NONE} className="hover:bg-muted">Unassigned</SelectItem>
-          {employees.map((emp) => (
+          {options.map((emp) => (
             <SelectItem key={emp.id} value={emp.name} className="hover:bg-muted">
               {emp.name}
             </SelectItem>
@@ -121,4 +125,9 @@ export function assigneeToSend(deptName: string | undefined, value: string): str
   if (rule?.kind === 'none') return '';
   if (rule?.kind === 'choice') return rule.names.includes(value) ? value : null;
   return value === NONE ? '' : value;
+}
+
+/** People with the machinist role (pallet assignees). */
+export function machinistsOnly(employees: Employee[]): Employee[] {
+  return employees.filter((e) => e.role === 'machinist');
 }

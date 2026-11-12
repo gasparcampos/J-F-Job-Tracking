@@ -1842,6 +1842,7 @@ export default function Home() {
       <JobEditModal
         job={editingJob}
         employees={employees}
+        departments={allDepartments}
         onSave={handleUpdateJob}
         onClose={() => setEditingJob(null)}
       />

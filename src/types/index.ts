@@ -12,6 +12,8 @@ export interface Employee {
   email?: string;
   avatar?: string;
   isActive: boolean;
+  // Login role; pallets can only be assigned to machinists.
+  role?: 'admin' | 'machinist' | '';
 }
 
 export interface JobHistoryEntry {

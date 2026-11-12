@@ -7,7 +7,7 @@
  */
 
 import { firestore } from './firebase-admin';
-import { resolveAssignee } from './dept-assignments';
+import { resolveAssignee, assignmentForDept } from './dept-assignments';
 import { FieldValue } from 'firebase-admin/firestore';
 import { formatDuration } from './utils';
 import { workingMsBetween, shiftForDepartment } from './work-hours';
@@ -91,6 +91,7 @@ export interface StoredEmployee {
   email?: string;
   avatar?: string;
   isActive: boolean;
+  role?: 'admin' | 'machinist' | '';
 }
 
 export interface StoredExtraPart {
@@ -287,11 +288,19 @@ async function getNextOrder(deptId: string): Promise<number> {
 // Per-area assignee rules (lib/dept-assignments.ts): a job landing in an
 // area (Move, Complete, drag, or created there) gets that area's person —
 // e.g. NEW MATERIAL → Gaspar, CNC LATHE 1 → German, Karina's areas → Karina,
-// WOOD/BLUE PALLET → nobody, NIGHT SHIFT → Aldo or Francisco (the mover picks).
+// WOOD/BLUE PALLET → a machinist or nobody, NIGHT SHIFT → Aldo or Francisco (the mover picks).
 /** Assignee for a job entering `deptId`, or undefined when the area has no rule. */
 async function assigneeForDept(deptId: string, requested?: string): Promise<string | undefined> {
   const d = await deptsCol().doc(deptId).get();
-  return resolveAssignee(String(d.data()?.name ?? ''), requested);
+  const name = String(d.data()?.name ?? '');
+  const machinists = assignmentForDept(name)?.kind === 'machinists' ? await machinistNames() : undefined;
+  return resolveAssignee(name, requested, machinists);
+}
+
+/** Active people with the machinist role (the only ones a pallet can be assigned to). */
+async function machinistNames(): Promise<string[]> {
+  const snap = await empsCol().where('role', '==', 'machinist').get();
+  return snap.docs.filter((d) => d.data().isActive !== false).map((d) => String(d.data().name ?? ''));
 }
 
 // ---------- jobsDB ----------
@@ -430,6 +439,13 @@ export const jobsDB = {
     if (typeof data.departmentId === 'string' && data.departmentId !== current.departmentId) {
       const owner = await assigneeForDept(data.departmentId, data.assignedTo ?? current.assignedTo);
       if (owner !== undefined) patch.assignedTo = owner;
+    } else if (typeof data.assignedTo === 'string' && data.assignedTo !== current.assignedTo) {
+      // Re-assigning in place (e.g. Edit Job) still follows a pallet's
+      // machinists-only rule.
+      const d = await deptsCol().doc(current.departmentId).get();
+      if (assignmentForDept(String(d.data()?.name ?? ''))?.kind === 'machinists') {
+        patch.assignedTo = await assigneeForDept(current.departmentId, data.assignedTo);
+      }
     }
 
     if (opts?.discardDeptTime) {
@@ -764,6 +780,7 @@ export const employeesDB = {
         email: data.email,
         avatar: data.avatar,
         isActive: data.isActive ?? true,
+        role: data.role === 'admin' || data.role === 'machinist' ? data.role : '',
       });
     });
     return out.sort((a, b) => a.name.localeCompare(b.name));
