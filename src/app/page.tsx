@@ -19,7 +19,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard, ScanLine } from 'lucide-react';
+import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard, ScanLine, Users, HardHat, LogOut, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { assignmentForDept } from '@/lib/dept-assignments';
@@ -39,6 +39,7 @@ import {
   FixtureFormModal,
   QrScannerModal,
   DashboardView,
+  UsersModal,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -47,60 +48,13 @@ const PdfViewerModal = dynamic(
   { ssr: false }
 );
 
-// Columns hidden from the board for now. Nothing is deleted — the department
-// and any jobs inside it stay saved in Firestore; just remove the name from
-// this set to show the column again.
-const HIDDEN_DEPARTMENT_NAMES = new Set(['ARTURO', 'CUT SAW (SEGUETA)']);
-const visibleDepartments = (list: Department[]) =>
-  list.filter((d) => !HIDDEN_DEPARTMENT_NAMES.has(d.name.trim().toUpperCase()));
-
-// Columns that are just hand-off stages: their cards show ONLY the Move button
-// (no Progress / no Complete). The operator only routes the job onward from here.
-// Karina's five areas (KARINA, STAMP, NDE, O.S, READY TO SHIP) are Move-only
-// too; READY TO SHIP also gets Ship. Jobs entering them are auto-assigned to
-// Karina server-side (see KARINA_DEPARTMENT_NAMES in lib/json-db.ts).
-const MOVE_ONLY_DEPARTMENT_NAMES = new Set([
-  'NEW MATERIAL',
-  'WOOD PALLET',
-  'BLUE PALLET',
-  'KARINA',
-  'STAMP',
-  'NDE',
-  'O.S',
-  'READY TO SHIP',
-]);
-
-// Production columns that follow a strict flow: cards show ONLY Progress +
-// Complete (no Move). The job advances through Complete, not manual moves.
-const NO_MOVE_DEPARTMENT_NAMES = new Set([
-  'NIGHT SHIFT',
-  'CNC LATHE 1',
-  'MANUAL LATHE',
-  'LATHE DEBURR',
-  'LATHE INSPECTION',
-  'MILL',
-  'MILL DEBURR',
-  'FINAL INSPECTION',
-]);
-
-// When Complete is pressed in a given column, force the job into this target
-// column (by name) instead of just the next one in order. Keeps the default
-// destination correct even if columns are hidden or reordered.
-const COMPLETE_TARGET_OVERRIDES: Record<string, string> = {
-  'NIGHT SHIFT': 'BLUE PALLET',
-  'CNC LATHE 1': 'LATHE DEBURR',
-  'MANUAL LATHE': 'LATHE DEBURR',
-  'LATHE DEBURR': 'LATHE INSPECTION',
-  'STAMP': 'KARINA',
-};
-
-// When Complete is pressed in these columns, pop up a small picker so the
-// operator chooses between the listed target columns instead of a single
-// default (e.g. Lathe Inspection → Mill or Karina).
-const COMPLETE_CHOICE_OVERRIDES: Record<string, string[]> = {
-  'LATHE INSPECTION': ['MILL', 'KARINA', 'STAMP'],
-  'FINAL INSPECTION': ['KARINA', 'STAMP'],
-};
+import {
+  visibleDepartments,
+  MOVE_ONLY_DEPARTMENT_NAMES,
+  NO_MOVE_DEPARTMENT_NAMES,
+  COMPLETE_TARGET_OVERRIDES,
+  COMPLETE_CHOICE_OVERRIDES,
+} from "@/lib/dept-flow";
 
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -124,6 +78,19 @@ export default function Home() {
   // In-app QR reader (inventory): scanning an Extra Part / Fixture label
   // opens that record in edit mode.
   const [isScanning, setIsScanning] = useState(false);
+  // PIN login: who is signed in, and the admin Usuarios screen.
+  const [me, setMe] = useState<{ authEnabled: boolean; user: { name: string; role: string } | null } | null>(null);
+  const [showUsers, setShowUsers] = useState(false);
+  useEffect(() => {
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, []);
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
@@ -1544,7 +1511,34 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Right cluster: who's signed in, Usuarios (admins), floor screen, logout. */}
+        <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
+          {me?.user && (
+            <span className="text-xs text-muted-foreground">
+              <span className="font-semibold text-card-foreground">{me.user.name}</span>
+            </span>
+          )}
+          {(me?.user?.role === 'admin' || (me && !me.authEnabled)) && (
+            <Button variant="outline" size="sm" onClick={() => setShowUsers(true)} className="gap-1.5">
+              <Users size={14} /> Usuarios
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => (window.location.href = '/floor')} className="gap-1.5" title="Pantalla de los maquinistas">
+            <HardHat size={14} /> Piso
+          </Button>
+          {me?.user ? (
+            <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-muted-foreground">
+              <LogOut size={14} /> Salir
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => (window.location.href = '/login')} className="gap-1.5 text-muted-foreground">
+              <LogIn size={14} /> Entrar
+            </Button>
+          )}
+        </div>
       </nav>
+      <UsersModal open={showUsers} departments={departments} onClose={() => setShowUsers(false)} />
 
       {/* Main Content */}
       <main className="flex-1 min-h-0 p-4 overflow-hidden">

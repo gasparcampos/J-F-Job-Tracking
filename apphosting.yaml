@@ -58,6 +58,13 @@ env:
     availability:
       - RUNTIME
 
+  # PIN login. "false" = app stays open (login works but isn't required).
+  # Set to "true" once every user has a PIN in Usuarios.
+  - variable: AUTH_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+
   - variable: ZAI_BASE_URL
     value: https://api.z.ai/api/paas/v4
     availability:

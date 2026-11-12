@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jobsDB, employeesDB, departmentsDB } from '@/lib/json-db';
 import { formatDuration } from '@/lib/utils';
 import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
+import { machinistJobGuard } from '@/lib/machinist-guard';
 
 export const runtime = 'nodejs';
 
@@ -42,6 +43,11 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+
+    // A logged-in machinist may only Complete jobs in their own departments
+    // or save production notes; anything else is refused here.
+    const denied = await machinistJobGuard(request, id, 'update', body);
+    if (denied) return denied;
 
     // If adding annotation
     if (body.annotation) {

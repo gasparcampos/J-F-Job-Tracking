@@ -14,3 +14,4 @@ export { FixturesTable } from './fixtures-table';
 export { FixtureFormModal } from './fixture-form-modal';
 export { QrScannerModal } from './qr-scanner-modal';
 export { DashboardView } from './dashboard-view';
+export { UsersModal } from './users-modal';

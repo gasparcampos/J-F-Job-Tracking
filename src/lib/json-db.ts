@@ -803,6 +803,82 @@ export const employeesDB = {
   },
 };
 
+// ---------- usersDB (PIN login on top of the employee records) ----------
+
+export interface StoredUser {
+  id: string;
+  name: string;
+  isActive: boolean;
+  role: 'admin' | 'machinist' | '';
+  departmentIds: string[];
+  hasPin: boolean;
+}
+
+export interface StoredUserAuth extends StoredUser {
+  pinHash?: string;
+  pinSalt?: string;
+  failedAttempts: number;
+  lockedUntil?: string;
+}
+
+function docToUserAuth(id: string, v: FirebaseFirestore.DocumentData): StoredUserAuth {
+  return {
+    id,
+    name: v.name ?? '',
+    isActive: v.isActive ?? true,
+    role: v.role === 'admin' || v.role === 'machinist' ? v.role : '',
+    departmentIds: Array.isArray(v.departmentIds) ? v.departmentIds : [],
+    hasPin: !!v.pinHash,
+    pinHash: v.pinHash,
+    pinSalt: v.pinSalt,
+    failedAttempts: v.failedAttempts ?? 0,
+    lockedUntil: v.lockedUntil,
+  };
+}
+
+// Never hand the PIN hash/salt or lockout counters to a caller that only lists.
+const publicUser = ({ id, name, isActive, role, departmentIds, hasPin }: StoredUserAuth): StoredUser => ({
+  id, name, isActive, role, departmentIds, hasPin,
+});
+
+export const usersDB = {
+  /** Every employee record (inactive included) with its login settings. */
+  async listAll(): Promise<StoredUser[]> {
+    const snap = await empsCol().get();
+    const out: StoredUser[] = [];
+    snap.forEach((d) => out.push(publicUser(docToUserAuth(d.id, d.data()))));
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  async getAuth(id: string): Promise<StoredUserAuth | null> {
+    const doc = await empsCol().doc(id).get();
+    return doc.exists ? docToUserAuth(doc.id, doc.data()!) : null;
+  },
+
+  async update(
+    id: string,
+    patch: Partial<{
+      name: string;
+      isActive: boolean;
+      role: 'admin' | 'machinist' | '';
+      departmentIds: string[];
+      pinHash: string;
+      pinSalt: string;
+      failedAttempts: number;
+      lockedUntil: string | null;
+    }>,
+  ): Promise<StoredUser | null> {
+    const ref = empsCol().doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const data: Record<string, unknown> = { ...patch };
+    if (patch.lockedUntil === null) data.lockedUntil = FieldValue.delete();
+    await ref.update(stripUndefined(data));
+    const after = await ref.get();
+    return publicUser(docToUserAuth(after.id, after.data()!));
+  },
+};
+
 // ---------- extraPartsDB ----------
 
 function docToExtraPart(id: string, data: FirebaseFirestore.DocumentData): StoredExtraPart {

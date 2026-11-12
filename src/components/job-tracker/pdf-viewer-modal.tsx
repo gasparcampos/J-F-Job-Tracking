@@ -261,15 +261,18 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
             >
               <ExternalLink size={16} />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAnnotationForm(!showAnnotationForm)}
-              className={`gap-1 sm:ml-2 hidden sm:inline-flex ${showAnnotationForm ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <Plus size={16} />
-              Note
-            </Button>
+            {/* Only where notes can be saved (not on the machinists' screen). */}
+            {onSaveAnnotation && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAnnotationForm(!showAnnotationForm)}
+                className={`gap-1 sm:ml-2 hidden sm:inline-flex ${showAnnotationForm ? 'bg-primary text-primary-foreground' : ''}`}
+              >
+                <Plus size={16} />
+                Note
+              </Button>
+            )}
             <button
               onClick={onClose}
               aria-label="Cerrar"
