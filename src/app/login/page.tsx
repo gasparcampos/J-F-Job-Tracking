@@ -18,6 +18,22 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // The login screen shows machinists by default; admins sign in from a separate
+  // view (?as=admin) so the floor never sees the office names.
+  const [mode, setMode] = useState<'floor' | 'admin'>('floor');
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('as') === 'admin') setMode('admin');
+  }, []);
+
+  const switchMode = (m: 'floor' | 'admin') => {
+    setMode(m);
+    const q = new URLSearchParams(window.location.search);
+    if (m === 'admin') q.set('as', 'admin');
+    else q.delete('as');
+    const qs = q.toString();
+    window.history.replaceState(null, '', '/login' + (qs ? '?' + qs : ''));
+  };
 
   useEffect(() => {
     fetch('/api/auth/users', { cache: 'no-store' })
@@ -84,6 +100,7 @@ export default function LoginPage() {
 
   const admins = (users ?? []).filter((u) => u.role === 'admin');
   const machinists = (users ?? []).filter((u) => u.role === 'machinist');
+  const shown = mode === 'admin' ? admins : machinists;
 
   const nameButton = (u: LoginUser) => (
     <button
@@ -118,30 +135,43 @@ export default function LoginPage() {
             <div className="flex justify-center py-12 text-muted-foreground">
               <Loader2 className="animate-spin" />
             </div>
-          ) : users.length === 0 ? (
-            <p className="text-center text-muted-foreground">
-              Todavía no hay usuarios con PIN. Un administrador debe darlos de alta en <b>Users</b>.
-            </p>
           ) : (
-            <div className="space-y-6">
-              {admins.length > 0 && (
-                <section>
-                  <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-                    <ShieldCheck size={14} /> Administración
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{admins.map(nameButton)}</div>
-                </section>
+            <section>
+              <h2 className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                {mode === 'admin' ? (
+                  <>
+                    <ShieldCheck size={14} /> Admin
+                  </>
+                ) : (
+                  <>
+                    <HardHat size={14} /> Floor
+                  </>
+                )}
+              </h2>
+              {shown.length === 0 ? (
+                <p className="text-center text-muted-foreground">No users with a PIN yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{shown.map(nameButton)}</div>
               )}
-              {machinists.length > 0 && (
-                <section>
-                  <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-                    <HardHat size={14} /> Piso
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{machinists.map(nameButton)}</div>
-                </section>
-              )}
-            </div>
+            </section>
           )}
+          <div className="mt-10 flex justify-center">
+            <button
+              type="button"
+              onClick={() => switchMode(mode === 'admin' ? 'floor' : 'admin')}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-card-foreground"
+            >
+              {mode === 'admin' ? (
+                <>
+                  <ArrowLeft size={13} /> Floor login
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={13} /> Admin login
+                </>
+              )}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="w-full max-w-xs flex flex-col items-center">

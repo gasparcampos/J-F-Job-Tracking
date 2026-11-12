@@ -89,7 +89,7 @@ export default function Home() {
   }, []);
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+    window.location.href = '/login?as=admin';
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -1532,7 +1532,7 @@ export default function Home() {
               <LogOut size={14} /> Logout
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => (window.location.href = '/login')} className="gap-1.5 text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={() => (window.location.href = '/login?as=admin')} className="gap-1.5 text-muted-foreground">
               <LogIn size={14} /> Login
             </Button>
           )}
