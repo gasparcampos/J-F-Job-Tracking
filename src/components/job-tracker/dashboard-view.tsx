@@ -615,6 +615,45 @@ function JobRow({
   );
 }
 
+// Whole calendar days from today until the due date (negative = overdue).
+// The date is read as a local day, so it doesn't shift with the time zone.
+function daysUntilDue(dueDate?: string): number | null {
+  const m = String(dueDate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+}
+
+// Countdown next to the due date: red once it's past due, yellow from
+// 20 days out through the due day itself, plain beyond that.
+function DueCountdown({ dueDate }: { dueDate?: string }) {
+  const days = daysUntilDue(dueDate);
+  if (days === null) return null;
+  const late = days < 0;
+  const soon = days >= 0 && days <= 20;
+  const text = late
+    ? `${-days} ${-days === 1 ? 'día' : 'días'} vencido`
+    : days === 0
+    ? 'Vence hoy'
+    : `${days} ${days === 1 ? 'día' : 'días'}`;
+  return (
+    <span
+      className={`text-[11px] font-black px-2 py-0.5 rounded-md flex-shrink-0 whitespace-nowrap ${
+        late
+          ? 'bg-red-600 text-white'
+          : soon
+          ? 'bg-yellow-400 text-black'
+          : 'bg-muted text-muted-foreground'
+      }`}
+      title={late ? 'Pasado de la fecha de entrega' : 'Días que faltan para la entrega'}
+    >
+      ⏱ {text}
+    </span>
+  );
+}
+
 function HoverPreview({
   job,
   department,
@@ -649,11 +688,14 @@ function HoverPreview({
           <p className="text-sm font-bold text-card-foreground truncate">
             {jobLabel(job)} {job.name ? <span className="font-medium text-muted-foreground">· {job.name}</span> : null}
           </p>
-          <p className="text-[10px] text-muted-foreground truncate">
-            {[department?.name, job.assignedTo, job.customer, job.quantity && `QTY ${job.quantity}`, job.dueDate && `Due ${job.dueDate}`]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-[10px] text-muted-foreground truncate">
+              {[department?.name, job.assignedTo, job.customer, job.quantity && `QTY ${job.quantity}`, job.dueDate && `Due ${job.dueDate}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            <DueCountdown dueDate={job.dueDate} />
+          </div>
         </div>
         <span className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-full flex-shrink-0 ${priorityColors[job.priority] || priorityColors[3]}`}>
           P{job.priority}
