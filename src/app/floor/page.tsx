@@ -171,6 +171,21 @@ export default function FloorPage() {
     [jobs, tab, me],
   );
 
+  // The machinist's own jobs in this tab, in work order (tabJobs is already
+  // sorted by priority). The first one is the one to do now — unless one of
+  // theirs is already running, in which case nothing else flashes.
+  const myQueue = useMemo(
+    () =>
+      me?.user?.role === 'machinist'
+        ? tabJobs.filter((j) => sameName(j.assignedTo, me.user!.name)).map((j) => j.id)
+        : [],
+    [tabJobs, me],
+  );
+  const focusId = useMemo(() => {
+    const mine = tabJobs.filter((j) => myQueue.includes(j.id));
+    return mine.some((j) => j.inProgress) ? null : mine[0]?.id ?? null;
+  }, [tabJobs, myQueue]);
+
   // A machinist with nothing assigned to them (in any of their areas) gets a big
   // flashing notice so they go see their manager instead of grabbing someone else's job.
   const hasNoAssignedJob = useMemo(() => {
@@ -423,7 +438,10 @@ export default function FloorPage() {
               // job is theirs, so no highlight.
               const sharedDept = (deptPeople[job.departmentId] ?? 0) > 1;
               const markMine = isMachinist && isMine(job) && sharedDept;
-              const mineToStart = markMine && !job.inProgress;
+              // Several jobs of theirs: they go in priority order (P1 first). Only the
+              // first one flashes, and only while none of theirs is already running.
+              const rank = myQueue.indexOf(job.id) + 1;
+              const mineToStart = markMine && job.id === focusId;
               return (
                 <div
                   key={job.id}
@@ -442,8 +460,16 @@ export default function FloorPage() {
                           P{job.priority}
                         </span>
                         {markMine && (
-                          <span className="text-[11px] font-black uppercase tracking-wide text-white bg-emerald-600 px-2 py-0.5 rounded-full">
-                            Your job
+                          <span
+                            className={`text-[11px] font-black uppercase tracking-wide text-white px-2 py-0.5 rounded-full ${
+                              rank === 1 ? 'bg-emerald-600' : 'bg-zinc-600'
+                            }`}
+                          >
+                            {myQueue.length > 1
+                              ? rank === 1
+                                ? 'Your job #1 · Do this first'
+                                : `Your job #${rank} · Next`
+                              : 'Your job'}
                           </span>
                         )}
                         {job.inProgress && (
