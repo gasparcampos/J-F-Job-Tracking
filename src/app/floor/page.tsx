@@ -95,6 +95,7 @@ export default function FloorPage() {
   };
   useEffect(() => clearHoverTimers, []);
 
+  const [deptPeople, setDeptPeople] = useState<Record<string, number>>({});
   const loadData = useCallback(async () => {
     const [jr, dr] = await Promise.all([
       fetch('/api/jobs', { cache: 'no-store' }),
@@ -107,6 +108,13 @@ export default function FloorPage() {
     const [j, d] = await Promise.all([jr.json(), dr.json()]);
     if (Array.isArray(j)) setJobs(j);
     if (Array.isArray(d)) setDepartments(visibleDepartments(d));
+    // How many machinists work each department (same list the shop board shows).
+    const b = await fetch('/api/board', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+    if (b && Array.isArray(b.departments)) {
+      setDeptPeople(
+        Object.fromEntries(b.departments.map((x: { id: string; people?: unknown[] }) => [x.id, x.people?.length ?? 0])),
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -410,8 +418,12 @@ export default function FloorPage() {
             )}
             {tabJobs.map((job) => {
               const busy = busyId === job.id;
-              // The machinist's own job flashes green until they press Start.
-              const mineToStart = isMachinist && isMine(job) && !job.inProgress;
+              // In a shared department, the machinist's own job is marked "Your job" and
+              // flashes green until they press Start. In a one-person department every
+              // job is theirs, so no highlight.
+              const sharedDept = (deptPeople[job.departmentId] ?? 0) > 1;
+              const markMine = isMachinist && isMine(job) && sharedDept;
+              const mineToStart = markMine && !job.inProgress;
               return (
                 <div
                   key={job.id}
@@ -429,7 +441,7 @@ export default function FloorPage() {
                         <span className={`text-[11px] font-bold text-white px-2 py-0.5 rounded-full ${priorityColors[job.priority] || priorityColors[3]}`}>
                           P{job.priority}
                         </span>
-                        {isMachinist && isMine(job) && (
+                        {markMine && (
                           <span className="text-[11px] font-black uppercase tracking-wide text-white bg-emerald-600 px-2 py-0.5 rounded-full">
                             Your job
                           </span>
