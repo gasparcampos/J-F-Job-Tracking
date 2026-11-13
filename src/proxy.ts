@@ -3,7 +3,7 @@ import { authEnabled, sessionFromRequest } from '@/lib/auth-shared';
 
 /**
  * Who may open what.
- *  - Login screen and /api/auth/* are always open.
+ *  - Login screen (with its shop board, /api/board) and /api/auth/* are always open.
  *  - A logged-in machinist only gets the floor screen and the few APIs it uses
  *    (the job routes further check it's their department / an allowed action).
  *  - Everyone else: with AUTH_ENABLED=true they must be logged in (admin);
@@ -25,7 +25,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApi = pathname.startsWith('/api/');
 
-  if (pathname === '/login' || pathname.startsWith('/api/auth/')) return NextResponse.next();
+  if (pathname === '/login' || pathname === '/api/board' || pathname.startsWith('/api/auth/')) return NextResponse.next();
 
   const session = await sessionFromRequest(request);
 

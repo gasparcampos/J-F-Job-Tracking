@@ -135,7 +135,10 @@ export default function FloorPage() {
   }, [me, departments]);
 
   useEffect(() => {
-    if (myDepts.length && !myDepts.some((d) => d.id === tab)) setTab(myDepts[0].id);
+    if (!myDepts.length || myDepts.some((d) => d.id === tab)) return;
+    // Coming from the shop board (/floor?dept=…): open the department they tapped.
+    const wanted = new URLSearchParams(window.location.search).get('dept');
+    setTab(myDepts.some((d) => d.id === wanted) ? wanted! : myDepts[0].id);
   }, [myDepts, tab]);
 
   const tabJobs = useMemo(
@@ -340,8 +343,8 @@ export default function FloorPage() {
 
           {hasNoAssignedJob && (
             <div className="mx-4 mt-4 rounded-2xl border-4 border-red-500 bg-red-600/90 px-6 py-8 text-center text-white shadow-2xl shadow-red-600/40 animate-pulse">
-              <p className="text-3xl sm:text-5xl font-black uppercase tracking-wide">⚠ Aún no tienes trabajo asignado</p>
-              <p className="mt-3 text-lg sm:text-2xl font-bold">Habla con tu manager.</p>
+              <p className="text-3xl sm:text-5xl font-black uppercase tracking-wide">⚠ No job assigned yet</p>
+              <p className="mt-3 text-lg sm:text-2xl font-bold">Talk to your manager.</p>
             </div>
           )}
 
@@ -438,7 +441,7 @@ export default function FloorPage() {
                   </div>
                   {!isMine(job) && (
                     <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground -mt-1">
-                      <Lock size={12} /> {job.assignedTo ? `Asignado a ${job.assignedTo}` : 'Sin asignar — habla con tu manager'}
+                      <Lock size={12} /> {job.assignedTo ? `Assigned to ${job.assignedTo}` : 'Unassigned — talk to your manager'}
                     </p>
                   )}
                 </div>

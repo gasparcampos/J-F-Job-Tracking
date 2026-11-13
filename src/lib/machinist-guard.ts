@@ -40,7 +40,7 @@ export async function machinistJobGuard(
   // Start and Complete: only the person the job is assigned to, confirmed with their PIN.
   const requireOwnerPin = async (): Promise<NextResponse | null> => {
     if (!sameName(job.assignedTo, user.name)) {
-      return deny(job.assignedTo ? `Este trabajo está asignado a ${job.assignedTo}` : 'Este trabajo no está asignado a ti. Habla con tu manager.');
+      return deny(job.assignedTo ? `This job is assigned to ${job.assignedTo}` : 'Unassigned — talk to your manager');
     }
     const check = await verifyPinAttempt(user, pin);
     return check.ok ? null : deny(check.error, check.status === 429 ? 429 : 403);
