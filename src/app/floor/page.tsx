@@ -11,6 +11,7 @@ import { visibleDepartments, completeTargets } from '@/lib/dept-flow';
 import { assignmentForDept } from '@/lib/dept-assignments';
 import { sameName } from '@/lib/names';
 import { DictationButton } from '@/components/job-tracker/dictation-button';
+import { InProgressTicker } from '@/components/job-tracker/in-progress-ticker';
 import {
   HoverPreview,
   previewPlacement,
@@ -446,7 +447,7 @@ export default function FloorPage() {
                 <div
                   key={job.id}
                   className={`rounded-2xl border bg-card p-4 flex flex-col gap-3 ${
-                    job.inProgress ? 'running-light border-orange-500/40 shadow-lg shadow-orange-500/20' : mineToStart ? 'flash-mine border-emerald-500' : 'border-border'
+                    job.inProgress ? 'progress-flash running-light border-orange-500/40' : mineToStart ? 'flash-mine border-emerald-500' : 'border-border'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -487,6 +488,7 @@ export default function FloorPage() {
                       {job.assignedTo && <p className="text-xs text-muted-foreground">👷 {job.assignedTo}</p>}
                     </div>
                   </div>
+                  {job.inProgress && <InProgressTicker size={12} />}
 
                   {job.productionNotes && (
                     <p className="text-xs bg-muted/50 rounded-lg px-3 py-2 text-card-foreground whitespace-pre-wrap line-clamp-4">

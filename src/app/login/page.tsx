@@ -379,7 +379,7 @@ export default function LoginPage() {
                     jobs.map((j) => (
                       <div
                         key={j.id}
-                        className={`rounded-lg px-2.5 py-1.5 bg-muted/40 border ${j.inProgress ? 'running-light border-orange-500/40' : 'border-transparent'}`}
+                        className={`rounded-lg px-2.5 py-1.5 bg-muted/40 border ${j.inProgress ? 'progress-flash running-light border-orange-500/40' : 'border-transparent'}`}
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-1.5 h-4 rounded-full ${priorityColors[j.priority] || priorityColors[3]}`} />
