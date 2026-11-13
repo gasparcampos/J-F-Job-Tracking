@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Wrench, Delete, ArrowLeft, Loader2, ShieldCheck, Flame, LogIn, X } from 'lucide-react';
+import { InProgressTicker } from '@/components/job-tracker/in-progress-ticker';
 
 interface LoginUser {
   id: string;
@@ -392,22 +393,7 @@ export default function LoginPage() {
                           <span className="truncate">{j.name}</span>
                           {j.assignedTo && <span className="ml-auto flex-shrink-0">👷 {j.assignedTo}</span>}
                         </div>
-                        {j.inProgress && (
-                          <div className="marquee mt-1 rounded bg-black/40 py-0.5" aria-label="In progress">
-                            {/* Two identical halves so the left-to-right loop is seamless */}
-                            <div className="marquee-track" aria-hidden="true">
-                              {[0, 1].map((half) => (
-                                <span key={half} className="flex">
-                                  {Array.from({ length: 6 }).map((_, i) => (
-                                    <span key={i} className="marquee-text px-3">
-                                      » IN PROGRESS
-                                    </span>
-                                  ))}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        {j.inProgress && <InProgressTicker className="mt-1" />}
                       </div>
                     ))
                   )}

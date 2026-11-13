@@ -328,3 +328,6 @@
 @media (prefers-reduced-motion: reduce) {
   .marquee-track, .marquee-text { animation: none; }
 }
+
+/* Cards that clip their overflow (Kanban): keep the running light inside the edge. */
+.overflow-hidden.running-light::before { inset: 0; }

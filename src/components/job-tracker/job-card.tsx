@@ -10,6 +10,7 @@ import { formatDuration } from '@/lib/utils';
 import { workingMsBetween, shiftForDepartment } from '@/lib/work-hours';
 import type { Job } from '@/types';
 import { FilePreview } from './file-preview';
+import { InProgressTicker } from './in-progress-ticker';
 
 interface JobCardProps {
   job: Job;
@@ -115,7 +116,7 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
     : isRejectedDeviation
     ? 'bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 border-2 border-zinc-600 shadow-zinc-900/40 opacity-90'
     : isInProgress
-    ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-yellow-400 shadow-lg progress-flash-card'
+    ? 'bg-gradient-to-br from-orange-950 via-orange-900 to-amber-900 border-2 border-yellow-400 shadow-lg progress-flash-card running-light'
     : 'bg-card border border-border hover:border-primary/50';
 
   return (
@@ -308,6 +309,8 @@ export function JobCard({ job, onMarkDone, onViewHistory, onDelete, onViewPdf, o
       </div>
 
       {/* In Progress timestamp */}
+      {isInProgress && <InProgressTicker className="mb-3" size={11} />}
+
       {isInProgress && job.inProgressAt && (
         <div className="flex items-center gap-2 mb-3 ml-6 text-[10px] text-orange-300">
           <Flame size={12} className="animate-pulse" />

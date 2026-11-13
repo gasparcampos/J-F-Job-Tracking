@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Flame, FileText, AlertTriangle, Users, Play, Pause, Check, ArrowRightLeft, Truck, X } from 'lucide-react';
 import type { Job, Department } from '@/types';
 import { toProxyUrl } from '@/lib/file-url';
+import { InProgressTicker } from './in-progress-ticker';
 
 /** Which card actions a department allows (same rules as the Kanban). */
 export interface DeptOptions {
@@ -486,7 +487,7 @@ function JobRow({
         pending
           ? 'bg-red-950/60 border-red-700/60 hover:bg-red-900/60'
           : inProgress
-          ? 'progress-flash'
+          ? 'progress-flash running-light'
           : rejected
           ? 'bg-zinc-800 border-zinc-600 opacity-80'
           : 'bg-card border-border/60 hover:border-primary/60 hover:bg-card/80'
@@ -511,6 +512,7 @@ function JobRow({
         <span className="block text-[9px] text-muted-foreground truncate">
           {[job.name || (job.jobNumber ? job.title : ''), job.assignedTo].filter(Boolean).join(' · ') || '—'}
         </span>
+        {inProgress && <InProgressTicker className="mt-0.5" size={8} />}
       </span>
 
       {!job.fileUrl && (
