@@ -288,10 +288,46 @@ export default function FloorPage() {
     }
   };
 
-  const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+  const loggingOut = useRef(false);
+  const logout = useCallback(async () => {
+    if (loggingOut.current) return;
+    loggingOut.current = true;
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     window.location.replace('/login');
-  };
+  }, []);
+
+  // Shop computers get left open: for a machinist, pressing the browser's Back
+  // button logs out, and so does 1 minute without touching the screen
+  // (5 minutes while the Router PDF is open, since reading it doesn't move the page).
+  const [idleLeft, setIdleLeft] = useState<number | null>(null);
+  const lastActivity = useRef(Date.now());
+  const idleLimitMs = pdfJob ? IDLE_PDF_MS : IDLE_MS;
+  useEffect(() => {
+    if (!isMachinist) return;
+    window.history.pushState({ floor: true }, '');
+    const onBack = () => void logout();
+    window.addEventListener('popstate', onBack);
+    return () => window.removeEventListener('popstate', onBack);
+  }, [isMachinist, logout]);
+  useEffect(() => {
+    if (!isMachinist) return;
+    lastActivity.current = Date.now();
+    const bump = () => {
+      lastActivity.current = Date.now();
+      setIdleLeft(null);
+    };
+    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const t = setInterval(() => {
+      const left = idleLimitMs - (Date.now() - lastActivity.current);
+      if (left <= 0) void logout();
+      else setIdleLeft(left <= IDLE_WARN_MS ? Math.ceil(left / 1000) : null);
+    }, 500);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, bump));
+      clearInterval(t);
+    };
+  }, [isMachinist, idleLimitMs, logout]);
 
   if (loading) {
     return (
@@ -319,7 +355,7 @@ export default function FloorPage() {
               <LayoutDashboard size={14} /> Dashboard
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={logout} className="gap-1.5">
+          <Button size="sm" onClick={logout} className="gap-1.5 bg-red-600 hover:bg-red-500 text-white font-bold">
             <LogOut size={14} /> Logout
           </Button>
         </div>
@@ -477,6 +513,15 @@ export default function FloorPage() {
         />
       )}
 
+      {idleLeft !== null && (
+        <div className="fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4 pointer-events-none">
+          <div className="rounded-2xl bg-red-600 text-white font-bold px-6 py-4 shadow-2xl shadow-red-600/40 text-center animate-pulse">
+            <p className="text-lg">Logging out in {idleLeft}s</p>
+            <p className="text-xs font-semibold opacity-90">Touch the screen to stay</p>
+          </div>
+        </div>
+      )}
+
       {pinAsk && <PinSheet title={pinAsk.title} run={pinAsk.run} onClose={() => setPinAsk(null)} />}
 
       {pdfJob && <PdfViewerModal job={pdfJob} onClose={() => setPdfJob(null)} departments={departments} />}
@@ -596,6 +641,9 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 const PIN_LEN = 6;
+const IDLE_MS = 60_000;
+const IDLE_PDF_MS = 5 * 60_000;
+const IDLE_WARN_MS = 10_000;
 
 /** PIN pad shown before Start / Complete: confirms the assigned person is the one doing it. */
 function PinSheet({
