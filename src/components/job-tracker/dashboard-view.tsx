@@ -503,6 +503,11 @@ function JobRow({
           <span className="text-[8px] font-bold text-muted-foreground flex-shrink-0">P{job.priority}</span>
           {pending && <AlertTriangle size={10} className="text-red-400 flex-shrink-0" />}
           {inProgress && <Flame size={10} className="text-yellow-300 animate-pulse flex-shrink-0" />}
+          {String(job.quantity ?? '').trim() && (
+            <span className="text-[8px] font-bold uppercase tracking-wide rounded bg-sky-500/15 text-sky-300 px-1 py-px flex-shrink-0">
+              Qty {String(job.quantity).replace(/\s*pcs?\.?$/i, '')} pcs
+            </span>
+          )}
           {paused && (
             <span title="Paused" className="flex-shrink-0">
               <Pause size={10} className="text-sky-400" />
