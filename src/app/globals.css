@@ -297,3 +297,34 @@
 @media (prefers-reduced-motion: reduce) {
   .running-light::before { animation: none; background: rgb(249 115 22); }
 }
+
+/* Shop board: yellow "IN PROGRESS" ticker scrolling left to right in a loop. */
+.marquee {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-ltr 9s linear infinite;
+}
+.marquee-text {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #facc15;
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.7);
+  animation: marquee-glow 1.6s ease-in-out infinite;
+}
+@keyframes marquee-ltr {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@keyframes marquee-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track, .marquee-text { animation: none; }
+}
