@@ -218,7 +218,7 @@
 }
 
 .progress-flash {
-  animation: progress-flash 1.2s ease-in-out infinite;
+  animation: progress-flash 2.4s ease-in-out infinite;
 }
 
 /* Kanban card in progress: yellow glow + a blinking yellow wash over the
@@ -238,7 +238,7 @@
   50% { opacity: 1; }
 }
 .progress-flash-card {
-  animation: progress-flash-card 1.2s ease-in-out infinite;
+  animation: progress-flash-card 2.4s ease-in-out infinite;
 }
 .progress-flash-card::after {
   content: '';
@@ -247,7 +247,7 @@
   pointer-events: none;
   border-radius: inherit;
   background: rgba(250, 204, 21, 0.28);
-  animation: progress-flash-wash 1.2s ease-in-out infinite;
+  animation: progress-flash-wash 2.4s ease-in-out infinite;
 }
 /* A search hit still flashes green even if the job is in progress. */
 .progress-flash.search-flash,

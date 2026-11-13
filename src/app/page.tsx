@@ -56,6 +56,9 @@ import {
   COMPLETE_CHOICE_OVERRIDES,
 } from "@/lib/dept-flow";
 
+// The Kanban view is hidden for now; set to true to show its tab again.
+const SHOW_KANBAN = false;
+
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -1438,7 +1441,8 @@ export default function Home() {
               <LayoutDashboard size={14} />
               Dashboard
             </Button>
-            <Button
+            {/* Kanban tab hidden for now (Dashboard + Tabla only). Flip SHOW_KANBAN to bring it back. */}
+            {SHOW_KANBAN && <Button
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('kanban')}
@@ -1450,7 +1454,7 @@ export default function Home() {
             >
               <LayoutGrid size={14} />
               Kanban
-            </Button>
+            </Button>}
             <Button
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
