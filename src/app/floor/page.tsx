@@ -60,6 +60,12 @@ export default function FloorPage() {
   const [notesText, setNotesText] = useState('');
   const [complete, setComplete] = useState<CompleteState | null>(null);
   // Start and Complete ask the machinist for their PIN; run() returns an error to show, or null when done.
+  // Shown briefly before logging the machinist out after a PIN-confirmed Start or Complete.
+  const [doneMsg, setDoneMsg] = useState<{ kind: 'started' | 'completed'; text: string } | null>(null);
+  const finishAndLogout = (msg: { kind: 'started' | 'completed'; text: string }) => {
+    setDoneMsg(msg);
+    setTimeout(() => void logout(), 1800);
+  };
   const [pinAsk, setPinAsk] = useState<{ title: string; run: (pin: string) => Promise<string | null> } | null>(null);
 
   // Hovering the Router button floats the PDF (same window as the dashboard);
@@ -202,6 +208,10 @@ export default function FloorPage() {
       const updated: Job = await res.json();
       replaceJob(updated);
       toast({ title: updated.inProgress ? '🔥 En progreso' : '⏸️ Pausado' });
+      // Started with their PIN: they're off to work, so back to the login board.
+      if (pin && updated.inProgress) {
+        finishAndLogout({ kind: 'started', text: job.jobNumber ? `#${job.jobNumber}` : job.title });
+      }
       return null;
     } finally {
       setBusyId(null);
@@ -250,6 +260,8 @@ export default function FloorPage() {
       replaceJob(await res.json());
       toast({ title: '✔ Completado', description: `Enviado a ${target.name}` });
       setComplete(null);
+      // A machinist is done once they complete their job: back to the login board.
+      if (pin) finishAndLogout({ kind: 'completed', text: `Sent to ${target.name}` });
       return null;
     } finally {
       setBusyId(null);
@@ -511,6 +523,23 @@ export default function FloorPage() {
           onMouseLeave={leaveRouter}
           hint="Click Router to open the full viewer"
         />
+      )}
+
+      {doneMsg && (
+        <div className="fixed inset-0 z-[95] bg-black/85 flex items-center justify-center p-4">
+          <div
+            className={`rounded-3xl text-white text-center px-10 py-8 shadow-2xl ${
+              doneMsg.kind === 'started' ? 'bg-orange-600 shadow-orange-600/40' : 'bg-emerald-600 shadow-emerald-600/40'
+            }`}
+          >
+            {doneMsg.kind === 'started' ? <Flame size={56} className="mx-auto mb-2" /> : <Check size={56} className="mx-auto mb-2" />}
+            <p className="text-3xl font-black uppercase">{doneMsg.kind === 'started' ? 'Job started' : 'Job completed'}</p>
+            <p className="mt-1 text-lg font-semibold">{doneMsg.text}</p>
+            <p className="mt-4 text-sm opacity-90 flex items-center justify-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Logging out…
+            </p>
+          </div>
+        </div>
       )}
 
       {idleLeft !== null && (
