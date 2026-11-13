@@ -385,6 +385,11 @@ export default function LoginPage() {
                           <span className={`w-1.5 h-4 rounded-full ${priorityColors[j.priority] || priorityColors[3]}`} />
                           <span className="font-bold text-sm text-card-foreground">{j.jobNumber ? `#${j.jobNumber}` : j.name}</span>
                           {j.inProgress && <Flame size={13} className="text-orange-500" />}
+                          {String(j.quantity ?? '').trim() && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide rounded bg-sky-500/15 text-sky-300 px-1.5 py-0.5">
+                              Qty {String(j.quantity).replace(/\s*pcs?\.?$/i, '')} pcs
+                            </span>
+                          )}
                           <span className="ml-auto">
                             <DueTag due={j.dueDate} />
                           </span>
