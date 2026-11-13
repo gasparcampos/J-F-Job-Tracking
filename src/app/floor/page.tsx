@@ -368,7 +368,7 @@ export default function FloorPage() {
                 <div
                   key={job.id}
                   className={`rounded-2xl border bg-card p-4 flex flex-col gap-3 ${
-                    job.inProgress ? 'border-orange-500 shadow-lg shadow-orange-500/20' : mineToStart ? 'flash-mine border-emerald-500' : 'border-border'
+                    job.inProgress ? 'running-light border-orange-500/40 shadow-lg shadow-orange-500/20' : mineToStart ? 'flash-mine border-emerald-500' : 'border-border'
                   }`}
                 >
                   <div className="flex items-start gap-3">
