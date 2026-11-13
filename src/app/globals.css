@@ -331,3 +331,21 @@
 
 /* Cards that clip their overflow (Kanban): keep the running light inside the edge. */
 .overflow-hidden.running-light::before { inset: 0; }
+
+/* Tailwind 4 dropped the hand cursor on buttons: bring it back app-wide so
+   every clickable control (table actions, icons, menus) looks clickable.
+   In the base layer, so utilities like cursor-grab / cursor-not-allowed still win. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
