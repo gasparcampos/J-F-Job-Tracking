@@ -162,7 +162,7 @@ export function JobsTable({
   };
 
   return (
-    <div className="w-full bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
+    <div className="jobs-table w-full bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
       <Table>
         <TableHeader>
