@@ -254,3 +254,12 @@
 .progress-flash-card.search-flash {
   animation: search-flash 1.1s ease-in-out infinite;
 }
+
+
+/* Floor screen: the machinist's own job blinks green until they press Start. */
+@keyframes flash-mine {
+  0%, 100% { box-shadow: 0 0 0 2px rgb(16 185 129 / 0.9), 0 0 28px 4px rgb(16 185 129 / 0.55); background-color: rgb(16 185 129 / 0.16); }
+  50% { box-shadow: 0 0 0 1px rgb(16 185 129 / 0.25), 0 0 0 0 rgb(16 185 129 / 0); background-color: transparent; }
+}
+.flash-mine { animation: flash-mine 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .flash-mine { animation: none; box-shadow: 0 0 0 2px rgb(16 185 129 / 0.9); } }

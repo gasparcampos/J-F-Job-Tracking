@@ -145,8 +145,16 @@ export default function FloorPage() {
     () =>
       jobs
         .filter((j) => j.departmentId === tab && !j.shipped && j.deviationStatus !== 'pending')
-        .sort((a, b) => (a.priority ?? 3) - (b.priority ?? 3) || (a.order ?? 0) - (b.order ?? 0)),
-    [jobs, tab],
+        .sort((a, b) => {
+          // A machinist sees their own jobs first, so they don't hunt for them.
+          if (me?.user?.role === 'machinist') {
+            const ma = sameName(a.assignedTo, me.user.name) ? 0 : 1;
+            const mb = sameName(b.assignedTo, me.user.name) ? 0 : 1;
+            if (ma !== mb) return ma - mb;
+          }
+          return (a.priority ?? 3) - (b.priority ?? 3) || (a.order ?? 0) - (b.order ?? 0);
+        }),
+    [jobs, tab, me],
   );
 
   // A machinist with nothing assigned to them (in any of their areas) gets a big
@@ -354,11 +362,13 @@ export default function FloorPage() {
             )}
             {tabJobs.map((job) => {
               const busy = busyId === job.id;
+              // The machinist's own job flashes green until they press Start.
+              const mineToStart = isMachinist && isMine(job) && !job.inProgress;
               return (
                 <div
                   key={job.id}
                   className={`rounded-2xl border bg-card p-4 flex flex-col gap-3 ${
-                    job.inProgress ? 'border-orange-500 shadow-lg shadow-orange-500/20' : 'border-border'
+                    job.inProgress ? 'border-orange-500 shadow-lg shadow-orange-500/20' : mineToStart ? 'flash-mine border-emerald-500' : 'border-border'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -371,6 +381,11 @@ export default function FloorPage() {
                         <span className={`text-[11px] font-bold text-white px-2 py-0.5 rounded-full ${priorityColors[job.priority] || priorityColors[3]}`}>
                           P{job.priority}
                         </span>
+                        {isMachinist && isMine(job) && (
+                          <span className="text-[11px] font-black uppercase tracking-wide text-white bg-emerald-600 px-2 py-0.5 rounded-full">
+                            Your job
+                          </span>
+                        )}
                         {job.inProgress && (
                           <span className="flex items-center gap-1 text-[11px] font-bold text-orange-500 uppercase">
                             <Flame size={13} /> En progreso
