@@ -156,20 +156,26 @@ export default function FloorPage() {
     setTab(myDepts.some((d) => d.id === wanted) ? wanted! : myDepts[0].id);
   }, [myDepts, tab]);
 
+  // Jobs a person sees in a department: a machinist only sees the jobs
+  // assigned to them (not a co-worker's); admins see every job.
+  const visibleIn = useCallback(
+    (deptId: string) =>
+      jobs.filter(
+        (j) =>
+          j.departmentId === deptId &&
+          !j.shipped &&
+          j.deviationStatus !== 'pending' &&
+          (me?.user?.role !== 'machinist' || sameName(j.assignedTo, me.user.name)),
+      ),
+    [jobs, me],
+  );
+
   const tabJobs = useMemo(
     () =>
-      jobs
-        .filter((j) => j.departmentId === tab && !j.shipped && j.deviationStatus !== 'pending')
-        .sort((a, b) => {
-          // A machinist sees their own jobs first, so they don't hunt for them.
-          if (me?.user?.role === 'machinist') {
-            const ma = sameName(a.assignedTo, me.user.name) ? 0 : 1;
-            const mb = sameName(b.assignedTo, me.user.name) ? 0 : 1;
-            if (ma !== mb) return ma - mb;
-          }
-          return (a.priority ?? 3) - (b.priority ?? 3) || (a.order ?? 0) - (b.order ?? 0);
-        }),
-    [jobs, tab, me],
+      visibleIn(tab).sort(
+        (a, b) => (a.priority ?? 3) - (b.priority ?? 3) || (a.order ?? 0) - (b.order ?? 0),
+      ),
+    [visibleIn, tab],
   );
 
   // The machinist's own jobs in this tab, in work order (tabJobs is already
@@ -201,8 +207,7 @@ export default function FloorPage() {
     );
   }, [me, jobs]);
 
-  const countFor = (deptId: string) =>
-    jobs.filter((j) => j.departmentId === deptId && !j.shipped && j.deviationStatus !== 'pending').length;
+  const countFor = (deptId: string) => visibleIn(deptId).length;
 
   const replaceJob = (updated: Job) => setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
 
@@ -430,7 +435,9 @@ export default function FloorPage() {
 
           <main className="flex-1 p-4 grid gap-3 content-start sm:grid-cols-2 xl:grid-cols-3">
             {tabJobs.length === 0 && (
-              <p className="col-span-full text-center text-muted-foreground py-12">No hay trabajos en este departamento.</p>
+              <p className="col-span-full text-center text-muted-foreground py-12">
+                {isMachinist ? 'No tienes trabajos en este departamento.' : 'No hay trabajos en este departamento.'}
+              </p>
             )}
             {tabJobs.map((job) => {
               const busy = busyId === job.id;
