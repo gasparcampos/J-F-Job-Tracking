@@ -41,6 +41,15 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
+  // Phones/tablets: iOS Safari only shows page 1 of a PDF inside an <iframe>
+  // (and Android shows none), so there every page is rendered with PDF.js
+  // and stacked to scroll. Desktop keeps the native iframe viewer.
+  const [touchDevice] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      (/iPad|iPhone|iPod|Android/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 1 && window.matchMedia?.('(pointer: coarse)').matches))
+  );
   // Raw rendered pixels per page + their auto-detected black points, kept so
   // contrast can be re-applied live without re-fetching the PDF.
   const rawPagesRef = useRef<ImageData[]>([]);
@@ -112,7 +121,12 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
       // Dynamic import
       const pdfjsLib = await import('pdfjs-dist');
       
-      const loadingTask = pdfjsLib.getDocument(toProxyUrl(job.fileUrl));
+      // wasmUrl: PDF.js 5 decodes CCITT/JBIG2 scans (Konica bizhub text
+      // layers) with these wasm decoders; without them the text is blank.
+      const loadingTask = pdfjsLib.getDocument({
+        url: toProxyUrl(job.fileUrl),
+        wasmUrl: '/pdfjs-wasm/',
+      });
       const pdfDocument = await loadingTask.promise;
       const images: string[] = [];
       const rawPages: ImageData[] = [];
@@ -166,9 +180,10 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
     }
   }, [job?.fileUrl, isPdf, pdfJsLoaded]);
 
-  // PDFs are now shown via a native <iframe>; no canvas conversion needed.
-  // (convertPdfToImages is retained but intentionally not invoked.)
-  void convertPdfToImages;
+  // Desktop shows PDFs in a native <iframe>; phones get every page rendered.
+  useEffect(() => {
+    if (touchDevice) convertPdfToImages();
+  }, [touchDevice, convertPdfToImages]);
 
   if (!job || !job.fileUrl) return null;
 
@@ -234,7 +249,7 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
 
           {/* Controls */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {isPdf && pdfImages.length > 1 && (
+            {isPdf && !touchDevice && pdfImages.length > 1 && (
               <div className="flex items-center gap-1 mr-2">
                 <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0} className="h-8 w-8 p-0">
                   <ChevronLeft size={16} />
@@ -344,6 +359,34 @@ export function PdfViewerModal({ job, onClose, onSaveAnnotation, departments = [
                   </>
                 )}
               </TransformWrapper>
+            ) : isPdf && touchDevice ? (
+              /* Phone: all pages rendered by PDF.js, stacked; scroll to page 2+ */
+              <div className="w-full h-full overflow-auto p-2 space-y-2">
+                {isLoadingPdf && (
+                  <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                    <Loader2 size={18} className="animate-spin" />
+                    Loading PDF…
+                  </div>
+                )}
+                {pdfError && (
+                  <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted-foreground">
+                    {pdfError}
+                    <Button variant="outline" size="sm" onClick={() => window.open(job.fileUrl!, '_blank')} className="gap-2">
+                      <ExternalLink size={16} />
+                      Open
+                    </Button>
+                  </div>
+                )}
+                {pdfImages.map((src, i) => (
+                  <img
+                    key={i}
+                    src={src}
+                    alt={`Page ${i + 1}`}
+                    className="w-full h-auto bg-white rounded shadow-lg"
+                    style={{ transform: rotation ? `rotate(${rotation}deg)` : undefined }}
+                  />
+                ))}
+              </div>
             ) : isPdf ? (
               /* PDF viewer - native browser renderer (true to the original) */
               <iframe
