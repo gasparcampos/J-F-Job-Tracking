@@ -12,6 +12,7 @@ import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
 import { DictationButton } from './dictation-button';
 import { lookupJob, exactJobByNumber, fmtAccessDate } from '@/lib/job-lookup';
+import { useJobsWithHistory } from '@/lib/use-job-history';
 
 interface ExtraPartFormModalProps {
   // null = closed. {} = creating new. Otherwise = editing existing.
@@ -24,11 +25,13 @@ interface ExtraPartFormModalProps {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function ExtraPartFormModal({ part, jobs, employees, onSave, onClose }: ExtraPartFormModalProps) {
+export function ExtraPartFormModal({ part, jobs: currentJobs, employees, onSave, onClose }: ExtraPartFormModalProps) {
   const isEditing = !!part && 'id' in part && typeof (part as ExtraPart).id === 'string';
   const existing = isEditing ? (part as ExtraPart) : null;
 
   const [jobLookup, setJobLookup] = useState('');
+  // Current jobs plus matches from the Access archive (jobHistory).
+  const jobs = useJobsWithHistory(currentJobs, jobLookup);
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [jobNumber, setJobNumber] = useState('');
   const [company, setCompany] = useState('');

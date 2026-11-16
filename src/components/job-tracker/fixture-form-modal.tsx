@@ -11,6 +11,7 @@ import type { Fixture, Job, Employee, CreateFixtureInput } from '@/types';
 import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
 import { lookupJob, exactJobByNumber, fmtAccessDate } from '@/lib/job-lookup';
+import { useJobsWithHistory } from '@/lib/use-job-history';
 import { DictationButton } from './dictation-button';
 
 interface FixtureFormModalProps {
@@ -32,11 +33,13 @@ const LABEL = 'text-[10px] font-semibold text-muted-foreground uppercase trackin
  * (work order) and the identifying fields fill in from that job. Fields
  * mirror the Access ADD-FIX form.
  */
-export function FixtureFormModal({ fixture, jobs, employees, onSave, onClose }: FixtureFormModalProps) {
+export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave, onClose }: FixtureFormModalProps) {
   const isEditing = !!fixture && 'id' in fixture && typeof (fixture as Fixture).id === 'string';
   const existing = isEditing ? (fixture as Fixture) : null;
 
   const [jobLookup, setJobLookup] = useState('');
+  // Current jobs plus matches from the Access archive (jobHistory).
+  const jobs = useJobsWithHistory(currentJobs, jobLookup);
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [jobNumber, setJobNumber] = useState('');
   const [company, setCompany] = useState('');
