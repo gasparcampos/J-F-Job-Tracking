@@ -40,6 +40,7 @@ import {
   QrScannerModal,
   DashboardView,
   UsersModal,
+  AccessHistoryView,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -68,7 +69,7 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('dashboard');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures' | 'access-history'>('active');
 
   // Extra Parts inventory (leftover stocked pieces).
   const [extraParts, setExtraParts] = useState<ExtraPart[]>([]);
@@ -1751,6 +1752,18 @@ export default function Home() {
                   {filteredFixtures.length}
                 </span>
               </button>
+              {/* Read-only archive of the jobs imported from Access (MASTER). */}
+              <button
+                type="button"
+                onClick={() => setTableTab('access-history')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'access-history'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Historial
+              </button>
 
               {tableTab === 'extra-parts' && (
                 <Button
@@ -1775,7 +1788,9 @@ export default function Home() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-              {tableTab === 'extra-parts' ? (
+              {tableTab === 'access-history' ? (
+                <AccessHistoryView />
+              ) : tableTab === 'extra-parts' ? (
                 <ExtraPartsTable
                   parts={filteredExtraParts}
                   onEdit={(p) => setEditingExtraPart(p)}
