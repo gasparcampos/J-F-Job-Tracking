@@ -59,12 +59,18 @@ for (const d of snap.docs) {
         patch = { fileUrl: p.url, fileName: p.name };
       }
     } else plan = 'NO PDF FOUND';
-  } else if (hasSheet && !sheetIsMain && !j.attachmentUrl) {
+  } else if (hasSheet && !sheetIsMain) {
     plan = 'sheet arrived: main=sheet, packet -> attach';
     if (write) {
       const s = await upload(sheet);
-      patch = { fileUrl: s.url, fileName: s.name, attachmentUrl: j.fileUrl, attachmentName: j.fileName };
+      patch = { fileUrl: s.url, fileName: s.name };
+      if (!j.attachmentUrl) Object.assign(patch, { attachmentUrl: j.fileUrl, attachmentName: j.fileName });
     }
+  } else if (!j.attachmentUrl && hasPacket && j.fileName === basename(packet)) {
+    // Packet is the main file: also list it as the attachment so the
+    // ROUTER PACKET shows in the Table's attachments column.
+    plan = 'packet -> attach too';
+    if (write) patch = { attachmentUrl: j.fileUrl, attachmentName: j.fileName };
   } else plan = 'already done';
 
   console.log(`${j.jobNumber}: ${plan}`);
