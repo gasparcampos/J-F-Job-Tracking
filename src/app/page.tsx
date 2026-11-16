@@ -41,6 +41,7 @@ import {
   DashboardView,
   UsersModal,
   AccessHistoryView,
+  AccessHistorySearch,
 } from '@/components/job-tracker';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
@@ -96,6 +97,8 @@ export default function Home() {
     window.location.href = '/login?as=admin';
   };
   const [searchQuery, setSearchQuery] = useState('');
+  // Search box of the Table > Historial (Access archive) tab.
+  const [historyQuery, setHistoryQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingJob, setIsAddingJob] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -1657,7 +1660,7 @@ export default function Home() {
         ) : (
           <div className="h-full flex flex-col gap-3 min-h-0">
             {/* Sub-tabs: live (Activos) vs. shipped (Enviados) jobs. */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setTableTab('active')}
@@ -1764,6 +1767,9 @@ export default function Home() {
               >
                 Historial
               </button>
+              {tableTab === 'access-history' && (
+                <AccessHistorySearch value={historyQuery} onChange={setHistoryQuery} />
+              )}
 
               {tableTab === 'extra-parts' && (
                 <Button
@@ -1789,7 +1795,7 @@ export default function Home() {
 
             <div className="flex-1 min-h-0 overflow-auto">
               {tableTab === 'access-history' ? (
-                <AccessHistoryView />
+                <AccessHistoryView query={historyQuery} />
               ) : tableTab === 'extra-parts' ? (
                 <ExtraPartsTable
                   parts={filteredExtraParts}

@@ -345,3 +345,12 @@
     cursor: not-allowed;
   }
 }
+
+/* Table > Historial: blinking arrow pointing at the history search box. */
+@keyframes blink-arrow {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.15; transform: translateX(3px); }
+}
+.animate-blink {
+  animation: blink-arrow 1s ease-in-out infinite;
+}

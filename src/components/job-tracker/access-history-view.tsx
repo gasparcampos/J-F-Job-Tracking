@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Archive, Loader2, Search, X } from 'lucide-react';
+import { Archive, ArrowRight, Loader2, Printer, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { fmtAccessDate } from '@/lib/job-lookup';
+import { printHtml, escHtml as esc } from '@/lib/print-html';
 
 /** A job from the Access archive, as returned by /api/job-history?full=1. */
 interface HistoryJob {
@@ -48,8 +49,45 @@ const TH = 'px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase 
  * the newest 50 by due date (with "Load more"), or searches the archive by
  * JOB#, DWG#, Part# or Company — never loads the whole archive.
  */
-export function AccessHistoryView() {
-  const [query, setQuery] = useState('');
+/**
+ * Search box for the Historial tab. Lives in the sub-tab row, right next to
+ * the Historial button, with a blinking arrow pointing at it.
+ */
+export function AccessHistorySearch({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 min-w-[200px] flex-1 max-w-md">
+      <ArrowRight size={18} className="text-primary shrink-0 animate-blink" aria-hidden />
+      <div className="relative w-full">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Buscar JOB#, DWG#, Part# o Company…"
+          className="w-full h-9 pl-9 pr-8 rounded-xl border border-primary/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-card-foreground"
+            aria-label="Clear search"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function AccessHistoryView({ query }: { query: string }) {
   const [items, setItems] = useState<HistoryJob[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [capped, setCapped] = useState(false);
@@ -102,25 +140,6 @@ export function AccessHistoryView() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-96">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar JOB#, DWG#, Part# o Company…"
-            className="w-full h-9 pl-9 pr-8 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-card-foreground"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
         <p className="text-xs text-muted-foreground">
           {q
             ? `${items.length} resultado${items.length === 1 ? '' : 's'}${capped ? ' (los primeros 200 de esa compañía; escribe JOB# o DWG# para afinar)' : ''}`
@@ -237,9 +256,15 @@ function AccessJobModal({ job, onClose }: { job: HistoryJob; onClose: () => void
               <p className="text-[10px] text-muted-foreground">Historial de Access (solo lectura)</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-card-foreground" aria-label="Close">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => printAccessJob(job, main, legacy)}>
+              <Printer size={14} />
+              Print
+            </Button>
+            <button type="button" onClick={onClose} className="text-muted-foreground hover:text-card-foreground" aria-label="Close">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto px-6 py-5 space-y-5">
@@ -280,4 +305,41 @@ function AccessJobModal({ job, onClose }: { job: HistoryJob; onClose: () => void
       </div>
     </div>
   );
+}
+
+/** Prints one Access job (main fields, notes, other Access fields) on a white page. */
+function printAccessJob(job: HistoryJob, main: [string, string | undefined][], legacy: [string, unknown][]) {
+  const kv = (k: string, v: unknown) =>
+    `<div class="kv"><span>${esc(k)}</span><b>${esc(v === true ? '✓' : String(v))}</b></div>`;
+  const now = new Date();
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>JOB# ${esc(job.jobNumber ?? '')}</title>
+<style>
+  @page { size: letter; margin: 12mm; }
+  * { box-sizing: border-box; }
+  .print-page { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; background: #fff; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 10px; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .shop { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; }
+  header .printed { font-size: 10px; color: #444; text-align: right; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 6px; border-bottom: 1px solid #999; padding-bottom: 3px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 16px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 16px; }
+  .kv { display: flex; gap: 6px; border-bottom: 1px dotted #ccc; padding: 2px 0; page-break-inside: avoid; }
+  .kv span { color: #555; min-width: 70px; }
+  .kv b { word-break: break-all; }
+  .notes { white-space: pre-wrap; font-size: 12px; }
+</style></head><body>
+<header>
+  <div>
+    <div class="shop">J&amp;F Machine Shop — Historial de Access</div>
+    <h1>JOB# ${esc(job.jobNumber ?? '—')}</h1>
+  </div>
+  <div class="printed">Printed ${esc(now.toLocaleDateString('en-US'))} ${esc(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))}</div>
+</header>
+<h2>Job details</h2>
+<div class="grid3">${main.filter(([, v]) => v).map(([k, v]) => kv(k, v)).join('')}</div>
+${job.productionNotes ? `<h2>Notes</h2><p class="notes">${esc(job.productionNotes)}</p>` : ''}
+${legacy.length ? `<h2>Otros campos de Access</h2><div class="grid2">${legacy.map(([k, v]) => kv(k, v)).join('')}</div>` : ''}
+</body></html>`;
+  printHtml(html);
 }
