@@ -500,7 +500,7 @@ export function JobEditModal({ job, employees, departments, onSave, onClose }: J
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block">Additional Notes</Label>
+                  <Label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block">Daily Notes</Label>
                   <DictationButton value={notes} onChange={setNotes} />
                 </div>
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special instructions..." rows={2} className="rounded-lg bg-background border-border resize-none text-xs min-h-[60px]" />
