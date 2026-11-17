@@ -322,7 +322,7 @@ export default function FloorPage() {
       });
       if (!res.ok) return apiError(res);
       replaceJob(await res.json());
-      toast({ title: 'Notas guardadas' });
+      toast({ title: 'Notes saved' });
       setNotesJob(null);
     } finally {
       setBusyId(null);
@@ -528,7 +528,7 @@ export default function FloorPage() {
                       }}
                       className="h-12 gap-2 font-semibold"
                     >
-                      <NotebookPen size={18} /> Notas
+                      <NotebookPen size={18} /> Notes
                     </Button>
                     <Button
                       type="button"
@@ -603,7 +603,7 @@ export default function FloorPage() {
       {pdfJob && <PdfViewerModal job={pdfJob} onClose={() => setPdfJob(null)} departments={departments} />}
 
       {notesJob && (
-        <Sheet title={`Notas de producción · ${notesJob.jobNumber ? `#${notesJob.jobNumber}` : notesJob.title}`} onClose={() => setNotesJob(null)}>
+        <Sheet title={`Production notes · ${notesJob.jobNumber ? `#${notesJob.jobNumber}` : notesJob.title}`} onClose={() => setNotesJob(null)}>
           <div className="flex justify-end mb-2">
             <DictationButton value={notesText} onChange={setNotesText} />
           </div>
@@ -615,7 +615,7 @@ export default function FloorPage() {
             className="text-sm"
           />
           <Button type="button" onClick={saveNotes} disabled={busyId === notesJob.id} className="w-full h-12 mt-3 font-bold">
-            Guardar notas
+            Save notes
           </Button>
         </Sheet>
       )}
@@ -678,7 +678,7 @@ export default function FloorPage() {
                 value={complete.notes}
                 onChange={(e) => setComplete({ ...complete, notes: e.target.value })}
                 rows={2}
-                placeholder="Notas (opcional)"
+                placeholder="Notes (optional)"
                 className="text-sm"
               />
               <Button

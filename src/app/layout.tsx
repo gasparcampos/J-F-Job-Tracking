@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/logo.svg",
   },
+  // Chrome's auto-translate rewrites text nodes behind React's back, which
+  // crashes the page on the next update (e.g. saving a note on the floor).
+  other: { google: "notranslate" },
   openGraph: {
     title: "Job Tracker - Machine Shop Management System",
     description: "Manage your jobs with a Kanban board and full tracking",
@@ -34,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" translate="no" className="notranslate" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
