@@ -89,7 +89,15 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
       .then((r) => r.json())
-      .then(setMe)
+      .then((m) => {
+        // Session over (12h shift ended) while login is enforced: straight to
+        // the PIN screen, before the board tries to load anything.
+        if (m?.authEnabled && !m.user) {
+          window.location.replace('/login?as=admin');
+          return;
+        }
+        setMe(m);
+      })
       .catch(() => setMe(null));
   }, []);
   const logout = async () => {
@@ -268,7 +276,7 @@ export default function Home() {
   // which would crash the whole page (".filter is not a function").
   const redirectIfLoggedOut = (responses: Response[]) => {
     if (responses.some((r) => r.status === 401)) {
-      window.location.href = '/login?as=admin';
+      window.location.replace('/login?as=admin');
       return true;
     }
     if (responses.some((r) => r.status === 403)) {
@@ -399,6 +407,12 @@ export default function Home() {
         let v: string | null = null;
         try {
           const res = await fetch('/api/live', { cache: 'no-store' });
+          // Session expired while the board sat open (e.g. overnight).
+          if (res.status === 401) {
+            stopped = true;
+            window.location.replace('/login?as=admin');
+            return;
+          }
           if (res.ok) v = (await res.json()).v ?? null;
         } catch {
           v = null;
