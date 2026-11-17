@@ -263,6 +263,21 @@ export default function Home() {
   }, [departments, searchQuery, filteredJobs]);
 
   // Fetch initial data
+  // A 401/403 means the session expired (or a machinist landed here): go to the
+  // login / floor screen instead of feeding the error object to the board,
+  // which would crash the whole page (".filter is not a function").
+  const redirectIfLoggedOut = (responses: Response[]) => {
+    if (responses.some((r) => r.status === 401)) {
+      window.location.href = '/login?as=admin';
+      return true;
+    }
+    if (responses.some((r) => r.status === 403)) {
+      window.location.href = '/floor';
+      return true;
+    }
+    return false;
+  };
+  const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
   const fetchData = useCallback(async () => {
     try {
       await fetch('/api/seed');
@@ -274,6 +289,7 @@ export default function Home() {
         fetch('/api/extra-parts'),
         fetch('/api/fixtures'),
       ]);
+      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes])) return;
 
       const jobsData = await jobsRes.json();
       const deptsData = await deptsRes.json();
@@ -281,10 +297,10 @@ export default function Home() {
       const extraPartsData = await extraPartsRes.json();
       const fixturesData = await fixturesRes.json().catch(() => []);
 
-      setJobs(jobsData);
+      setJobs(arr<Job>(jobsData));
       setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
-      setDepartments(visibleDepartments(deptsData));
-      setEmployees(employeesData);
+      setDepartments(visibleDepartments(arr<Department>(deptsData)));
+      setEmployees(arr<Employee>(employeesData));
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
       setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
     } catch (error) {
@@ -321,6 +337,7 @@ export default function Home() {
         fetch('/api/extra-parts'),
         fetch('/api/fixtures'),
       ]);
+      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes])) return;
 
       const [jobsData, deptsData, employeesData, extraPartsData, fixturesData] = await Promise.all([
         jobsRes.json(),
@@ -330,10 +347,10 @@ export default function Home() {
         fixturesRes.json().catch(() => []),
       ]);
 
-      setJobs(jobsData);
+      setJobs(arr<Job>(jobsData));
       setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
-      setDepartments(visibleDepartments(deptsData));
-      setEmployees(employeesData);
+      setDepartments(visibleDepartments(arr<Department>(deptsData)));
+      setEmployees(arr<Employee>(employeesData));
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
       setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
     } catch (error) {
