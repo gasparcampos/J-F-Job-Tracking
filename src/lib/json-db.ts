@@ -134,6 +134,14 @@ export interface StoredFixture {
   updatedAt: string;
 }
 
+// Gages: fixture fields plus ownership and loan dates, own collection.
+export interface StoredGage extends StoredFixture {
+  ownership?: 'in-house' | 'customer';
+  loanedBy?: string;
+  receivedDate?: string;
+  returnedDate?: string;
+}
+
 // ---------- Collections ----------
 
 const JOBS = 'jobs';
@@ -141,12 +149,14 @@ const DEPARTMENTS = 'departments';
 const EMPLOYEES = 'employees';
 const EXTRA_PARTS = 'extraParts';
 const FIXTURES = 'fixtures';
+const GAGES = 'gages';
 
 const jobsCol = () => firestore.collection(JOBS);
 const deptsCol = () => firestore.collection(DEPARTMENTS);
 const empsCol = () => firestore.collection(EMPLOYEES);
 const extraPartsCol = () => firestore.collection(EXTRA_PARTS);
 const fixturesCol = () => firestore.collection(FIXTURES);
+const gagesCol = () => firestore.collection(GAGES);
 
 // ---------- Defaults / Seed data ----------
 
@@ -1005,79 +1015,94 @@ const FIXTURE_FIELDS = [
   'place', 'qty', 'dateIn', 'dateOut', 'employeeName', 'notes',
 ] as const;
 
-function docToFixture(id: string, data: FirebaseFirestore.DocumentData): StoredFixture {
+// Gages keep the fixture fields plus who owns it and the loan dates.
+const GAGE_FIELDS = [
+  ...FIXTURE_FIELDS,
+  'ownership', 'loanedBy', 'receivedDate', 'returnedDate',
+] as const;
+
+function docToFixture<T extends StoredFixture>(id: string, data: FirebaseFirestore.DocumentData, fields: readonly string[]): T {
   const out: Record<string, unknown> = { id };
-  for (const k of FIXTURE_FIELDS) out[k] = data[k];
+  for (const k of fields) out[k] = data[k];
   out.active = data.active ?? true;
   out.createdAt = data.createdAt ?? new Date().toISOString();
   out.updatedAt = data.updatedAt ?? new Date().toISOString();
-  return out as unknown as StoredFixture;
+  return out as unknown as T;
 }
 
 // Only known fields are written, so a stray client field never lands in
 // Firestore.
-function pickFixtureFields(data: Partial<StoredFixture>): Record<string, unknown> {
+function pickFixtureFields(data: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of FIXTURE_FIELDS) if (k in data) out[k] = data[k];
+  for (const k of fields) if (k in data) out[k] = data[k];
   if ('active' in data) out.active = data.active;
   return out;
 }
 
-export const fixturesDB = {
-  async findAll(): Promise<StoredFixture[]> {
-    const snap = await fixturesCol().get();
-    const out: StoredFixture[] = [];
-    snap.forEach((d) => out.push(docToFixture(d.id, d.data())));
-    // Newest first; toggling active doesn't move the row around.
-    return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  },
+// Fixtures and Gages are stored the same way, each in its own collection.
+function makeShelfDB<T extends StoredFixture>(col: () => FirebaseFirestore.CollectionReference, fields: readonly string[]) {
+  return {
+    async findAll(): Promise<T[]> {
+      const snap = await col().get();
+      const out: T[] = [];
+      snap.forEach((d) => out.push(docToFixture<T>(d.id, d.data(), fields)));
+      // Newest first; toggling active doesn't move the row around.
+      return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    },
 
-  async findById(id: string): Promise<StoredFixture | null> {
-    const doc = await fixturesCol().doc(id).get();
-    if (!doc.exists) return null;
-    return docToFixture(doc.id, doc.data()!);
-  },
+    async findById(id: string): Promise<T | null> {
+      const doc = await col().doc(id).get();
+      if (!doc.exists) return null;
+      return docToFixture<T>(doc.id, doc.data()!, fields);
+    },
 
-  async create(data: Partial<StoredFixture>): Promise<StoredFixture> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const payload = {
-      ...pickFixtureFields(data),
-      active: data.active ?? true,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await fixturesCol().doc(id).set(stripUndefined(payload));
-    return docToFixture(id, payload);
-  },
+    async create(data: Partial<T>): Promise<T> {
+      const id = generateId();
+      const now = new Date().toISOString();
+      const payload = {
+        ...pickFixtureFields(data as Record<string, unknown>, fields),
+        active: data.active ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await col().doc(id).set(stripUndefined(payload));
+      return docToFixture<T>(id, payload, fields);
+    },
 
-  async update(id: string, data: Partial<StoredFixture>): Promise<StoredFixture | null> {
-    const ref = fixturesCol().doc(id);
-    const before = await ref.get();
-    if (!before.exists) return null;
+    async update(id: string, data: Partial<T>): Promise<T | null> {
+      const ref = col().doc(id);
+      const before = await ref.get();
+      if (!before.exists) return null;
 
-    const patch: Record<string, unknown> = { ...pickFixtureFields(data), updatedAt: new Date().toISOString() };
+      const patch: Record<string, unknown> = { ...pickFixtureFields(data as Record<string, unknown>, fields), updatedAt: new Date().toISOString() };
 
-    // Auto-fill FIX_DATE OUT when the fixture goes active -> inactive, unless
-    // the user typed their own date.
-    const wasActive = (before.data()?.active ?? true) === true;
-    if (wasActive && data.active === false && !data.dateOut) {
-      patch.dateOut = new Date().toISOString().slice(0, 10);
-    }
+      // Auto-fill FIX_DATE OUT when the fixture goes active -> inactive, unless
+      // the user typed their own date.
+      const wasActive = (before.data()?.active ?? true) === true;
+      if (wasActive && data.active === false && !data.dateOut) {
+        patch.dateOut = new Date().toISOString().slice(0, 10);
+      }
 
-    await ref.update(stripUndefined(patch));
-    const after = await ref.get();
-    return docToFixture(after.id, after.data()!);
-  },
+      await ref.update(stripUndefined(patch));
+      const after = await ref.get();
+      return docToFixture<T>(after.id, after.data()!, fields);
+    },
 
-  async delete(id: string): Promise<boolean> {
-    const ref = fixturesCol().doc(id);
-    const doc = await ref.get();
-    if (!doc.exists) return false;
-    await ref.delete();
-    return true;
-  },
-};
+    async delete(id: string): Promise<boolean> {
+      const ref = col().doc(id);
+      const doc = await ref.get();
+      if (!doc.exists) return false;
+      await ref.delete();
+      return true;
+    },
+  };
+}
+
+export const fixturesDB = makeShelfDB<StoredFixture>(fixturesCol, FIXTURE_FIELDS);
+
+// ---------- gagesDB ----------
+
+export const gagesDB = makeShelfDB<StoredGage>(gagesCol, GAGE_FIELDS);
 
 // ---------- Seed / reset ----------
 

@@ -246,6 +246,40 @@ export interface Fixture {
 export type CreateFixtureInput = Partial<Omit<Fixture, 'id' | 'createdAt' | 'updatedAt'>>;
 export type UpdateFixtureInput = CreateFixtureInput;
 
+// A gage kept for a job (same idea and same fields as Fixture), linked to the
+// job by JOB#, DWG# and Part# so it can be found when the part is re-ordered.
+export interface Gage {
+  id: string;
+  jobId?: string;
+  jobNumber?: string;
+  company?: string;
+  dwgNumber?: string;
+  partNumber?: string;
+  name?: string;
+  place?: string;
+  qty?: string;
+  dateIn?: string;
+  // While `active` is true the gage is still on the shelf. When set to
+  // false, dateOut is auto-filled with today server-side.
+  active: boolean;
+  dateOut?: string;
+  employeeName?: string;
+  notes?: string;
+  // Who owns the gage: ours ('in-house') or lent to us by a customer
+  // ('customer'). Missing means in-house.
+  ownership?: 'in-house' | 'customer';
+  // Customer that lent it (e.g. BAKER HUGHES, HALLIBURTON).
+  loanedBy?: string;
+  // Loan tracking: when we got it from the customer / gave it back.
+  receivedDate?: string;
+  returnedDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateGageInput = Partial<Omit<Gage, 'id' | 'createdAt' | 'updatedAt'>>;
+export type UpdateGageInput = CreateGageInput;
+
 export interface MoveJobInput {
   jobId: string;
   targetDeptId: string;

@@ -23,7 +23,7 @@ import { LayoutGrid, List, Plus, Loader2, Wrench, Search, X, LayoutDashboard, Sc
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { assignmentForDept } from '@/lib/dept-assignments';
-import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput, Fixture, CreateFixtureInput } from '@/types';
+import type { Job, Department, Employee, CreateJobInput, UpdateJobInput, ExtraPart, CreateExtraPartInput, Fixture, CreateFixtureInput, Gage, CreateGageInput } from '@/types';
 import {
   KanbanColumn,
   JobFormModal,
@@ -37,6 +37,8 @@ import {
   ExtraPartFormModal,
   FixturesTable,
   FixtureFormModal,
+  GagesTable,
+  GageFormModal,
   QrScannerModal,
   DashboardView,
   UsersModal,
@@ -70,7 +72,7 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('dashboard');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures' | 'access-history'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures' | 'gages' | 'access-history'>('active');
 
   // Extra Parts inventory (leftover stocked pieces).
   const [extraParts, setExtraParts] = useState<ExtraPart[]>([]);
@@ -80,6 +82,10 @@ export default function Home() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   // null = closed, {} = new entry, Fixture = editing.
   const [editingFixture, setEditingFixture] = useState<Fixture | Record<string, never> | null>(null);
+  // Gages kept for jobs (same flow and fields as Fixtures).
+  const [gages, setGages] = useState<Gage[]>([]);
+  // null = closed, {} = new entry, Gage = editing.
+  const [editingGage, setEditingGage] = useState<Gage | Record<string, never> | null>(null);
   // In-app QR reader (inventory): scanning an Extra Part / Fixture label
   // opens that record in edit mode.
   const [isScanning, setIsScanning] = useState(false);
@@ -253,6 +259,17 @@ export default function Home() {
     );
   }, [fixtures, searchQuery]);
 
+  // Gages filter: same global search box (Part#, DWG#, JOB#, ...).
+  const filteredGages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return gages;
+    return gages.filter((g) =>
+      [g.jobNumber, g.dwgNumber, g.partNumber, g.company, g.name, g.place, g.employeeName, g.notes, g.loanedBy]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [gages, searchQuery]);
+
   // For Kanban: when searching, pull every column that has a match to the
   // front (far left) so the result is easy to spot without scrolling. A column
   // matches if it holds a matching job (e.g. a JOB#) or its own name matches.
@@ -290,20 +307,22 @@ export default function Home() {
     try {
       await fetch('/api/seed');
 
-      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes] = await Promise.all([
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes, gagesRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch('/api/departments'),
         fetch('/api/employees'),
         fetch('/api/extra-parts'),
         fetch('/api/fixtures'),
+        fetch('/api/gages'),
       ]);
-      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes])) return;
+      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes, gagesRes])) return;
 
       const jobsData = await jobsRes.json();
       const deptsData = await deptsRes.json();
       const employeesData = await employeesRes.json();
       const extraPartsData = await extraPartsRes.json();
       const fixturesData = await fixturesRes.json().catch(() => []);
+      const gagesData = await gagesRes.json().catch(() => []);
 
       setJobs(arr<Job>(jobsData));
       setAllDepartments(Array.isArray(deptsData) ? deptsData : []);
@@ -311,6 +330,7 @@ export default function Home() {
       setEmployees(arr<Employee>(employeesData));
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
       setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
+      setGages(Array.isArray(gagesData) ? gagesData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -338,21 +358,23 @@ export default function Home() {
   // retries) so the sync is invisible and never flashes the UI.
   const refreshData = useCallback(async () => {
     try {
-      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes] = await Promise.all([
+      const [jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes, gagesRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch('/api/departments'),
         fetch('/api/employees'),
         fetch('/api/extra-parts'),
         fetch('/api/fixtures'),
+        fetch('/api/gages'),
       ]);
-      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes])) return;
+      if (redirectIfLoggedOut([jobsRes, deptsRes, employeesRes, extraPartsRes, fixturesRes, gagesRes])) return;
 
-      const [jobsData, deptsData, employeesData, extraPartsData, fixturesData] = await Promise.all([
+      const [jobsData, deptsData, employeesData, extraPartsData, fixturesData, gagesData] = await Promise.all([
         jobsRes.json(),
         deptsRes.json(),
         employeesRes.json(),
         extraPartsRes.json(),
         fixturesRes.json().catch(() => []),
+        gagesRes.json().catch(() => []),
       ]);
 
       setJobs(arr<Job>(jobsData));
@@ -361,6 +383,7 @@ export default function Home() {
       setEmployees(arr<Employee>(employeesData));
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
       setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
+      setGages(Array.isArray(gagesData) ? gagesData : []);
     } catch (error) {
       // Silent: a dropped poll shouldn't spam toasts — the next tick retries.
       console.error('Error refreshing data:', error);
@@ -485,6 +508,7 @@ export default function Home() {
     }
     const partId = params.get('extraPart');
     const fixtureId = params.get('fixture');
+    const gageId = params.get('gage');
 
     const fetchOne = async <T,>(url: string): Promise<T | null> => {
       try {
@@ -503,6 +527,7 @@ export default function Home() {
         setViewMode('table');
         setTableTab('extra-parts');
         setEditingFixture(null);
+        setEditingGage(null);
         setEditingExtraPart(part);
         return;
       }
@@ -514,7 +539,20 @@ export default function Home() {
         setViewMode('table');
         setTableTab('fixtures');
         setEditingExtraPart(null);
+        setEditingGage(null);
         setEditingFixture(fx);
+        return;
+      }
+    } else if (gageId) {
+      const gg =
+        gages.find((g) => g.id === gageId) ??
+        (await fetchOne<Gage>(`/api/gages/${encodeURIComponent(gageId)}`));
+      if (gg) {
+        setViewMode('table');
+        setTableTab('gages');
+        setEditingExtraPart(null);
+        setEditingFixture(null);
+        setEditingGage(gg);
         return;
       }
     }
@@ -522,9 +560,9 @@ export default function Home() {
     toast({
       title: 'QR no reconocido',
       description:
-        partId || fixtureId
+        partId || fixtureId || gageId
           ? 'No se encontró ese registro (¿lo borraron?).'
-          : 'Ese QR no es de una etiqueta de Extra Part o Fixture.',
+          : 'Ese QR no es de una etiqueta de Extra Part, Fixture o Gage.',
       variant: 'destructive',
     });
   };
@@ -545,6 +583,23 @@ export default function Home() {
     const qs = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, [isLoading, fixtures]);
+
+  // Deep link from a scanned Gage QR code (?gage=<id>), same as above.
+  useEffect(() => {
+    if (isLoading || !gages.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('gage');
+    if (!id) return;
+    const gg = gages.find((g) => g.id === id);
+    if (gg) {
+      setViewMode('table');
+      setTableTab('gages');
+      setEditingGage(gg);
+    }
+    params.delete('gage');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [isLoading, gages]);
 
   // The dragged job's original department, captured at drag start (before
   // handleDragOver optimistically mutates state) so a cancelled move can be
@@ -1149,6 +1204,48 @@ export default function Home() {
     }
   };
 
+  const handleSaveGage = async (data: CreateGageInput, existingId?: string): Promise<boolean> => {
+    try {
+      const res = await fetch(existingId ? `/api/gages/${existingId}` : '/api/gages', {
+        method: existingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: err.error || 'Could not save gage', variant: 'destructive' });
+        return false;
+      }
+      const saved: Gage = await res.json();
+      setGages((prev) => {
+        const idx = prev.findIndex((g) => g.id === saved.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...prev];
+      });
+      toast({ title: 'Success', description: existingId ? 'Gage updated' : 'Gage saved' });
+      return true;
+    } catch (error) {
+      console.error('Error saving gage:', error);
+      toast({ title: 'Error', description: 'Could not save gage', variant: 'destructive' });
+      return false;
+    }
+  };
+
+  const handleDeleteGage = async (gage: Gage) => {
+    try {
+      await fetch(`/api/gages/${gage.id}`, { method: 'DELETE' });
+      setGages((prev) => prev.filter((g) => g.id !== gage.id));
+      toast({ title: 'Deleted', description: 'Gage removed' });
+    } catch (error) {
+      console.error('Error deleting gage:', error);
+      toast({ title: 'Error', description: 'Could not delete gage', variant: 'destructive' });
+    }
+  };
+
   const handleEditDept = async (deptId: string) => {
     const dept = departments.find((d) => d.id === deptId);
     if (!dept) return;
@@ -1519,7 +1616,7 @@ export default function Home() {
             onClick={() => setIsScanning(true)}
             variant="outline"
             className="hidden sm:inline-flex gap-2 border-primary/60 text-primary hover:bg-primary/10"
-            title="Scan QR (Extra Part / Fixture)"
+            title="Scan QR (Extra Part / Fixture / Gage)"
             aria-label="Scan QR"
           >
             <ScanLine size={16} />
@@ -1786,6 +1883,24 @@ export default function Home() {
                   {filteredFixtures.length}
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setTableTab('gages')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'gages'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+              >
+                Gages
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    tableTab === 'gages' ? 'bg-primary-foreground/20' : 'bg-background'
+                  }`}
+                >
+                  {filteredGages.length}
+                </span>
+              </button>
               {/* Read-only archive of the jobs imported from Access (MASTER). */}
               <button
                 type="button"
@@ -1822,6 +1937,16 @@ export default function Home() {
                   Add Fixture
                 </Button>
               )}
+              {tableTab === 'gages' && (
+                <Button
+                  onClick={() => setEditingGage({})}
+                  className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/30"
+                  size="sm"
+                >
+                  <Plus size={14} />
+                  Add Gage
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
@@ -1838,6 +1963,12 @@ export default function Home() {
                   fixtures={filteredFixtures}
                   onEdit={(f) => setEditingFixture(f)}
                   onDelete={handleDeleteFixture}
+                />
+              ) : tableTab === 'gages' ? (
+                <GagesTable
+                  gages={filteredGages}
+                  onEdit={(g) => setEditingGage(g)}
+                  onDelete={handleDeleteGage}
                 />
               ) : (
                 <JobsTable
@@ -2043,6 +2174,14 @@ export default function Home() {
         employees={employees}
         onSave={handleSaveFixture}
         onClose={() => setEditingFixture(null)}
+      />
+
+      <GageFormModal
+        gage={editingGage}
+        jobs={jobs}
+        employees={employees}
+        onSave={handleSaveGage}
+        onClose={() => setEditingGage(null)}
       />
 
       <AssistantPanel

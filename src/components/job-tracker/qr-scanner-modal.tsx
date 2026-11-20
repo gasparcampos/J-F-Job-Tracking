@@ -131,7 +131,7 @@ export function QrScannerModal({ open, onClose, onResult }: QrScannerModalProps)
       </div>
 
       <p className="px-6 py-4 text-center text-sm text-white/80">
-        Apunta la cámara al QR de la etiqueta (Extra Part o Fixture).
+        Apunta la cámara al QR de la etiqueta (Extra Part, Fixture o Gage).
       </p>
     </div>
   );
