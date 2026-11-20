@@ -29,3 +29,7 @@ export const PLACE_OPTIONS: readonly string[] = [
   '#44',
   '#45',
 ];
+
+// Fixtures only ever go to AA-8; the Fixture form's FIX PLACE dropdown shows
+// just this list (a saved fixture with another place still keeps it).
+export const FIXTURE_PLACE_OPTIONS: readonly string[] = ['AA-8'];

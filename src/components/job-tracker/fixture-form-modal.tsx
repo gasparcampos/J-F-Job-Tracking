@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import type { Fixture, Job, Employee, CreateFixtureInput } from '@/types';
-import { PLACE_OPTIONS } from '@/lib/extra-parts-places';
+import { FIXTURE_PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
 import { lookupJob, exactJobByNumber, fmtAccessDate } from '@/lib/job-lookup';
 import { useJobsWithHistory } from '@/lib/use-job-history';
@@ -326,8 +326,8 @@ export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave
               >
                 <option value="">—</option>
                 {/* Keep a saved place that isn't in the list selectable. */}
-                {place && !PLACE_OPTIONS.includes(place) && <option value={place}>{place}</option>}
-                {PLACE_OPTIONS.map((p) => (
+                {place && !FIXTURE_PLACE_OPTIONS.includes(place) && <option value={place}>{place}</option>}
+                {FIXTURE_PLACE_OPTIONS.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
