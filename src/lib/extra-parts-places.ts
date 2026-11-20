@@ -21,4 +21,11 @@ export const PLACE_OPTIONS: readonly string[] = [
   'RACK-B--3',
   'RACK-B--4',
   'RACK-B--5',
+  '#39',
+  '#40',
+  '#41',
+  '#42',
+  '#43',
+  '#44',
+  '#45',
 ];
