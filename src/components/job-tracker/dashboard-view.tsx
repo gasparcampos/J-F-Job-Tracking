@@ -719,6 +719,16 @@ export function HoverPreview({
           P{job.priority}
         </span>
       </div>
+      {/* Daily Notes, right under the job info. Long notes scroll here so
+          the drawing keeps most of the space. */}
+      <div className="flex-shrink-0 px-3 py-1.5 border-b border-border bg-amber-400/10">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+          Daily Notes
+        </p>
+        <p className="text-xs text-card-foreground whitespace-pre-wrap break-words max-h-24 overflow-y-auto">
+          {job.notes?.trim() || <span className="text-muted-foreground">—</span>}
+        </p>
+      </div>
       {job.deviationStatus === 'pending' && (
         <div className="flex-shrink-0 bg-red-600 text-white text-center py-2 px-3 border-b-2 border-red-800 animate-pulse">
           <p className="text-2xl font-black tracking-wider uppercase leading-tight">⚠ Pending Deviation{devTag}</p>
