@@ -658,7 +658,16 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       userMsg.apiContent = jobsFound
         ? `[I attached a photo/PDF of a print. It was identified as ${jobsFound}.] Where is this job?`
         : '[I attached a photo/PDF of a print, but no job could be identified from it.]';
-      appendMessage({ role: 'assistant', content: data.reply });
+      // A Purchase Order photo comes back with proposed changes (send the job
+      // to O.S with the PO note). With Jarvis on, Jarvis proposes them itself.
+      const poActions: AssistantAction[] = liveActiveRef.current ? [] : data.actions ?? [];
+      appendMessage({
+        role: 'assistant',
+        content: poActions.length
+          ? `${data.reply}\n${t('¿Confirmas estos cambios?', 'Confirm these changes?')}`
+          : data.reply,
+        ...(poActions.length ? { actions: poActions, actionsState: 'pending' as const } : {}),
+      });
       if (await showToJarvis(data.reply)) {
         // Jarvis got the photo and answers out loud.
       } else if (liveActiveRef.current) {

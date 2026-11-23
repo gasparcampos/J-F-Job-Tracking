@@ -178,9 +178,10 @@ export async function resolveToolCalls(
         } else if (dept.id === job.departmentId) {
           errors.push(t(`${jobLabel} ya está en ${dept.name}.`, `${jobLabel} is already in ${dept.name}.`));
         } else {
+          const noteBit = args.notes ? t(`, nota "${args.notes}"`, `, note "${args.notes}"`) : '';
           const label = t(
-            `Mover ${jobLabel}: ${deptName(job.departmentId)} → ${dept.name}`,
-            `Move ${jobLabel}: ${deptName(job.departmentId)} → ${dept.name}`
+            `Mover ${jobLabel}: ${deptName(job.departmentId)} → ${dept.name}${noteBit}`,
+            `Move ${jobLabel}: ${deptName(job.departmentId)} → ${dept.name}${noteBit}`
           );
           actions.push({
             label,
