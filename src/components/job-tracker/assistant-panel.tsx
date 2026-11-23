@@ -41,6 +41,30 @@ async function shrinkImage(file: File): Promise<Blob> {
   }
 }
 
+// Jarvis (Gemini Live) looks at photos as JPEG frames; ~1600px on the long
+// side keeps a PO / print readable without a huge upload.
+async function imageToJpegBase64(file: File, maxSide = 1600): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d')!;
+    // PNG screenshots can be transparent: JPEG needs a white background.
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// A photo attached before Jarvis was turned on is still shown to Jarvis when
+// it starts, if it is this recent.
+const RECENT_PHOTO_MS = 15 * 60 * 1000;
+
 interface AssistantPanelProps {
   // Lets the assistant's confirmed changes update the Kanban/Table state
   // immediately, the same way handleMoveJob does in page.tsx.
@@ -463,6 +487,24 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
   });
   const liveActive = live.status !== 'idle';
 
+  // Last photo attached, so Jarvis can see it even if it was attached before
+  // the voice session started.
+  const lastPhotoRef = useRef<{ b64: string; result: string; at: number; sentToLive: boolean } | null>(null);
+  const photoNote = (result: string, earlier: boolean) =>
+    `[The user ${earlier ? 'attached this photo just before turning on voice mode' : 'just attached this photo'}. ` +
+    `The app's text reader (OCR) said: ${result || 'nothing could be read'}. ` +
+    'Look at the image yourself. If it is a J&F Purchase Order, follow the PURCHASE ORDER steps. ' +
+    'Otherwise tell the user briefly what it is and where that job is.]';
+
+  // Jarvis just connected: show it the recent photo, if any.
+  useEffect(() => {
+    if (live.status !== 'live') return;
+    const photo = lastPhotoRef.current;
+    if (!photo || photo.sentToLive || Date.now() - photo.at > RECENT_PHOTO_MS) return;
+    if (live.sendImage(photo.b64, photoNote(photo.result, true))) photo.sentToLive = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live.status]);
+
   useEffect(() => {
     liveActiveRef.current = liveActive;
     if (liveActive) {
@@ -588,6 +630,16 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
     setMessages(next);
     setLoading(true);
 
+    // Jarvis looks at the photo itself (PDFs only get the text result).
+    const b64Promise = isImage ? imageToJpegBase64(file) : Promise.resolve(null);
+    const showToJarvis = async (result: string) => {
+      const b64 = await b64Promise;
+      if (!b64) return false;
+      const sent = liveActiveRef.current && live.sendImage(b64, photoNote(result, false));
+      lastPhotoRef.current = { b64, result, at: Date.now(), sentToLive: !!sent };
+      return !!sent;
+    };
+
     try {
       const form = new FormData();
       form.append('file', isImage ? await shrinkImage(file) : file, isImage ? 'photo.jpg' : file.name);
@@ -595,6 +647,8 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       const res = await fetch('/api/assistant/locate', { method: 'POST', body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // OCR failed, but Jarvis can still read the photo itself.
+        if (await showToJarvis('')) return;
         appendMessage({ role: 'assistant', content: `⚠️ ${data.error || t('No se pudo leer la imagen.', 'Could not read the image.')}` });
         return;
       }
@@ -605,13 +659,17 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
         ? `[I attached a photo/PDF of a print. It was identified as ${jobsFound}.] Where is this job?`
         : '[I attached a photo/PDF of a print, but no job could be identified from it.]';
       appendMessage({ role: 'assistant', content: data.reply });
-      if (liveActiveRef.current) {
+      if (await showToJarvis(data.reply)) {
+        // Jarvis got the photo and answers out loud.
+      } else if (liveActiveRef.current) {
         live.sendText(`[The user uploaded a photo of a print. Result: ${data.reply}] Tell the user briefly.`);
       } else {
         speak(data.reply);
       }
     } catch {
-      appendMessage({ role: 'assistant', content: `⚠️ ${t('No se pudo conectar con el asistente.', 'Could not reach the assistant.')}` });
+      if (!(await showToJarvis('').catch(() => false))) {
+        appendMessage({ role: 'assistant', content: `⚠️ ${t('No se pudo conectar con el asistente.', 'Could not reach the assistant.')}` });
+      }
     } finally {
       setLoading(false);
     }

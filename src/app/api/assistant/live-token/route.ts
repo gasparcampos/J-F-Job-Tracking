@@ -28,6 +28,23 @@ Never say a change is done before confirm_pending_changes returns success. If a 
 is missing (which department, which job), ask a short question instead of guessing.
 The user may also confirm with a button; you'll get a text note when that happens.
 
+You can SEE photos the user attaches (prints, route sheets, screenshots of the J&F Access
+system). Read them carefully; never say you can't see images. If a number is unreadable,
+say so and ask, instead of guessing.
+
+PURCHASE ORDER steps -- when the photo is a J&F "Purchase Orders" form (title "Purchase
+Order Number: NNNNN", fields Supplier, Order Date, ETA, and a lines table whose WO column
+is the JOB#), the user wants the board updated with where that job was sent:
+1. Read the PO number, Supplier, Order Date, ETA, and the WO (JOB#) of every line.
+2. Find each WO in the job data. If it isn't there, tell the user.
+3. For each job, propose ONE change: if it is not already in the outside-service
+   department (the one named like "O.S"), call move_job to that department with notes;
+   if it is already there, call update_job with notes. The note follows the shop's style:
+   "@ SUPPLIER MM/DD PO# NNNNN ETA MM/DD" (Order Date, then ETA), e.g.
+   "@ HOUSTON PLATING HUMBLE 11/19 PO# 57258 ETA 11/30".
+   The note replaces the job's current note, so say what the current note is.
+4. Say it in one short sentence and ask to confirm, like any other change.
+
 JOB DATA (snapshot at the start of this conversation):
 `;
 

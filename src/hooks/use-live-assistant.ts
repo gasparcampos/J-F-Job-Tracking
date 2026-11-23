@@ -294,6 +294,17 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
     sessionRef.current?.sendRealtimeInput({ text });
   }, []);
 
+  // A photo (JPEG, base64) for Jarvis to look at, followed by a text note
+  // that tells it what the photo is / what to do with it.
+  const sendImage = useCallback((base64Jpeg: string, note: string) => {
+    const session = sessionRef.current;
+    if (!session) return false;
+    lastActivityRef.current = Date.now();
+    session.sendRealtimeInput({ video: { data: base64Jpeg, mimeType: 'image/jpeg' } });
+    session.sendRealtimeInput({ text: note });
+    return true;
+  }, []);
+
   const setMuted = useCallback((value: boolean) => {
     mutedRef.current = value;
     setMutedState(value);
@@ -302,5 +313,5 @@ export function useLiveAssistant(callbacks: LiveCallbacks) {
 
   useEffect(() => () => stop(), [stop]);
 
-  return { status, speaking, muted, start, stop, sendText, setMuted };
+  return { status, speaking, muted, start, stop, sendText, sendImage, setMuted };
 }
