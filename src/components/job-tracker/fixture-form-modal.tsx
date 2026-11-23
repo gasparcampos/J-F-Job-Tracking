@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Save, Wrench, Printer } from 'lucide-react';
+import { X, Save, Ruler, Wrench, Printer } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import type { Fixture, Job, Employee, CreateFixtureInput } from '@/types';
+import type { Fixture, Gage, Job, Employee, CreateFixtureInput } from '@/types';
+import { sameTooling, gageAvailable } from '@/lib/tooling-match';
 import { FIXTURE_PLACE_OPTIONS } from '@/lib/extra-parts-places';
 import { printHtml, escHtml } from '@/lib/print-html';
 import { lookupJob, exactJobByNumber, fmtAccessDate } from '@/lib/job-lookup';
@@ -21,6 +22,9 @@ interface FixtureFormModalProps {
   employees: Employee[];
   onSave: (data: CreateFixtureInput, existingId?: string) => Promise<boolean> | void;
   onClose: () => void;
+  // Gages kept for the same part: listed in the form, click opens one.
+  gages?: Gage[];
+  onOpenGage?: (gage: Gage) => void;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -33,7 +37,7 @@ const LABEL = 'text-[10px] font-semibold text-muted-foreground uppercase trackin
  * (work order) and the identifying fields fill in from that job. Fields
  * mirror the Access ADD-FIX form.
  */
-export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave, onClose }: FixtureFormModalProps) {
+export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave, onClose, gages = [], onOpenGage }: FixtureFormModalProps) {
   const isEditing = !!fixture && 'id' in fixture && typeof (fixture as Fixture).id === 'string';
   const existing = isEditing ? (fixture as Fixture) : null;
 
@@ -185,6 +189,15 @@ export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave
     </body></html>`);
   };
 
+  // Gages for the same JOB# / DWG# / Part# (REV ignored).
+  const relatedGages = useMemo(
+    () =>
+      gages.filter(
+        (x) => gageAvailable(x) && sameTooling({ jobId, jobNumber, dwgNumber, partNumber }, x)
+      ),
+    [gages, jobId, jobNumber, dwgNumber, partNumber]
+  );
+
   if (!fixture) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,6 +327,27 @@ export function FixtureFormModal({ fixture, jobs: currentJobs, employees, onSave
               <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-lg h-10 bg-background border-border text-sm" />
             </div>
           </div>
+
+          {/* Link to the gages kept for this same part. */}
+          {onOpenGage && relatedGages.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-green-500/40 bg-green-500/10 px-3 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-green-700 dark:text-green-400">
+                Gages for this part:
+              </span>
+              {relatedGages.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => onOpenGage(x)}
+                  title="Open this gage"
+                  className="tooling-blink inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-white bg-green-600 hover:bg-green-700 rounded-md px-2 py-1"
+                >
+                  <Ruler size={12} />
+                  {[x.name, x.place && `@ ${x.place}`, x.jobNumber && `JOB# ${x.jobNumber}`].filter(Boolean).join(' · ') || 'Gage'}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* FIX_PLACE, FIX_QTY, FIX_DATE IN, FIX-EMPL */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2, AlertTriangle, FileClock } from 'lucide-react';
+import { FileText, Clock, Trash2, Eye, Pencil, Paperclip, Loader2, X, Undo2, AlertTriangle, FileClock, Wrench, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,7 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Job, Department } from '@/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { Job, Department, Fixture, Gage } from '@/types';
 import { LongNote } from './long-note';
 import { DictationButton } from './dictation-button';
 
@@ -34,6 +41,11 @@ interface JobsTableProps {
   // When provided, double-clicking a job's note (or its Out Service) opens a
   // small box to edit it in place (same fields as in Edit Job).
   onSaveNote?: (job: Job, value: string, field: NoteField) => Promise<boolean> | boolean | void;
+  // When provided (Active tab), the fixtures / gages on hand for each job's
+  // part show as blinking green buttons in Actions; clicking opens the record.
+  getTooling?: (job: Job) => { fixtures: Fixture[]; gages: Gage[] };
+  onOpenFixture?: (fixture: Fixture) => void;
+  onOpenGage?: (gage: Gage) => void;
 }
 
 export type NoteField = 'notes' | 'outService';
@@ -50,6 +62,9 @@ export function JobsTable({
   onReturnToActive,
   onTimeReport,
   onSaveNote,
+  getTooling,
+  onOpenFixture,
+  onOpenGage,
 }: JobsTableProps) {
   // Inline note editor: which row is open and its draft text.
   const [noteJobId, setNoteJobId] = useState<string | null>(null);
@@ -419,6 +434,25 @@ export function JobsTable({
                       Return
                     </button>
                   )}
+                  {/* Fixtures / gages kept for this part: blinking green.
+                      One record opens straight away; several show a list. */}
+                  {getTooling && (() => {
+                    const t = getTooling(job);
+                    return (
+                      <>
+                        <ToolingButton
+                          kind="fixture"
+                          items={t.fixtures}
+                          onOpen={(f) => onOpenFixture?.(f as Fixture)}
+                        />
+                        <ToolingButton
+                          kind="gage"
+                          items={t.gages}
+                          onOpen={(g) => onOpenGage?.(g as Gage)}
+                        />
+                      </>
+                    );
+                  })()}
                   {/* Unified DEV badge: one icon, three colors for the three
                       deviation states. Red = pending (not approved yet),
                       green = approved, gray = rejected. Click opens the job. */}
@@ -512,5 +546,67 @@ export function JobsTable({
         </div>
       )}
     </div>
+  );
+}
+
+// Blinking green FIX / GAGE button for the Actions column.
+function ToolingButton({
+  kind,
+  items,
+  onOpen,
+}: {
+  kind: 'fixture' | 'gage';
+  items: Array<Fixture | Gage>;
+  onOpen: (item: Fixture | Gage) => void;
+}) {
+  if (items.length === 0) return null;
+  const Icon = kind === 'fixture' ? Wrench : Ruler;
+  const label = kind === 'fixture' ? 'FIX' : 'GAGE';
+  const noun = kind === 'fixture' ? 'Fixture' : 'Gage';
+  const describe = (it: Fixture | Gage) =>
+    [it.name, it.place && `@ ${it.place}`, it.jobNumber && `JOB# ${it.jobNumber}`]
+      .filter(Boolean)
+      .join(' · ') || noun;
+  const cls =
+    'tooling-blink inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-white bg-green-600 hover:bg-green-700 rounded-md px-1.5 py-1 mr-1 whitespace-nowrap';
+  const content = (
+    <>
+      <Icon size={11} />
+      {label}
+      {items.length > 1 && <span className="bg-white/25 rounded px-1">{items.length}</span>}
+    </>
+  );
+
+  if (items.length === 1) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(items[0])}
+        title={`${noun} for this part: ${describe(items[0])} — click to open`}
+        className={cls}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" title={`${items.length} ${noun.toLowerCase()}s for this part`} className={cls}>
+          {content}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-widest">
+          {noun}s for this part
+        </DropdownMenuLabel>
+        {items.map((it) => (
+          <DropdownMenuItem key={it.id} onSelect={() => onOpen(it)} className="text-xs gap-2">
+            <Icon size={13} className="text-green-600" />
+            {describe(it)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

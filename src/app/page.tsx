@@ -45,6 +45,7 @@ import {
   AccessHistoryView,
   AccessHistorySearch,
 } from '@/components/job-tracker';
+import { toolingForJob } from '@/lib/tooling-match';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
 const PdfViewerModal = dynamic(
@@ -269,6 +270,31 @@ export default function Home() {
         .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [gages, searchQuery]);
+
+  // Active table: fixtures / gages on hand for each job's part (by JOB#,
+  // DWG# or Part#, ignoring REV). Computed once per data change.
+  const toolingByJob = useMemo(() => {
+    const map = new Map<string, { fixtures: Fixture[]; gages: Gage[] }>();
+    for (const j of jobs) map.set(j.id, toolingForJob(j, fixtures, gages));
+    return map;
+  }, [jobs, fixtures, gages]);
+  const getTooling = useCallback(
+    (job: Job) => toolingByJob.get(job.id) ?? { fixtures: [], gages: [] },
+    [toolingByJob]
+  );
+
+  // Open a fixture / gage record on its own tab (from the job's blinking
+  // button, or from the cross-link inside the other form).
+  const openFixture = useCallback((f: Fixture) => {
+    setEditingGage(null);
+    setTableTab('fixtures');
+    setEditingFixture(f);
+  }, []);
+  const openGage = useCallback((g: Gage) => {
+    setEditingFixture(null);
+    setTableTab('gages');
+    setEditingGage(g);
+  }, []);
 
   // For Kanban: when searching, pull every column that has a match to the
   // front (far left) so the result is easy to spot without scrolling. A column
@@ -1989,6 +2015,9 @@ export default function Home() {
                   onReturnToActive={tableTab === 'shipped' ? handleReturnToActive : undefined}
                   onTimeReport={tableTab === 'shipped' ? handleTimeReport : undefined}
                   onSaveNote={handleSaveNote}
+                  getTooling={tableTab === 'active' ? getTooling : undefined}
+                  onOpenFixture={openFixture}
+                  onOpenGage={openGage}
                 />
               )}
             </div>
@@ -2174,6 +2203,8 @@ export default function Home() {
         employees={employees}
         onSave={handleSaveFixture}
         onClose={() => setEditingFixture(null)}
+        gages={gages}
+        onOpenGage={openGage}
       />
 
       <GageFormModal
@@ -2182,6 +2213,8 @@ export default function Home() {
         employees={employees}
         onSave={handleSaveGage}
         onClose={() => setEditingGage(null)}
+        fixtures={fixtures}
+        onOpenFixture={openFixture}
       />
 
       <AssistantPanel
