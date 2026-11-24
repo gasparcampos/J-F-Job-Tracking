@@ -76,13 +76,15 @@ export function poKind(po: Pick<PurchaseOrder, 'description'>, supplier?: Pick<P
 
 export const KIND_LABEL: Record<PoKind, string> = {
   nde: 'NDE → board NDE, back to KARINA',
-  os: 'Outside service → board O.S, back to READY TO SHIP (heat treat / stress relief, not carburized: WOOD PALLET)',
+  os: 'Outside service → board O.S, back to READY TO SHIP (heat treat / stress relief, not carburized: WOOD PALLET; EDM: KARINA)',
   none: "Material / tooling (doesn't move the job)",
 };
 
 // Heat treat and stress relief come back to WOOD PALLET (more machining to do);
 // carburized parts are done, so they go to READY TO SHIP.
 const CARB_RE = /CARB/;
+// EDM comes back to KARINA.
+const EDM_RE = /\bEDM\b/;
 const HEAT_RE = /(HEAT\s*-?\s*TREAT|HEATTREAT|\bH\s*\/\s*T\b|STRESS\s*-?\s*RELIE)/;
 
 /**
@@ -99,8 +101,11 @@ export function returnDeptName(
   if (kind === 'nde') return 'KARINA';
   if (kind !== 'os') return null;
   const d = String(description ?? '').toUpperCase();
+  const s = String(supplierName ?? '').toUpperCase();
+  const noProcess = kindFromDescription(d) === null;
+  if (EDM_RE.test(d) || (noProcess && EDM_RE.test(s))) return 'KARINA';
   if (CARB_RE.test(d)) return 'READY TO SHIP';
-  const heat = HEAT_RE.test(d) || (kindFromDescription(d) === null && HEAT_RE.test(String(supplierName ?? '').toUpperCase()));
+  const heat = HEAT_RE.test(d) || (noProcess && HEAT_RE.test(s));
   return heat ? 'WOOD PALLET' : 'READY TO SHIP';
 }
 
