@@ -29,8 +29,10 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
     )
     .join('');
   const html = `<!doctype html><html><head><title>Purchase Order ${po.poNumber}</title><style>
-    @page { size: letter; margin: 0.45in; }
-    .print-page { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11px; }
+    /* margin 0: the browser leaves out its own header/footer (date, title, web address). */
+    @page { size: letter; margin: 0; }
+    .print-page { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11px; padding: 0.45in 0.45in 0.7in;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone; }
     .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #000; padding-bottom: 8px; }
     .co { font-size: 18px; font-weight: 800; }
     .title { text-align: right; }
@@ -48,8 +50,7 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
     .c { text-align: center; } .r { text-align: right; white-space: nowrap; } .b { font-weight: 700; }
     .total td { font-weight: 800; font-size: 13px; }
     .notes { margin-top: 10px; border: 1px solid #000; padding: 6px 8px; min-height: 40px; white-space: pre-wrap; }
-    .rush { color: #b00; font-weight: 800; }
-    .foot { margin-top: 10px; display: flex; justify-content: space-between; font-size: 9px; color: #444; }
+    .foot { position: fixed; left: 0.45in; right: 0.45in; bottom: 0.3in; font-size: 9px; color: #444; }
   </style></head><body>
     <div class="top">
       <div>
@@ -61,7 +62,6 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
       <div class="title">
         <h1>Purchase Order</h1>
         <div class="num">Number ${esc(po.poNumber)}</div>
-        <div>${esc(now.toLocaleDateString('en-US', { dateStyle: 'long' }))} ${esc(now.toLocaleTimeString('en-US'))}</div>
       </div>
     </div>
     <div class="grid">
@@ -83,9 +83,9 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
       </div>
     </div>
     <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
-      <div class="box kv" style="grid-template-columns:70px 1fr"><span>MAT-TYPE</span><span>${esc(po.matType)}</span><span>HT#</span><span>${esc(po.heatNumber)}</span></div>
-      <div class="box kv" style="grid-template-columns:80px 1fr"><span>DWG# & Part</span><span>${esc(po.partDwg)}</span><span>HOT-RUSH</span><span class="rush">${esc(po.hotRush)}</span></div>
-      <div class="box kv" style="grid-template-columns:90px 1fr"><span>Open//Close</span><span>${esc(po.status)}</span><span>Received</span><span>${esc(usDate(po.receivedDate))} ${esc(po.employeeReceived)}</span></div>
+      <div class="box kv" style="grid-template-columns:70px 1fr"><span>MAT-TYPE</span><span>${esc(po.matType)}</span></div>
+      <div class="box kv" style="grid-template-columns:80px 1fr"><span>DWG# & Part</span><span>${esc(po.partDwg)}</span></div>
+      <div class="box kv" style="grid-template-columns:40px 1fr"><span>HT#</span><span>${esc(po.heatNumber)}</span></div>
     </div>
     <table>
       <thead><tr><th style="width:44px">Units</th><th>PROD_DESCRIP / SPEC</th><th style="width:120px">PART#</th><th style="width:44px">REV</th><th style="width:60px">WO#</th><th style="width:70px">Unit Price</th><th style="width:76px">Subtotal</th></tr></thead>
@@ -93,7 +93,7 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
       <tfoot><tr class="total"><td colspan="6" class="r">Order Total</td><td class="r">${money(poTotal(po.lines))}</td></tr></tfoot>
     </table>
     <div class="notes"><b>NOTES:</b> ${esc(po.notes)}</div>
-    <div class="foot"><span>J&F Machine Shop · Purchase Order ${esc(po.poNumber)}</span><span>Page 1 of 1</span></div>
+    <div class="foot">${esc(now.toLocaleDateString('en-US', { dateStyle: 'long' }))} ${esc(now.toLocaleTimeString('en-US'))}</div>
   </body></html>`;
   printHtml(html);
 }
