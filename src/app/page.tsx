@@ -1833,7 +1833,9 @@ export default function Home() {
           </DndContext>
         ) : (
           <div className="h-full flex flex-col gap-3 min-h-0">
-            {/* Sub-tabs: live (Activos) vs. shipped (Enviados) jobs. */}
+            {/* Sub-tabs: live (Activos) vs. shipped (Enviados) jobs. Hidden
+                inside POs, which has its own tabs and a way back. */}
+            {tableTab !== 'pos' && (
             <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
               <button
                 type="button"
@@ -1947,22 +1949,17 @@ export default function Home() {
                   {filteredGages.length}
                 </span>
               </button>
-              {/* Purchase Orders (the Access PO system). */}
+              {/* Purchase Orders (the Access PO system). Opening it hides this
+                  row; the POs screen has its own tabs and a "Jobs" back button. */}
               <button
                 type="button"
                 onClick={() => setTableTab('pos')}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-                  tableTab === 'pos'
-                    ? 'bg-sky-600 text-white border-sky-600 shadow-lg shadow-sky-600/30'
-                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
-                }`}
-                title="Purchase Orders still out (OUTSIDE)"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors bg-sky-600/15 text-sky-500 border-sky-600/40 hover:bg-sky-600 hover:text-white"
+                title="Purchase Orders"
               >
                 POs
                 {activePoCount !== null && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${tableTab === 'pos' ? 'bg-white/20' : 'bg-background'}`}>
-                    {activePoCount}
-                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background">{activePoCount}</span>
                 )}
               </button>
               {/* Read-only archive of the jobs imported from Access (MASTER). */}
@@ -2012,6 +2009,7 @@ export default function Home() {
                 </Button>
               )}
             </div>
+            )}
 
             <div className="flex-1 min-h-0 overflow-auto">
               {tableTab === 'pos' ? (
@@ -2022,6 +2020,7 @@ export default function Home() {
                   openPo={openPo}
                   onOpenPoHandled={() => setOpenPo(null)}
                   onCountChange={setActivePoCount}
+                  onBack={() => setTableTab('active')}
                 />
               ) : tableTab === 'access-history' ? (
                 <AccessHistoryView query={historyQuery} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Paperclip, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Paperclip, Plus, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Department, Job } from '@/types';
 import type { PoLookups, PoSummary, PoSupplier } from '@/types/po';
@@ -53,6 +53,8 @@ interface Props {
   openPo?: string | null;
   onOpenPoHandled?: () => void;
   onCountChange?: (activeCount: number) => void;
+  /** Leave POs, back to the job tabs. */
+  onBack?: () => void;
 }
 
 /**
@@ -60,7 +62,7 @@ interface Props {
  * (Access startup screen), OLD FILES = every PO (MAIN-VIEW), SUPPLIERS,
  * REPORTS (TONY-ONLY) and SETUP (employees, shipping methods, company).
  */
-export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOpenPoHandled, onCountChange }: Props) {
+export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOpenPoHandled, onCountChange, onBack }: Props) {
   const [view, setView] = useState<View>('outside');
   const [pos, setPos] = useState<PoSummary[] | null>(null);
   const [lookups, setLookups] = useState<PoLookups>(EMPTY_LOOKUPS);
@@ -68,8 +70,8 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
   const [poId, setPoId] = useState<string | null>(null);
   const [supplierEdit, setSupplierEdit] = useState<{ s: PoSupplier | null; done?: (s: PoSupplier) => void } | undefined>();
 
-  const [q, setQ] = useState(''); // PO# / DWG-PART / Supplier / WO
-  const [q2, setQ2] = useState(''); // MAT-TYPE / HT# / PART-DWG (OLD FILES)
+  // One search: PO#, supplier, DWG/Part, WO, MAT-TYPE, HT#, description, line text.
+  const [q, setQ] = useState('');
   const [activeOnly, setActiveOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const [supQ, setSupQ] = useState('');
@@ -122,22 +124,22 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
     return byWo;
   }, [jobs, departments]);
 
-  const match1 = (p: PoSummary, s: string) =>
+  const matches = (p: PoSummary, s: string) =>
     !s ||
     norm(p.poNumber).includes(s) ||
-    norm(p.partDwg).includes(s) ||
     norm(p.supplierName).includes(s) ||
+    norm(p.partDwg).includes(s) ||
     p.workOrders.some((w) => w.includes(s)) ||
+    norm(p.matType).includes(s) ||
+    norm(p.heatNumber).includes(s) ||
     norm(p.description).includes(s) ||
     norm(p.lineText).includes(s);
-  const match2 = (p: PoSummary, s: string) => !s || norm(p.matType).includes(s) || norm(p.heatNumber).includes(s) || norm(p.partDwg).includes(s);
 
-  const outsideRows = useMemo(() => active.filter((p) => match1(p, q.trim().toLowerCase())), [active, q]);
+  const outsideRows = useMemo(() => active.filter((p) => matches(p, q.trim().toLowerCase())), [active, q]);
   const allRows = useMemo(() => {
-    const s1 = q.trim().toLowerCase();
-    const s2 = q2.trim().toLowerCase();
-    return (pos ?? []).filter((p) => (!activeOnly || p.active) && match1(p, s1) && match2(p, s2));
-  }, [pos, q, q2, activeOnly]);
+    const s = q.trim().toLowerCase();
+    return (pos ?? []).filter((p) => (!activeOnly || p.active) && matches(p, s));
+  }, [pos, q, activeOnly]);
 
   const supplierStats = useMemo(() => {
     const m = new Map<string, { count: number; last: string }>();
@@ -156,7 +158,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
   const receivedToday = (pos ?? []).filter((p) => p.receivedDate === today).length;
   const overdue = active.filter((p) => (daysOver(p.eta) ?? 0) > 0).length;
 
-  useEffect(() => setLimit(PAGE), [q, q2, activeOnly, view]);
+  useEffect(() => setLimit(PAGE), [q, activeOnly, view]);
 
   const tab = (v: View, label: string, count?: number) => (
     <button
@@ -188,6 +190,12 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
+        {onBack && (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onBack} title="Back to the job tabs">
+            <ArrowLeft size={14} /> Jobs
+          </Button>
+        )}
+        <span className="text-sm font-bold text-sky-500 px-1">Purchase Orders</span>
         {tab('outside', 'OUTSIDE', active.length)}
         {tab('all', 'OLD FILES', pos?.length)}
         {tab('suppliers', 'SUPPLIERS', lookups.suppliers.length)}
@@ -208,7 +216,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
       {pos && view === 'outside' && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <SearchBox value={q} onChange={setQ} placeholder="Search PO#, Supplier, DWG/Part, WO..." />
+            <SearchBox value={q} onChange={setQ} placeholder="Search PO#, supplier, DWG/Part, WO, HT#, MAT-TYPE..." />
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="rounded-lg bg-muted px-2 py-1">Today: <b>{madeToday}</b> POs made</span>
               <span className="rounded-lg bg-muted px-2 py-1"><b>{receivedToday}</b> received</span>
@@ -263,8 +271,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
       {pos && view === 'all' && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <SearchBox value={q} onChange={setQ} placeholder="PO#, Supplier, DWG/Part, WO, line text..." />
-            <SearchBox value={q2} onChange={setQ2} placeholder="Search by: MAT-TYPE / HT# / DWG-Part" />
+            <SearchBox value={q} onChange={setQ} placeholder="Search PO#, supplier, DWG/Part, WO, HT#, MAT-TYPE..." />
             <label className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
               <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} className="accent-green-600" /> active only
             </label>
