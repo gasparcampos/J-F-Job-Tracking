@@ -371,7 +371,7 @@
   --card: #00b0f0;
   --card-foreground: #06243a;
   --foreground: #06243a;
-  --background: #e3f4fb;
+  --background: #c4e9f9;
   --muted: #5cc9f5;
   --muted-foreground: #0b3a5c;
   --border: #0284c7;
@@ -385,8 +385,8 @@
   .po-access input:not([type='checkbox']),
   .po-access select,
   .po-access textarea {
-    background-color: #e3f4fb;
-    border-color: #5a9bb5;
+    background-color: #aee0f6;
+    border-color: #3f93b8;
   }
   /* ... but a field's own text color (red ETA) still wins over this one. */
   :where(.po-access) :where(input, select, textarea) {
@@ -394,6 +394,6 @@
   }
   .po-access input::placeholder,
   .po-access textarea::placeholder {
-    color: #5b7f93;
+    color: #4a7189;
   }
 }
