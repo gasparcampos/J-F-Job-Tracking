@@ -47,6 +47,16 @@ function Field({ label, extra, className = '', children }: { label: string; extr
   );
 }
 
+// One Access-style row: label on the left, field on the right.
+function Row({ label, labelClass = '', children }: { label: string; labelClass?: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-center gap-2">
+      <span className={`text-[11px] font-semibold text-muted-foreground uppercase tracking-wide leading-tight ${labelClass}`}>{label}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
 type Draft = Omit<PurchaseOrder, 'id' | 'poNumber' | 'createdAt' | 'updatedAt' | 'source' | 'workOrders' | 'total'> & {
   id?: string;
   poNumber?: number;
@@ -307,47 +317,23 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
           </div>
         ) : (
           <div className="p-4 sm:p-5 space-y-4">
-            {/* Compact header: 3 rows of fields on the left, receive box + notes on the right,
-                so the lines (up to 10+ for outside service) start high on the screen. */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] gap-3">
-              <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,0.95fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)] gap-x-2 gap-y-2 content-start">
-                <Field label="PO Number">
-                  <Input value={isNew ? '(next)' : String(draft.poNumber ?? '')} readOnly className={`${SM} font-bold`} />
-                </Field>
-                <Field label="Time Order">
-                  <Input value={isNew ? '(now)' : time12(draft.timeOrder)} readOnly className={SM} />
-                </Field>
-                <Field label="Order Date *">
-                  <Input type="date" className={`${SM} px-1.5`} value={draft.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
-                </Field>
-                <Field label="ETA *">
-                  <Input type="date" className={`${SM} px-1.5`} value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
-                </Field>
-                <Field label="Authorized By *">
-                  <select className={SEL} value={draft.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
-                    <option value="">— choose —</option>
-                    {[...lookups.employees]
-                      .sort((a, b) => employeeLabel(a).localeCompare(employeeLabel(b)))
-                      .map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {employeeLabel(e)}
-                        </option>
-                      ))}
-                  </select>
-                </Field>
-
-                <Field
-                  label="Supplier *"
-                  className="col-span-2"
-                  extra={
-                    supplier
-                      ? [supplier.address, [supplier.city, supplier.state, supplier.postalCode].filter(Boolean).join(' '), supplier.phone]
-                          .filter(Boolean)
-                          .join(' · ')
-                      : ''
-                  }
-                >
-                  <div className="flex gap-1">
+            {/* Header in the Access order: PO / supplier on the left, dates / material on the right. */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
+              <div className="space-y-1.5">
+                <Row label="PO Number">
+                  <Input value={isNew ? '(next)' : String(draft.poNumber ?? '')} readOnly className={`${SM} font-bold max-w-[10rem]`} />
+                </Row>
+                <Row label="Supplier *">
+                  <div
+                    className="flex gap-1"
+                    title={
+                      supplier
+                        ? [supplier.address, [supplier.city, supplier.state, supplier.postalCode].filter(Boolean).join(' '), supplier.phone]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : undefined
+                    }
+                  >
                     <select
                       className={SEL}
                       value={draft.supplierId}
@@ -378,8 +364,8 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                       <UserPlus size={14} />
                     </Button>
                   </div>
-                </Field>
-                <Field label="Contact Name">
+                </Row>
+                <Row label="Contact Name">
                   <Input
                     className={SM}
                     value={contactName}
@@ -387,16 +373,40 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                     onChange={(e) => setDraft((d) => (d ? ({ ...d, contactName: e.target.value } as Draft) : d))}
                     onBlur={() => !draft.description && setHint(HINTS.contact)}
                   />
-                </Field>
-                <Field label="Description *">
+                </Row>
+                <Row label="Description *">
                   <Input list="po-descriptions" className={SM} value={draft.description} onChange={(e) => set('description', e.target.value.toUpperCase())} />
                   <datalist id="po-descriptions">
                     {DESCRIPTION_OPTIONS.map((o) => (
                       <option key={o} value={o} />
                     ))}
                   </datalist>
-                </Field>
-                <Field label="Shipping Method *">
+                </Row>
+                <Row label="Authorized By *">
+                  <select className={SEL} value={draft.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
+                    <option value="">— choose —</option>
+                    {[...lookups.employees]
+                      .sort((a, b) => employeeLabel(a).localeCompare(employeeLabel(b)))
+                      .map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {employeeLabel(e)}
+                        </option>
+                      ))}
+                  </select>
+                </Row>
+                <Row label="Time Order">
+                  <Input value={isNew ? '(now)' : time12(draft.timeOrder)} readOnly className={`${SM} max-w-[10rem]`} />
+                </Row>
+              </div>
+
+              <div className="space-y-1.5">
+                <Row label="Order Date *">
+                  <Input type="date" className={`${SM} max-w-[11rem] font-semibold`} value={draft.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
+                </Row>
+                <Row label="ETA *" labelClass="text-red-500">
+                  <Input type="date" className={`${SM} max-w-[11rem] font-semibold text-red-500`} value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
+                </Row>
+                <Row label="Shipping Method *">
                   <select className={SEL} value={draft.shippingMethodId} onChange={(e) => set('shippingMethodId', e.target.value)}>
                     <option value="">— choose —</option>
                     {lookups.shippingMethods.map((m) => (
@@ -405,20 +415,19 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                       </option>
                     ))}
                   </select>
-                </Field>
-
-                <Field label="HT#">
-                  <Input className={SM} value={draft.heatNumber} onChange={(e) => set('heatNumber', e.target.value)} />
-                </Field>
-                <Field label="Mat. Condition?">
+                </Row>
+                <Row label="Material In Condition?">
                   <Input list="po-matcond" className={SM} value={draft.materialCondition} onChange={(e) => set('materialCondition', e.target.value)} />
                   <datalist id="po-matcond">
                     {MATERIAL_CONDITION_OPTIONS.map((o) => (
                       <option key={o} value={o} />
                     ))}
                   </datalist>
-                </Field>
-                <Field label="DWG# & Part" className="col-span-2">
+                </Row>
+                <Row label="HT#">
+                  <Input className={SM} value={draft.heatNumber} onChange={(e) => set('heatNumber', e.target.value)} />
+                </Row>
+                <Row label="DWG# & Part">
                   <Input
                     className={SM}
                     value={draft.partDwg}
@@ -426,58 +435,10 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                     onFocus={() => setHint(HINTS.partDwg)}
                     onBlur={() => setHint(HINTS.partDwgExit)}
                   />
-                </Field>
-                <Field label="MAT-TYPE">
+                </Row>
+                <Row label="MAT-TYPE">
                   <Input className={SM} value={draft.matType} onChange={(e) => set('matType', e.target.value)} onFocus={() => setHint(HINTS.matType)} />
-                </Field>
-              </div>
-
-              {/* Right: receive box (OPEN // CLOSE drives ACTIVE) + notes */}
-              <div className="space-y-2">
-                <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/5 px-2.5 py-2 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide leading-tight">
-                      Make sure you fill up this box when the PO arrived
-                    </p>
-                    <span
-                      className={`ml-auto shrink-0 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
-                        draft.active ? 'border-green-600 bg-green-600/10 text-green-600' : 'border-border text-muted-foreground'
-                      }`}
-                      title="Changes by itself with OPEN // CLOSE: CLOSED, PENDING or VOID = INACTIVE (moves to OLD FILES); OPEN = ACTIVE (OUTSIDE)."
-                      onMouseEnter={() => setHint(HINTS.active)}
-                    >
-                      <input type="checkbox" className="h-3 w-3 accent-green-600 pointer-events-none" checked={draft.active} readOnly tabIndex={-1} />
-                      {draft.active ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)] gap-1.5">
-                    <Field label="Received By">
-                      <Input list="po-receivers" className={SM} value={draft.employeeReceived} onChange={(e) => pickReceiver(e.target.value.toUpperCase())} />
-                      <datalist id="po-receivers">
-                        {EMPLOYEE_RECEIVED_OPTIONS.map((o) => (
-                          <option key={o} value={o} />
-                        ))}
-                      </datalist>
-                    </Field>
-                    <Field label="Order Received">
-                      <Input type="date" className={`${SM} px-1 text-xs`} value={draft.receivedDate} onChange={(e) => set('receivedDate', e.target.value)} />
-                    </Field>
-                    <Field label="Open // Close">
-                      <select className={SEL} value={draft.status} onChange={(e) => pickStatus(e.target.value as Draft['status'])}>
-                        <option value=""></option>
-                        {STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-
-                <Field label="Notes">
-                  <Textarea rows={2} className="min-h-0 text-sm py-1.5" value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
-                </Field>
+                </Row>
               </div>
             </div>
 
@@ -561,6 +522,54 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                 </ul>
               </div>
             )}
+
+            {/* Receive box (OPEN // CLOSE drives ACTIVE) + notes, at the foot of the form. */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/5 px-2.5 py-2 space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide leading-tight">
+                    Make sure you fill up this box when the PO arrived
+                  </p>
+                  <span
+                    className={`ml-auto shrink-0 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
+                      draft.active ? 'border-green-600 bg-green-600/10 text-green-600' : 'border-border text-muted-foreground'
+                    }`}
+                    title="Changes by itself with OPEN // CLOSE: CLOSED, PENDING or VOID = INACTIVE (moves to OLD FILES); OPEN = ACTIVE (OUTSIDE)."
+                    onMouseEnter={() => setHint(HINTS.active)}
+                  >
+                    <input type="checkbox" className="h-3 w-3 accent-green-600 pointer-events-none" checked={draft.active} readOnly tabIndex={-1} />
+                    {draft.active ? 'ACTIVE' : 'INACTIVE'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)] gap-1.5">
+                  <Field label="Received By">
+                    <Input list="po-receivers" className={SM} value={draft.employeeReceived} onChange={(e) => pickReceiver(e.target.value.toUpperCase())} />
+                    <datalist id="po-receivers">
+                      {EMPLOYEE_RECEIVED_OPTIONS.map((o) => (
+                        <option key={o} value={o} />
+                      ))}
+                    </datalist>
+                  </Field>
+                  <Field label="Order Received">
+                    <Input type="date" className={`${SM} px-1 text-xs`} value={draft.receivedDate} onChange={(e) => set('receivedDate', e.target.value)} />
+                  </Field>
+                  <Field label="Open // Close">
+                    <select className={SEL} value={draft.status} onChange={(e) => pickStatus(e.target.value as Draft['status'])}>
+                      <option value=""></option>
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </div>
+
+              <Field label="Notes" className="flex flex-col">
+                <Textarea rows={3} className="min-h-0 flex-1 text-sm py-1.5" value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
+              </Field>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {!isNew && (
