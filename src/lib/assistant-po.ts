@@ -72,7 +72,7 @@ export function buildPoTools() {
     ),
     fn(
       'receive_purchase_order',
-      'Mark a Purchase Order as received (it arrived back). The jobs come back on the board automatically: from NDE to KARINA, from O.S to READY TO SHIP (heat treat / stress relief go back to WOOD PALLET).',
+      'Mark a Purchase Order as received (it arrived back). The jobs come back on the board automatically: from NDE to KARINA, from O.S to READY TO SHIP (heat treat / stress relief go back to WOOD PALLET, but carburized goes to READY TO SHIP).',
       {
         po_number: poNumber,
         received_by: { type: 'string', description: `Who received it: ${EMPLOYEE_RECEIVED_OPTIONS.join(', ')} or another name.` },

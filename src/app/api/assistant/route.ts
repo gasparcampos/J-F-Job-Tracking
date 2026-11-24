@@ -34,7 +34,7 @@ requests, never for plain questions -- except find_purchase_orders, which you ma
 to answer a question about a PO that isn't in the snapshot below.
 Saving or receiving a PO moves its jobs on the board by itself (NDE work to NDE and back
 to KARINA; outside service to O.S and back to READY TO SHIP, or to WOOD PALLET for heat
-treat / stress relief).
+treat / stress relief that is not carburized).
 
 JOB DATA:
 `;

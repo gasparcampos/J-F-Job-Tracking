@@ -76,17 +76,20 @@ export function poKind(po: Pick<PurchaseOrder, 'description'>, supplier?: Pick<P
 
 export const KIND_LABEL: Record<PoKind, string> = {
   nde: 'NDE → board NDE, back to KARINA',
-  os: 'Outside service → board O.S, back to READY TO SHIP (heat treat / stress relief: WOOD PALLET)',
+  os: 'Outside service → board O.S, back to READY TO SHIP (heat treat / stress relief, not carburized: WOOD PALLET)',
   none: "Material / tooling (doesn't move the job)",
 };
 
-// Heat treat and stress relief come back to WOOD PALLET (more machining to do).
+// Heat treat and stress relief come back to WOOD PALLET (more machining to do);
+// carburized parts are done, so they go to READY TO SHIP.
+const CARB_RE = /CARB/;
 const HEAT_RE = /(HEAT\s*-?\s*TREAT|HEATTREAT|\bH\s*\/\s*T\b|STRESS\s*-?\s*RELIE)/;
 
 /**
  * Board department a job goes back to when the PO is received (null = it doesn't move).
  * The Description decides; when it names no process (e.g. just a spec), a heat
- * treat supplier's name (HOUSTON HEAT TREAT...) does.
+ * treat supplier's name (HOUSTON HEAT TREAT...) does. Anything carburized
+ * (CARBURIZE, HEATTREAT & CARB) goes to READY TO SHIP.
  */
 export function returnDeptName(
   kind: PoKind,
@@ -96,6 +99,7 @@ export function returnDeptName(
   if (kind === 'nde') return 'KARINA';
   if (kind !== 'os') return null;
   const d = String(description ?? '').toUpperCase();
+  if (CARB_RE.test(d)) return 'READY TO SHIP';
   const heat = HEAT_RE.test(d) || (kindFromDescription(d) === null && HEAT_RE.test(String(supplierName ?? '').toUpperCase()));
   return heat ? 'WOOD PALLET' : 'READY TO SHIP';
 }

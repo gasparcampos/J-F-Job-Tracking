@@ -40,7 +40,7 @@ lookup, no confirmation needed -- read the answer out). Creating or receiving a 
 jobs on the board by itself: NDE work (WET MAG, LP, testing) goes to NDE and comes back to
 KARINA; outside service (coating, phosphate, plating, heat treat, drill & hone, EDM...) goes
 to O.S and comes back to READY TO SHIP, except heat treat and stress relief, which come back
-to WOOD PALLET. Material and tooling POs don't move jobs. To create
+to WOOD PALLET (carburized parts still go to READY TO SHIP). Material and tooling POs don't move jobs. To create
 a PO you need supplier, description, ETA and who authorizes it; ask for what's missing.
 
 PURCHASE ORDER photo steps -- when the photo is a J&F "Purchase Orders" form (title "Purchase
