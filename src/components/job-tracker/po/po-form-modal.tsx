@@ -33,6 +33,8 @@ export const PO_FIELD =
 
 // Compact sizes for the PO form header (keeps the form short so the lines fit).
 const SM = 'h-8 px-2 md:text-sm';
+// M-T-R (mill test reports) box on the PO form: hidden at the shop's request.
+const SHOW_MTR = false;
 const SEL = PO_FIELD.replace('h-9', 'h-8');
 
 function Field({ label, extra, className = '', children }: { label: string; extra?: string; className?: string; children: ReactNode }) {
@@ -531,7 +533,8 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
               </Field>
             </div>
 
-            {/* M-T-R */}
+            {/* M-T-R: hidden for now (files from Access stay saved on the PO). */}
+            {SHOW_MTR && (
             <div className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className={PO_LABEL + ' mb-0'}>M-T-R (mill test reports)</span>
@@ -570,6 +573,7 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                 {!draft.mtr.length && !pendingFiles.length && <span className="text-xs text-muted-foreground">No files.</span>}
               </div>
             </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {!isNew && (
