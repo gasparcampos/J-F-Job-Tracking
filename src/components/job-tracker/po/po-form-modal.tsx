@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FileText, Loader2, Paperclip, Plus, Printer, Save, Trash2, Truck, X, ArrowRight, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -468,46 +468,6 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
               deptName={deptName}
             />
 
-            {/* M-T-R */}
-            <div className="rounded-xl border border-border p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className={PO_LABEL + ' mb-0'}>M-T-R (mill test reports)</span>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Attach
-                </Button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = [...(e.target.files ?? [])];
-                    e.target.value = '';
-                    if (isNew || !draft.id) setPendingFiles((p) => [...p, ...files]);
-                    else uploadFiles(draft.id, files);
-                  }}
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {draft.mtr.map((f) => (
-                  <span key={f.path} className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-xs">
-                    <a href={`/api/file?path=${encodeURIComponent(f.path)}`} target="_blank" rel="noreferrer" className="text-primary underline">
-                      {f.name}
-                    </a>
-                    <button type="button" onClick={() => removeFile(f.path)} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${f.name}`}>
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-                {pendingFiles.map((f, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-1 text-xs">
-                    {f.name} <em className="text-muted-foreground">(uploads on save)</em>
-                  </span>
-                ))}
-                {!draft.mtr.length && !pendingFiles.length && <span className="text-xs text-muted-foreground">No files.</span>}
-              </div>
-            </div>
-
             {/* Board moves this PO made */}
             {!!draft.jobMoves?.length && (
               <div className="rounded-xl border border-border p-3">
@@ -571,6 +531,46 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
               </Field>
             </div>
 
+            {/* M-T-R */}
+            <div className="rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className={PO_LABEL + ' mb-0'}>M-T-R (mill test reports)</span>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} Attach
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = [...(e.target.files ?? [])];
+                    e.target.value = '';
+                    if (isNew || !draft.id) setPendingFiles((p) => [...p, ...files]);
+                    else uploadFiles(draft.id, files);
+                  }}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {draft.mtr.map((f) => (
+                  <span key={f.path} className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-xs">
+                    <a href={`/api/file?path=${encodeURIComponent(f.path)}`} target="_blank" rel="noreferrer" className="text-primary underline">
+                      {f.name}
+                    </a>
+                    <button type="button" onClick={() => removeFile(f.path)} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${f.name}`}>
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                {pendingFiles.map((f, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-1 text-xs">
+                    {f.name} <em className="text-muted-foreground">(uploads on save)</em>
+                  </span>
+                ))}
+                {!draft.mtr.length && !pendingFiles.length && <span className="text-xs text-muted-foreground">No files.</span>}
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {!isNew && (
                 <Button type="button" variant="ghost" className="text-destructive gap-1.5" onClick={remove}>
@@ -632,6 +632,28 @@ function BoardPreview({
   );
 }
 
+/** A one-line text box that wraps and grows taller to show all of its text. */
+function GrowText({ value, onChange, className, placeholder }: { value: string; onChange: (v: string) => void; className: string; placeholder?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  });
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={className}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\s*\n\s*/g, ' '))}
+      onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+    />
+  );
+}
+
 function LinesTable({
   lines,
   setLine,
@@ -648,6 +670,8 @@ function LinesTable({
   deptName: (id: string) => string;
 }) {
   const cell = 'h-8 w-full rounded border border-input bg-background px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50';
+  // PROD_DESCRIP / SPEC wrap and grow taller when the text is long.
+  const grow = 'block w-full min-h-8 resize-none overflow-hidden rounded border border-input bg-background px-1.5 py-[7px] text-xs leading-[16px] focus:outline-none focus:ring-1 focus:ring-primary/50';
   const th = 'px-1.5 py-1.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap';
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -675,13 +699,13 @@ function LinesTable({
                 <tr key={i} className="border-t border-border align-top">
                   <td className="p-1 pt-2 text-xs font-semibold text-muted-foreground whitespace-nowrap">Line Item {i + 1}</td>
                   <td className="p-1"><input inputMode="decimal" className={cell} value={l.units ?? ''} onChange={(e) => setLine(i, { units: e.target.value === '' ? null : Number(e.target.value) || 0 })} /></td>
-                  <td className="p-1"><input className={cell} value={l.prodDescrip ?? ''} onChange={(e) => setLine(i, { prodDescrip: e.target.value })} /></td>
+                  <td className="p-1"><GrowText className={grow} value={l.prodDescrip ?? ''} onChange={(v) => setLine(i, { prodDescrip: v })} /></td>
                   <td className="p-1">
-                    <input
-                      className={`${cell} ${!l.spec && (l.prodDescrip || l.wo) ? 'border-amber-500' : ''}`}
+                    <GrowText
+                      className={`${grow} ${!l.spec && (l.prodDescrip || l.wo) ? 'border-amber-500' : ''}`}
                       placeholder={l.prodDescrip || l.wo ? 'PLEASE ADD SPEC' : ''}
                       value={l.spec ?? ''}
-                      onChange={(e) => setLine(i, { spec: e.target.value })}
+                      onChange={(v) => setLine(i, { spec: v })}
                     />
                   </td>
                   <td className="p-1"><input className={cell} value={l.rev ?? ''} onChange={(e) => setLine(i, { rev: e.target.value })} /></td>
