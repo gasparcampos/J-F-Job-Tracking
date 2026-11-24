@@ -31,8 +31,8 @@ export const DEPT_ASSIGNMENTS: Record<string, DeptAssignment> = {
   // José Estrada.
   'LATHE INSPECTION': { kind: 'fixed', name: 'Estrada' },
   'FINAL INSPECTION': { kind: 'fixed', name: 'Estrada' },
-  // Junior, Ángel, Federico (was "Fedex").
-  MILL: { kind: 'choice', names: ['JR', 'Ángel', 'Federico'] },
+  // Junior, Ángel, Fedex (Federico; "Fedex" is his name in the employee list).
+  MILL: { kind: 'choice', names: ['JR', 'Ángel', 'Fedex'] },
   // Karina handles everything from here to shipping.
   KARINA: { kind: 'fixed', name: 'Karina' },
   STAMP: { kind: 'fixed', name: 'Karina' },
