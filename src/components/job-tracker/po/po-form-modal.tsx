@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FileText, Loader2, Paperclip, Plus, Printer, Save, Trash2, Truck, X, ArrowRight, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,22 @@ import { printPurchaseOrder } from './po-print';
 export const PO_LABEL = 'text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1 block';
 export const PO_FIELD =
   'w-full h-9 rounded-md border border-input bg-background px-2 text-sm text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+// Compact sizes for the PO form header (keeps the form short so the lines fit).
+const SM = 'h-8 px-2 md:text-sm';
+const SEL = PO_FIELD.replace('h-9', 'h-8');
+
+function Field({ label, extra, className = '', children }: { label: string; extra?: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <div className="flex items-baseline gap-2 mb-0.5">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest whitespace-nowrap">{label}</span>
+        {extra && <span className="text-[10px] text-muted-foreground truncate" title={extra}>{extra}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 type Draft = Omit<PurchaseOrder, 'id' | 'poNumber' | 'createdAt' | 'updatedAt' | 'source' | 'workOrders' | 'total'> & {
   id?: string;
@@ -292,24 +308,37 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
               messages={boardMessages}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Left: PO / supplier */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={PO_LABEL}>PO Number</label>
-                    <Input value={isNew ? '(next)' : String(draft.poNumber ?? '')} readOnly className="font-bold" />
-                  </div>
-                  <div>
-                    <label className={PO_LABEL}>Time Order</label>
-                    <Input value={isNew ? '(now)' : time12(draft.timeOrder)} readOnly />
-                  </div>
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Supplier *</label>
+            {/* Compact header: 4 columns of fields on the left, receive box + notes on the right,
+                so the lines (up to 10+ for outside service) start high on the screen. */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-2 content-start">
+                <Field label="PO Number">
+                  <Input value={isNew ? '(next)' : String(draft.poNumber ?? '')} readOnly className={`${SM} font-bold`} />
+                </Field>
+                <Field label="Time Order">
+                  <Input value={isNew ? '(now)' : time12(draft.timeOrder)} readOnly className={SM} />
+                </Field>
+                <Field label="Order Date *">
+                  <Input type="date" className={SM} value={draft.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
+                </Field>
+                <Field label="ETA *">
+                  <Input type="date" className={SM} value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
+                </Field>
+
+                <Field
+                  label="Supplier *"
+                  className="col-span-2"
+                  extra={
+                    supplier
+                      ? [supplier.address, [supplier.city, supplier.state, supplier.postalCode].filter(Boolean).join(' '), supplier.phone]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : ''
+                  }
+                >
                   <div className="flex gap-1">
                     <select
-                      className={PO_FIELD}
+                      className={SEL}
                       value={draft.supplierId}
                       onChange={(e) => {
                         const s = lookups.suppliers.find((x) => x.id === e.target.value);
@@ -327,7 +356,7 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-9 w-9 shrink-0"
+                      className="h-8 w-8 shrink-0"
                       title={supplier ? 'Open supplier' : 'Add supplier'}
                       onClick={() =>
                         onEditSupplier(supplier, (s) =>
@@ -335,38 +364,30 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                         )
                       }
                     >
-                      <UserPlus size={15} />
+                      <UserPlus size={14} />
                     </Button>
                   </div>
-                  {supplier && (
-                    <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                      {[supplier.address, [supplier.city, supplier.state, supplier.postalCode].filter(Boolean).join(' '), supplier.phone]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Contact Name</label>
+                </Field>
+                <Field label="Contact Name">
                   <Input
+                    className={SM}
                     value={contactName}
                     disabled={!supplier}
                     onChange={(e) => setDraft((d) => (d ? ({ ...d, contactName: e.target.value } as Draft) : d))}
                     onBlur={() => !draft.description && setHint(HINTS.contact)}
                   />
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Description *</label>
-                  <Input list="po-descriptions" value={draft.description} onChange={(e) => set('description', e.target.value.toUpperCase())} />
+                </Field>
+                <Field label="Description *">
+                  <Input list="po-descriptions" className={SM} value={draft.description} onChange={(e) => set('description', e.target.value.toUpperCase())} />
                   <datalist id="po-descriptions">
                     {DESCRIPTION_OPTIONS.map((o) => (
                       <option key={o} value={o} />
                     ))}
                   </datalist>
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Authorized By *</label>
-                  <select className={PO_FIELD} value={draft.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
+                </Field>
+
+                <Field label="Authorized By *">
+                  <select className={SEL} value={draft.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
                     <option value="">— choose —</option>
                     {[...lookups.employees]
                       .sort((a, b) => employeeLabel(a).localeCompare(employeeLabel(b)))
@@ -376,24 +397,9 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                         </option>
                       ))}
                   </select>
-                </div>
-              </div>
-
-              {/* Middle: dates / material */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={PO_LABEL}>Order Date *</label>
-                    <Input type="date" value={draft.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={PO_LABEL}>ETA *</label>
-                    <Input type="date" value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Shipping Method *</label>
-                  <select className={PO_FIELD} value={draft.shippingMethodId} onChange={(e) => set('shippingMethodId', e.target.value)}>
+                </Field>
+                <Field label="Shipping Method *">
+                  <select className={SEL} value={draft.shippingMethodId} onChange={(e) => set('shippingMethodId', e.target.value)}>
                     <option value="">— choose —</option>
                     {lookups.shippingMethods.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -401,48 +407,45 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className={PO_LABEL}>Material In Condition?</label>
-                  <Input list="po-matcond" value={draft.materialCondition} onChange={(e) => set('materialCondition', e.target.value)} />
+                </Field>
+                <Field label="Material In Condition?">
+                  <Input list="po-matcond" className={SM} value={draft.materialCondition} onChange={(e) => set('materialCondition', e.target.value)} />
                   <datalist id="po-matcond">
                     {MATERIAL_CONDITION_OPTIONS.map((o) => (
                       <option key={o} value={o} />
                     ))}
                   </datalist>
-                </div>
-                <div>
-                  <label className={PO_LABEL}>HT#</label>
-                  <Input value={draft.heatNumber} onChange={(e) => set('heatNumber', e.target.value)} />
-                </div>
-                <div>
-                  <label className={PO_LABEL}>DWG# & Part</label>
-                  <Input
-                    value={draft.partDwg}
-                    onChange={(e) => set('partDwg', e.target.value)}
-                    onFocus={() => setHint(HINTS.partDwg)}
-                    onBlur={() => setHint(HINTS.partDwgExit)}
-                  />
-                </div>
-                <div>
-                  <label className={PO_LABEL}>MAT-TYPE</label>
-                  <Input value={draft.matType} onChange={(e) => set('matType', e.target.value)} onFocus={() => setHint(HINTS.matType)} />
-                </div>
-                <div>
-                  <label className={PO_LABEL}>HOT-RUSH</label>
-                  <Input list="po-hotrush" value={draft.hotRush} onChange={(e) => set('hotRush', e.target.value)} />
+                </Field>
+                <Field label="HOT-RUSH">
+                  <Input list="po-hotrush" className={SM} value={draft.hotRush} onChange={(e) => set('hotRush', e.target.value)} />
                   <datalist id="po-hotrush">
                     {HOT_RUSH_OPTIONS.map((o) => (
                       <option key={o} value={o} />
                     ))}
                   </datalist>
-                </div>
+                </Field>
+
+                <Field label="HT#">
+                  <Input className={SM} value={draft.heatNumber} onChange={(e) => set('heatNumber', e.target.value)} />
+                </Field>
+                <Field label="DWG# & Part" className="col-span-2">
+                  <Input
+                    className={SM}
+                    value={draft.partDwg}
+                    onChange={(e) => set('partDwg', e.target.value)}
+                    onFocus={() => setHint(HINTS.partDwg)}
+                    onBlur={() => setHint(HINTS.partDwgExit)}
+                  />
+                </Field>
+                <Field label="MAT-TYPE">
+                  <Input className={SM} value={draft.matType} onChange={(e) => set('matType', e.target.value)} onFocus={() => setHint(HINTS.matType)} />
+                </Field>
               </div>
 
               {/* Right: active / receive / notes */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer select-none ${
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 cursor-pointer select-none ${
                     draft.active ? 'border-green-600 bg-green-600/10' : 'border-border'
                   }`}
                   onMouseEnter={() => setHint(HINTS.active)}
@@ -457,27 +460,24 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                   <span className="text-[10px] text-muted-foreground ml-auto">checked = out (OUTSIDE list)</span>
                 </label>
 
-                <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/5 p-3 space-y-2">
+                <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/5 px-2.5 py-2 space-y-1">
                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">
                     Make sure you fill up this box when the PO arrived
                   </p>
-                  <div>
-                    <label className={PO_LABEL}>Employee Received</label>
-                    <Input list="po-receivers" value={draft.employeeReceived} onChange={(e) => pickReceiver(e.target.value.toUpperCase())} />
-                    <datalist id="po-receivers">
-                      {EMPLOYEE_RECEIVED_OPTIONS.map((o) => (
-                        <option key={o} value={o} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className={PO_LABEL}>Order Received</label>
-                      <Input type="date" value={draft.receivedDate} onChange={(e) => set('receivedDate', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={PO_LABEL}>Open // Close</label>
-                      <select className={PO_FIELD} value={draft.status} onChange={(e) => set('status', e.target.value as Draft['status'])}>
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)] gap-1.5">
+                    <Field label="Received By">
+                      <Input list="po-receivers" className={SM} value={draft.employeeReceived} onChange={(e) => pickReceiver(e.target.value.toUpperCase())} />
+                      <datalist id="po-receivers">
+                        {EMPLOYEE_RECEIVED_OPTIONS.map((o) => (
+                          <option key={o} value={o} />
+                        ))}
+                      </datalist>
+                    </Field>
+                    <Field label="Order Received">
+                      <Input type="date" className={`${SM} px-1 text-xs`} value={draft.receivedDate} onChange={(e) => set('receivedDate', e.target.value)} />
+                    </Field>
+                    <Field label="Open // Close">
+                      <select className={SEL} value={draft.status} onChange={(e) => set('status', e.target.value as Draft['status'])}>
                         <option value=""></option>
                         {STATUS_OPTIONS.map((s) => (
                           <option key={s} value={s}>
@@ -485,14 +485,13 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                           </option>
                         ))}
                       </select>
-                    </div>
+                    </Field>
                   </div>
                 </div>
 
-                <div>
-                  <label className={PO_LABEL}>Notes</label>
-                  <Textarea rows={5} value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
-                </div>
+                <Field label="Notes">
+                  <Textarea rows={2} className="min-h-0 text-sm py-1.5" value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
+                </Field>
               </div>
             </div>
 
@@ -505,7 +504,6 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
             {/* Lines (Purchase Orders Subform) */}
             <LinesTable
               lines={draft.lines}
-              orderDate={draft.orderDate}
               setLine={setLine}
               onAdd={() => setDraft((d) => (d ? { ...d, lines: [...d.lines, emptyLine(d.orderDate)] } : d))}
               onRemove={(i) => setDraft((d) => (d ? { ...d, lines: d.lines.filter((_, j) => j !== i) } : d))}
@@ -640,7 +638,6 @@ function BoardPreview({
 
 function LinesTable({
   lines,
-  orderDate,
   setLine,
   onAdd,
   onRemove,
@@ -648,7 +645,6 @@ function LinesTable({
   deptName,
 }: {
   lines: PoLine[];
-  orderDate: string;
   setLine: (i: number, patch: Partial<PoLine>) => void;
   onAdd: () => void;
   onRemove: (i: number) => void;
@@ -663,7 +659,7 @@ function LinesTable({
         <table className="w-full min-w-[980px]">
           <thead className="bg-muted/50">
             <tr>
-              <th className={th} style={{ width: 120 }}>Date</th>
+              <th className={th} style={{ width: 92 }}>Line</th>
               <th className={th} style={{ width: 64 }}>Units</th>
               <th className={th}>PROD_DESCRIP</th>
               <th className={th}>SPEC</th>
@@ -681,7 +677,7 @@ function LinesTable({
               const job = wo ? jobFor(wo) : undefined;
               return (
                 <tr key={i} className="border-t border-border align-top">
-                  <td className="p-1"><input type="date" className={cell} value={l.date ?? orderDate} onChange={(e) => setLine(i, { date: e.target.value })} /></td>
+                  <td className="p-1 pt-2 text-xs font-semibold text-muted-foreground whitespace-nowrap">Line Item {i + 1}</td>
                   <td className="p-1"><input inputMode="decimal" className={cell} value={l.units ?? ''} onChange={(e) => setLine(i, { units: e.target.value === '' ? null : Number(e.target.value) || 0 })} /></td>
                   <td className="p-1"><input className={cell} value={l.prodDescrip ?? ''} onChange={(e) => setLine(i, { prodDescrip: e.target.value })} /></td>
                   <td className="p-1">
