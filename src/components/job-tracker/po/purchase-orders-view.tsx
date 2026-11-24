@@ -188,14 +188,14 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
   );
 
   return (
-    <div className="space-y-3">
+    <div className="po-access bg-card min-h-full rounded-2xl p-3 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {onBack && (
           <Button variant="outline" size="sm" className="gap-1.5" onClick={onBack} title="Back to the job tabs">
             <ArrowLeft size={14} /> Jobs
           </Button>
         )}
-        <span className="text-sm font-bold text-sky-500 px-1">Purchase Orders</span>
+        <span className="text-sm font-bold text-[#002b5c] px-1">Purchase Orders</span>
         {tab('outside', 'OUTSIDE', active.length)}
         {tab('all', 'OLD FILES', pos?.length)}
         {tab('suppliers', 'SUPPLIERS', lookups.suppliers.length)}
@@ -223,7 +223,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
               <span className={`rounded-lg px-2 py-1 ${overdue ? 'bg-red-600 text-white' : 'bg-muted'}`}><b>{overdue}</b> past ETA</span>
             </div>
           </div>
-          <div className="bg-card rounded-2xl border border-border shadow-xl overflow-x-auto">
+          <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead className="bg-muted/50">
                 <tr>
@@ -277,7 +277,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
             </label>
             <span className="text-xs text-muted-foreground ml-auto">{allRows.length.toLocaleString()} POs</span>
           </div>
-          <div className="bg-card rounded-2xl border border-border shadow-xl overflow-x-auto">
+          <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
             <table className="w-full min-w-[1100px]">
               <thead className="bg-muted/50">
                 <tr>
@@ -339,7 +339,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
               <Plus size={14} /> Add Supplier
             </Button>
           </div>
-          <div className="bg-card rounded-2xl border border-border shadow-xl overflow-x-auto">
+          <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead className="bg-muted/50">
                 <tr>
