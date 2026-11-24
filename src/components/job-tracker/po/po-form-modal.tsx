@@ -311,7 +311,7 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-6xl rounded-2xl shadow-2xl border border-border max-h-[94vh] overflow-y-auto">
+      <div className="po-access bg-card w-full max-w-6xl rounded-2xl shadow-2xl border border-border max-h-[94vh] overflow-y-auto">
         {header}
         {loading || !draft ? (
           <div className="p-10 flex justify-center text-muted-foreground">
@@ -405,8 +405,8 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
                 <Row label="Order Date *">
                   <Input type="date" className={`${SM} max-w-[11rem] font-semibold`} value={draft.orderDate} onChange={(e) => set('orderDate', e.target.value)} />
                 </Row>
-                <Row label="ETA *" labelClass="text-red-500">
-                  <Input type="date" className={`${SM} max-w-[11rem] font-semibold text-red-500`} value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
+                <Row label="ETA *" labelClass="text-red-600">
+                  <Input type="date" className={`${SM} max-w-[11rem] font-semibold text-red-600`} value={draft.eta} onChange={(e) => set('eta', e.target.value)} />
                 </Row>
                 <Row label="Shipping Method *">
                   <select className={SEL} value={draft.shippingMethodId} onChange={(e) => set('shippingMethodId', e.target.value)}>
@@ -487,9 +487,9 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
 
             {/* Receive box (OPEN // CLOSE drives ACTIVE) + notes, at the foot of the form. */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/5 px-2.5 py-2 space-y-1">
+              <div className="rounded-lg border-2 border-amber-500 bg-amber-50 px-2.5 py-2 space-y-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide leading-tight">
+                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide leading-tight">
                     Make sure you fill up this box when the PO arrived
                   </p>
                   <span
@@ -577,7 +577,7 @@ export function PoFormModal({ poId, lookups, jobs, departments, onClose, onSaved
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {!isNew && (
-                <Button type="button" variant="ghost" className="text-destructive gap-1.5" onClick={remove}>
+                <Button type="button" variant="ghost" className="text-red-700 font-semibold gap-1.5" onClick={remove}>
                   <Trash2 size={15} /> Delete PO
                 </Button>
               )}
@@ -626,7 +626,7 @@ function BoardPreview({
       : '';
   return (
     <p
-      className={`flex items-center gap-1.5 text-[11px] mt-0.5 min-w-0 ${kind === 'none' ? 'text-muted-foreground' : 'text-sky-600 dark:text-sky-400'}`}
+      className={`flex items-center gap-1.5 text-[11px] mt-0.5 min-w-0 ${kind === 'none' ? 'text-muted-foreground' : 'text-[#002b5c]'}`}
       title={detail || kindLabelFor(kind, draft.description, draft.supplierName)}
     >
       <Truck size={12} className="shrink-0" />

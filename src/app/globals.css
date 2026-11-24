@@ -363,3 +363,37 @@
 }
 .tooling-blink { animation: tooling-blink 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .tooling-blink { animation: none; } }
+
+/* POs: the Purchase Order form uses the Access form's sky-blue look
+   (sky-blue background, light-blue fields, dark text). */
+.po-access {
+  color-scheme: light;
+  --card: #00b0f0;
+  --card-foreground: #06243a;
+  --foreground: #06243a;
+  --background: #e3f4fb;
+  --muted: #5cc9f5;
+  --muted-foreground: #0b3a5c;
+  --border: #0284c7;
+  --input: #7fb8cc;
+  --accent: #b9e6f8;
+  --accent-foreground: #06243a;
+  color: #06243a;
+}
+@layer utilities {
+  /* Light fields: beats the inputs' own bg-transparent ... */
+  .po-access input:not([type='checkbox']),
+  .po-access select,
+  .po-access textarea {
+    background-color: #e3f4fb;
+    border-color: #5a9bb5;
+  }
+  /* ... but a field's own text color (red ETA) still wins over this one. */
+  :where(.po-access) :where(input, select, textarea) {
+    color: #06243a;
+  }
+  .po-access input::placeholder,
+  .po-access textarea::placeholder {
+    color: #5b7f93;
+  }
+}
