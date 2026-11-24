@@ -11,7 +11,7 @@ import type { PoLine, PoLookups, PoSupplier, PurchaseOrder } from '@/types/po';
 import {
   DESCRIPTION_OPTIONS,
   EMPLOYEE_RECEIVED_OPTIONS,
-  KIND_LABEL,
+  kindLabelFor,
   MATERIAL_CONDITION_OPTIONS,
   STATUS_OPTIONS,
   activeForStatus,
@@ -614,10 +614,10 @@ function BoardPreview({
   return (
     <p
       className={`flex items-center gap-1.5 text-[11px] mt-0.5 min-w-0 ${kind === 'none' ? 'text-muted-foreground' : 'text-sky-600 dark:text-sky-400'}`}
-      title={detail || KIND_LABEL[kind]}
+      title={detail || kindLabelFor(kind, draft.description, draft.supplierName)}
     >
       <Truck size={12} className="shrink-0" />
-      <span className="font-semibold whitespace-nowrap">{KIND_LABEL[kind]}</span>
+      <span className="font-semibold whitespace-nowrap">{kindLabelFor(kind, draft.description, draft.supplierName)}</span>
       {detail && <span className="truncate text-muted-foreground">· {detail}</span>}
     </p>
   );

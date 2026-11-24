@@ -76,9 +76,35 @@ export function poKind(po: Pick<PurchaseOrder, 'description'>, supplier?: Pick<P
 
 export const KIND_LABEL: Record<PoKind, string> = {
   nde: 'NDE → board NDE, back to KARINA',
-  os: 'Outside service → board O.S, back to READY TO SHIP',
+  os: 'Outside service → board O.S, back to READY TO SHIP (heat treat / stress relief: WOOD PALLET)',
   none: "Material / tooling (doesn't move the job)",
 };
+
+// Heat treat and stress relief come back to WOOD PALLET (more machining to do).
+const HEAT_RE = /(HEAT\s*-?\s*TREAT|HEATTREAT|\bH\s*\/\s*T\b|STRESS\s*-?\s*RELIE)/;
+
+/**
+ * Board department a job goes back to when the PO is received (null = it doesn't move).
+ * The Description decides; when it names no process (e.g. just a spec), a heat
+ * treat supplier's name (HOUSTON HEAT TREAT...) does.
+ */
+export function returnDeptName(
+  kind: PoKind,
+  description: string | null | undefined,
+  supplierName?: string | null
+): 'KARINA' | 'WOOD PALLET' | 'READY TO SHIP' | null {
+  if (kind === 'nde') return 'KARINA';
+  if (kind !== 'os') return null;
+  const d = String(description ?? '').toUpperCase();
+  const heat = HEAT_RE.test(d) || (kindFromDescription(d) === null && HEAT_RE.test(String(supplierName ?? '').toUpperCase()));
+  return heat ? 'WOOD PALLET' : 'READY TO SHIP';
+}
+
+/** The PO form's one-line label for this PO's description. */
+export function kindLabelFor(kind: PoKind, description: string | null | undefined, supplierName?: string | null): string {
+  if (kind !== 'os') return KIND_LABEL[kind];
+  return `Outside service → board O.S, back to ${returnDeptName(kind, description, supplierName)}`;
+}
 
 // ---- Numbers, dates, notes ----
 

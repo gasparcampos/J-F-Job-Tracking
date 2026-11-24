@@ -11,6 +11,7 @@ import {
   employeeLabel,
   money,
   poKind,
+  returnDeptName,
   todayIso,
   usDate,
 } from './po-shared';
@@ -71,7 +72,7 @@ export function buildPoTools() {
     ),
     fn(
       'receive_purchase_order',
-      'Mark a Purchase Order as received (it arrived back). The jobs come back on the board automatically: from NDE to KARINA, from O.S to READY TO SHIP.',
+      'Mark a Purchase Order as received (it arrived back). The jobs come back on the board automatically: from NDE to KARINA, from O.S to READY TO SHIP (heat treat / stress relief go back to WOOD PALLET).',
       {
         po_number: poNumber,
         received_by: { type: 'string', description: `Who received it: ${EMPLOYEE_RECEIVED_OPTIONS.join(', ')} or another name.` },
@@ -265,8 +266,8 @@ export async function resolvePoCall(name: string, args: Record<string, any>, lan
       kind === 'none' || !po.workOrders.length
         ? ''
         : t(
-            ` → JOB# ${po.workOrders.join(', ')} regresa a ${kind === 'nde' ? 'KARINA' : 'READY TO SHIP'}`,
-            ` → JOB# ${po.workOrders.join(', ')} back to ${kind === 'nde' ? 'KARINA' : 'READY TO SHIP'}`
+            ` → JOB# ${po.workOrders.join(', ')} regresa a ${returnDeptName(kind, po.description, po.supplierName)}`,
+            ` → JOB# ${po.workOrders.join(', ')} back to ${returnDeptName(kind, po.description, po.supplierName)}`
           );
     out.actions.push({
       label: t(`Recibir PO# ${po.poNumber} (${po.supplierName}), recibió ${who}${back}`, `Receive PO# ${po.poNumber} (${po.supplierName}), received by ${who}${back}`),

@@ -6,7 +6,8 @@
  *    A WO is sent once per PO; editing the PO later only refreshes the note
  *    while the job is still out with this PO's note.
  *  - PO received: a job still in NDE goes back to KARINA; still in O.S goes to
- *    READY TO SHIP, with the note "BACK FROM SUPPLIER MM/DD PO# N".
+ *    READY TO SHIP (heat treat / stress relief: WOOD PALLET), with the note
+ *    "BACK FROM SUPPLIER MM/DD PO# N".
  *  - Material / tooling POs never move anything.
  *
  * Every move is written to the job's History with the PO#.

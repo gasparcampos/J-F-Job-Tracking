@@ -109,7 +109,7 @@ Description decides what happens to the job (WO) on the board:
 | Kind | Descriptions (examples from the data) | On save (ACTIVE) | On received |
 |---|---|---|---|
 | NDE | WET MAG, LP, WET MAG & PHOSPHATE*, TESTING, TEST PC | job → **NDE** + note | job → **KARINA** |
-| Outside service | COATING, PHOSPHATE, HEAT TREAT, HEATTREAT & CARB, CARBURIZE, DRILLING & HONE, DRILL // HONE, DRILL, HONE, EDM, QPQ, plating… | job → **O.S** + note | job → **READY TO SHIP** |
+| Outside service | COATING, PHOSPHATE, HEAT TREAT, HEATTREAT & CARB, CARBURIZE, DRILLING & HONE, DRILL // HONE, DRILL, HONE, EDM, QPQ, plating… | job → **O.S** + note | job → **READY TO SHIP**; heat treat / stress relief (or a heat-treat supplier when the description names no process) → **WOOD PALLET** |
 | No move | RAW MATERIAL, NEW MATERIAL, MATERIAL, TOOLING, Tools, SUPPLIES, MAINTENANCE, CALIBRATION, THREAD PROTECTORS | nothing | nothing |
 
 Note format: `@ SUPPLIER MM/DD PO# NNNNN ETA MM/DD`. Every move is written to the job History

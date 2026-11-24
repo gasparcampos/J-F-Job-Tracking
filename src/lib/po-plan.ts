@@ -2,7 +2,7 @@
  * Pure planning for the PO -> board automation (see po-automation.ts): which
  * job goes where, with what note. No reads or writes.
  */
-import { poSentNote, poBackNote } from './po-shared';
+import { poSentNote, poBackNote, returnDeptName } from './po-shared';
 import type { StoredJob, StoredDepartment } from './json-db';
 import type { PoKind, PurchaseOrder } from '@/types/po';
 
@@ -34,7 +34,7 @@ export interface BoardPlan {
  */
 export function planBoardMoves(
   before: Pick<PurchaseOrder, 'receivedDate'> | null,
-  po: Pick<PurchaseOrder, 'poNumber' | 'supplierName' | 'orderDate' | 'eta' | 'receivedDate' | 'active' | 'status' | 'workOrders' | 'sentWos'>,
+  po: Pick<PurchaseOrder, 'poNumber' | 'description' | 'supplierName' | 'orderDate' | 'eta' | 'receivedDate' | 'active' | 'status' | 'workOrders' | 'sentWos'>,
   kind: PoKind,
   jobs: JobLite[],
   depts: DeptLite[]
@@ -44,9 +44,10 @@ export function planBoardMoves(
 
   const find = (key: string) => depts.find((d) => deptKey(d.name) === key) ?? null;
   const outDept = find(kind === 'nde' ? 'NDE' : 'OS');
-  const backDept = find(kind === 'nde' ? 'KARINA' : 'READYTOSHIP');
+  const backName = returnDeptName(kind, po.description, po.supplierName) ?? 'READY TO SHIP';
+  const backDept = find(deptKey(backName));
   if (!outDept || !backDept) {
-    plan.messages.push(`No encontré el departamento ${kind === 'nde' ? 'NDE / KARINA' : 'O.S / READY TO SHIP'} en el tablero.`);
+    plan.messages.push(`No encontré el departamento ${kind === 'nde' ? 'NDE' : 'O.S'} / ${backName} en el tablero.`);
     return plan;
   }
 
