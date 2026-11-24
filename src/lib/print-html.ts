@@ -61,13 +61,20 @@ export function printHtml(html: string) {
   };
   window.addEventListener('afterprint', cleanup);
 
-  // Let the content lay out (and the QR SVG paint) before printing.
-  setTimeout(() => {
-    window.print();
-    // Fallback for browsers that don't fire afterprint (the root is hidden
-    // on screen, so leaving it a while is harmless).
-    setTimeout(cleanup, 60000);
-  }, 100);
+  // Let the content lay out (and the QR SVG paint) and any images (logo)
+  // finish loading before printing; give up waiting after 3 s.
+  const images = [...shadow.querySelectorAll('img')].map((img) =>
+    img.complete ? Promise.resolve() : img.decode().catch(() => undefined)
+  );
+  const ready = Promise.race([Promise.all(images), new Promise((r) => setTimeout(r, 3000))]);
+  ready.then(() =>
+    setTimeout(() => {
+      window.print();
+      // Fallback for browsers that don't fire afterprint (the root is hidden
+      // on screen, so leaving it a while is harmless).
+      setTimeout(cleanup, 60000);
+    }, 100)
+  );
 }
 
 export const escHtml = (s: unknown) =>

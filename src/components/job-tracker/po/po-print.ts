@@ -35,6 +35,7 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
       box-decoration-break: clone; -webkit-box-decoration-break: clone; }
     .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #000; padding-bottom: 8px; }
     .co { font-size: 18px; font-weight: 800; }
+    .logo { display: block; height: 58px; width: auto; margin-bottom: 4px; }
     .title { text-align: right; }
     .title h1 { margin: 0; font-size: 26px; letter-spacing: 1px; }
     .title .num { font-size: 20px; font-weight: 800; }
@@ -54,7 +55,7 @@ export function printPurchaseOrder(po: PurchaseOrder, lookups: PoLookups, suppli
   </style></head><body>
     <div class="top">
       <div>
-        <div class="co">${esc(c.name)}</div>
+        <img class="logo" src="/jf-machine-shop-logo.png" alt="${esc(c.name)}" />
         <div>${esc(c.address)}</div>
         <div>${esc(c.city)}, ${esc(c.state)} ${esc(zip(c.postalCode))}</div>
         <div>Phone: ${esc(phone(c.phone))}${c.email ? `  Email: ${esc(c.email)}` : ''}</div>
