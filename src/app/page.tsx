@@ -1576,7 +1576,8 @@ export default function Home() {
 
   return (
     <div className="h-screen overflow-hidden bg-background flex flex-col">
-      {/* Header */}
+      {/* Header (hidden in the POs tab: only PO things show there; "← Jobs" brings it back). */}
+      {!(viewMode === 'table' && tableTab === 'pos') && (
       <nav className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-3 z-40 shadow-lg flex-shrink-0">
         {/* Left cluster: logo + view toggle + New Job */}
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
@@ -1720,6 +1721,7 @@ export default function Home() {
           )}
         </div>
       </nav>
+      )}
       <UsersModal open={showUsers} departments={departments} onClose={() => setShowUsers(false)} />
 
       {/* Main Content */}
