@@ -15,7 +15,7 @@
  */
 import { FieldValue } from 'firebase-admin/firestore';
 import { firestore } from './firebase-admin';
-import { employeeLabel, nowTime, poTotal, todayIso, workOrdersOf } from './po-shared';
+import { activeForStatus, employeeLabel, nowTime, poTotal, todayIso, workOrdersOf } from './po-shared';
 import type {
   PoCompany,
   PoEmployee,
@@ -463,14 +463,15 @@ export const purchaseOrdersDB = {
 };
 
 /**
- * Access behaviour when someone picks EMPLOYEE RECEIVED: ORDER RECIVED becomes
- * today and the PO stops being ACTIVE (drops off the OUTSIDE list).
+ * Picking EMPLOYEE RECEIVED stamps ORDER RECIVED with today. ACTIVE only
+ * changes with OPEN // CLOSE (CLOSED / PENDING / VOID = off OUTSIDE).
  */
 function receiveStamp(p: Partial<PurchaseOrder>, before: PurchaseOrder | null) {
   const newlyPicked = !!p.employeeReceived && p.employeeReceived !== (before?.employeeReceived ?? '');
-  if (newlyPicked) {
-    if (!p.receivedDate || p.receivedDate === before?.receivedDate) p.receivedDate = todayIso();
-    p.active = false;
+  if (newlyPicked && (!p.receivedDate || p.receivedDate === before?.receivedDate)) p.receivedDate = todayIso();
+  if (p.status !== undefined && p.status !== (before?.status ?? '')) {
+    const active = activeForStatus(p.status);
+    if (active !== null) p.active = active;
   }
 }
 

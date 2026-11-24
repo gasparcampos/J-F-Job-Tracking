@@ -272,7 +272,7 @@ export async function resolvePoCall(name: string, args: Record<string, any>, lan
       label: t(`Recibir PO# ${po.poNumber} (${po.supplierName}), recibió ${who}${back}`, `Receive PO# ${po.poNumber} (${po.supplierName}), received by ${who}${back}`),
       method: 'PUT',
       path: `/api/pos/${po.id}`,
-      body: { employeeReceived: who, receivedDate: todayIso(), active: false },
+      body: { employeeReceived: who, receivedDate: todayIso(), status: 'CLOSED' },
     });
     return;
   }

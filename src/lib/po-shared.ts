@@ -41,6 +41,15 @@ export const MATERIAL_CONDITION_OPTIONS = [
 ];
 export const EMPLOYEE_RECEIVED_OPTIONS = ['GASPAR', 'KARINA', 'MARK', 'WILLIE'];
 export const STATUS_OPTIONS = ['OPEN', 'CLOSED', 'PENDING', 'VOID'] as const;
+/**
+ * ACTIVE follows OPEN // CLOSE: CLOSED, PENDING or VOID take the PO off OUTSIDE
+ * (it goes to OLD FILES); OPEN puts it back. Blank leaves ACTIVE as it is.
+ */
+export function activeForStatus(status: string | null | undefined): boolean | null {
+  if (status === 'OPEN') return true;
+  if (status === 'CLOSED' || status === 'PENDING' || status === 'VOID') return false;
+  return null;
+}
 export const CITY_OPTIONS = ['HOUSTON', 'KATY', 'TOMBALL', 'SUGARLAND', 'PEARLAND'];
 export const STATE_OPTIONS = ['TX', 'NY'];
 
