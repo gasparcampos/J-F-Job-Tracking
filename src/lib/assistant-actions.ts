@@ -1,6 +1,7 @@
 import { jobsDB, departmentsDB, extraPartsDB } from './json-db';
 import { PLACE_OPTIONS } from './extra-parts-places';
 import type { AssistantAction } from '@/types';
+import { buildPoTools, resolvePoCall, PO_TOOL_NAMES } from './assistant-po';
 
 export type AssistantLang = 'es' | 'en';
 
@@ -96,6 +97,7 @@ export function buildAssistantTools(deptNames: string[]) {
       },
       []
     ),
+    ...buildPoTools(),
   ];
 }
 
@@ -110,7 +112,7 @@ const norm = (s?: string) => (s ?? '').trim().toLowerCase();
 export async function resolveToolCalls(
   toolCalls: ToolCall[],
   lang: AssistantLang
-): Promise<{ actions: AssistantAction[]; errors: string[] }> {
+): Promise<{ actions: AssistantAction[]; errors: string[]; info: string[] }> {
   const t = (es: string, en: string) => (lang === 'es' ? es : en);
   const [jobs, departments, extraParts] = await Promise.all([
     jobsDB.findAll(),
@@ -124,6 +126,8 @@ export async function resolveToolCalls(
 
   const actions: AssistantAction[] = [];
   const errors: string[] = [];
+  // Plain answers (PO lookups), not changes.
+  const info: string[] = [];
 
   for (const call of toolCalls) {
     const name = call.function?.name ?? '';
@@ -131,6 +135,12 @@ export async function resolveToolCalls(
     try {
       args = JSON.parse(call.function?.arguments || '{}');
     } catch {
+      continue;
+    }
+
+    // Purchase Orders: lookups answer right away; changes are confirmable.
+    if (PO_TOOL_NAMES.has(name)) {
+      await resolvePoCall(name, args, lang, { actions, errors, info });
       continue;
     }
 
@@ -321,5 +331,5 @@ export async function resolveToolCalls(
     }
   }
 
-  return { actions, errors };
+  return { actions, errors, info };
 }

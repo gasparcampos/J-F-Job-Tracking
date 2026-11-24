@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Modality, StartSensitivity, type LiveConnectConfig } from '@google/genai';
 import { buildJobsContext } from '@/lib/assistant-context';
+import { buildPoContext } from '@/lib/assistant-po';
 import { buildAssistantTools } from '@/lib/assistant-actions';
 import { departmentsDB } from '@/lib/json-db';
 
@@ -18,7 +19,8 @@ statuses. Jobs may be looked up by JOB#, PO#, DWG# or Part#.
 
 You can change things with the tools (move jobs, start/pause progress, change priority /
 due date / notes / assignee, add history notes, ship or return jobs, store or take out
-extra parts). How changes work:
+extra parts, and Purchase Orders: create a PO, mark it received, change its ETA / notes).
+How changes work:
 1. When the user asks for a change, call the matching tool(s). The tool result tells you
    what will be done ("proposed") and any problems ("errors"). Nothing is applied yet.
 2. Briefly say what you are about to do and ask the user to confirm.
@@ -32,7 +34,15 @@ You can SEE photos the user attaches (prints, route sheets, screenshots of the J
 system). Read them carefully; never say you can't see images. If a number is unreadable,
 say so and ask, instead of guessing.
 
-PURCHASE ORDER steps -- when the photo is a J&F "Purchase Orders" form (title "Purchase
+PURCHASE ORDERS live in this app now (the POs tab). The snapshot below lists the POs still
+out and the ones received this week; for anything older call find_purchase_orders (a
+lookup, no confirmation needed -- read the answer out). Creating or receiving a PO moves its
+jobs on the board by itself: NDE work (WET MAG, LP, testing) goes to NDE and comes back to
+KARINA; outside service (coating, phosphate, plating, heat treat, drill & hone, EDM...) goes
+to O.S and comes back to READY TO SHIP. Material and tooling POs don't move jobs. To create
+a PO you need supplier, description, ETA and who authorizes it; ask for what's missing.
+
+PURCHASE ORDER photo steps -- when the photo is a J&F "Purchase Orders" form (title "Purchase
 Order Number: NNNNN", fields Supplier, Order Date, ETA, and a lines table whose WO column
 is the JOB#), the user wants the board updated with where that job was sent:
 1. Read the PO number, Supplier, Order Date, ETA, and the WO (JOB#) of every line.
@@ -54,6 +64,7 @@ function toGeminiSchema(schema: any): any {
   if (!schema || typeof schema !== 'object') return schema;
   const out: any = { ...schema };
   if (typeof out.type === 'string') out.type = out.type.toUpperCase();
+  if (out.items) out.items = toGeminiSchema(out.items);
   if (out.properties) {
     out.properties = Object.fromEntries(
       Object.entries(out.properties).map(([k, v]) => [k, toGeminiSchema(v)])
@@ -78,7 +89,11 @@ export async function POST() {
   }
 
   try {
-    const [jobsContext, departments] = await Promise.all([buildJobsContext(), departmentsDB.findAll()]);
+    const [jobsContext, poContext, departments] = await Promise.all([
+      buildJobsContext(),
+      buildPoContext(),
+      departmentsDB.findAll(),
+    ]);
     const deptNames = departments
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -102,7 +117,7 @@ export async function POST() {
 
     const config: LiveConnectConfig = {
       responseModalities: [Modality.AUDIO],
-      systemInstruction: LIVE_PROMPT + jobsContext,
+      systemInstruction: LIVE_PROMPT + jobsContext + poContext,
       tools: [{ functionDeclarations }],
       inputAudioTranscription: {},
       outputAudioTranscription: {},

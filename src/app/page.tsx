@@ -46,6 +46,7 @@ import {
   AccessHistorySearch,
 } from '@/components/job-tracker';
 import { toolingForJob } from '@/lib/tooling-match';
+import { PurchaseOrdersView } from '@/components/job-tracker/po/purchase-orders-view';
 
 // Dynamic import to avoid SSR issues with pdfjs-dist
 const PdfViewerModal = dynamic(
@@ -73,7 +74,12 @@ export default function Home() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'dashboard'>('dashboard');
   // Sub-tab inside the Table view: live jobs vs. already-shipped jobs.
-  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures' | 'gages' | 'access-history'>('active');
+  const [tableTab, setTableTab] = useState<'active' | 'shipped' | 'deviations' | 'extra-parts' | 'fixtures' | 'gages' | 'access-history' | 'pos'>('active');
+  // Purchase Orders tab: reload key (bumped by the live sync), POs still out,
+  // and a PO to open (deep link ?po=57258).
+  const [poRefreshKey, setPoRefreshKey] = useState(0);
+  const [activePoCount, setActivePoCount] = useState<number | null>(null);
+  const [openPo, setOpenPo] = useState<string | null>(null);
 
   // Extra Parts inventory (leftover stocked pieces).
   const [extraParts, setExtraParts] = useState<ExtraPart[]>([]);
@@ -410,6 +416,7 @@ export default function Home() {
       setExtraParts(Array.isArray(extraPartsData) ? extraPartsData : []);
       setFixtures(Array.isArray(fixturesData) ? fixturesData : []);
       setGages(Array.isArray(gagesData) ? gagesData : []);
+      setPoRefreshKey((k) => k + 1);
     } catch (error) {
       // Silent: a dropped poll shouldn't spam toasts — the next tick retries.
       console.error('Error refreshing data:', error);
@@ -500,6 +507,19 @@ export default function Home() {
       window.removeEventListener('focus', onVisible);
     };
   }, [refreshData]);
+
+  // Deep link to a Purchase Order (?po=57258): open the POs tab with it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const po = params.get('po');
+    if (!po) return;
+    setViewMode('table');
+    setTableTab('pos');
+    setOpenPo(po);
+    params.delete('po');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, []);
 
   // Deep link from a scanned Extra Part QR code (?extraPart=<id>): jump to the
   // Table view's Extra Parts tab and pop that record open in edit mode so it
@@ -1927,6 +1947,24 @@ export default function Home() {
                   {filteredGages.length}
                 </span>
               </button>
+              {/* Purchase Orders (the Access PO system). */}
+              <button
+                type="button"
+                onClick={() => setTableTab('pos')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  tableTab === 'pos'
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-lg shadow-sky-600/30'
+                    : 'bg-muted text-muted-foreground border-border hover:text-card-foreground'
+                }`}
+                title="Purchase Orders still out (OUTSIDE)"
+              >
+                POs
+                {activePoCount !== null && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${tableTab === 'pos' ? 'bg-white/20' : 'bg-background'}`}>
+                    {activePoCount}
+                  </span>
+                )}
+              </button>
               {/* Read-only archive of the jobs imported from Access (MASTER). */}
               <button
                 type="button"
@@ -1976,7 +2014,16 @@ export default function Home() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-              {tableTab === 'access-history' ? (
+              {tableTab === 'pos' ? (
+                <PurchaseOrdersView
+                  jobs={jobs}
+                  departments={allDepartments}
+                  refreshKey={poRefreshKey}
+                  openPo={openPo}
+                  onOpenPoHandled={() => setOpenPo(null)}
+                  onCountChange={setActivePoCount}
+                />
+              ) : tableTab === 'access-history' ? (
                 <AccessHistoryView query={historyQuery} />
               ) : tableTab === 'extra-parts' ? (
                 <ExtraPartsTable

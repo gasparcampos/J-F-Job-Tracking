@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { buildJobsContext } from '@/lib/assistant-context';
+import { buildPoContext } from '@/lib/assistant-po';
 import { buildAssistantTools, resolveToolCalls, type AssistantLang, type ToolCall } from '@/lib/assistant-actions';
 import { ensureZaiConfig } from '@/lib/ensure-zai-config';
 import { departmentsDB } from '@/lib/json-db';
@@ -22,13 +23,17 @@ Always reply in the same language the user wrote in (Spanish or English).
 
 You can also CHANGE things with the tools provided (move jobs, start/pause progress,
 change priority / due date / notes / assignee, add history notes, ship or return jobs,
-store or take out extra parts). When the user asks for a change, call the matching
+store or take out extra parts, and Purchase Orders: look them up, create them, mark them
+received, change ETA / notes). When the user asks for a change, call the matching
 tool(s) -- several at once if they ask for several changes. The app shows the user
 what will happen and asks them to confirm before anything is applied, so do NOT ask
 for confirmation yourself and never say a change is already done. If a needed detail
 is missing or ambiguous (e.g. which department, or the JOB# doesn't match any job),
 ask a short question instead of calling a tool. Only call tools for explicit change
-requests, never for plain questions.
+requests, never for plain questions -- except find_purchase_orders, which you may call
+to answer a question about a PO that isn't in the snapshot below.
+Saving or receiving a PO moves its jobs on the board by itself (NDE work to NDE and back
+to KARINA; outside service to O.S and back to READY TO SHIP).
 
 JOB DATA:
 `;
@@ -59,7 +64,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [jobsContext, departments] = await Promise.all([buildJobsContext(), departmentsDB.findAll()]);
+    const [jobsContext, poContext, departments] = await Promise.all([
+      buildJobsContext(),
+      buildPoContext(),
+      departmentsDB.findAll(),
+    ]);
     const deptNames = departments
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -68,7 +77,7 @@ export async function POST(request: NextRequest) {
     const completion = await zai.chat.completions.create({
       model: 'glm-4.6',
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT + jobsContext },
+        { role: 'system', content: SYSTEM_PROMPT + jobsContext + poContext },
         ...messages,
       ],
       tools: buildAssistantTools(deptNames),
@@ -83,11 +92,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ reply: content });
     }
 
-    const { actions, errors } = await resolveToolCalls(toolCalls, lang);
+    const { actions, errors, info } = await resolveToolCalls(toolCalls, lang);
     const fallback = actions.length
       ? lang === 'es' ? '¿Confirmas estos cambios?' : 'Confirm these changes?'
       : '';
-    const reply = [content, ...errors].filter(Boolean).join('\n') || fallback;
+    const reply = [content, ...info, ...errors].filter(Boolean).join('\n') || fallback;
 
     return NextResponse.json({ reply, actions });
   } catch (error) {

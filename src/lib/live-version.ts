@@ -13,7 +13,9 @@ import { firestore } from './firebase-admin';
  * every few seconds and only re-download the full board when it changes.
  */
 
-const COLLECTIONS = ['jobs', 'departments', 'employees', 'extraParts', 'fixtures', 'gages'];
+// poMeta holds a single change counter bumped by every PO / supplier write
+// (the ~7,000 POs themselves aren't watched).
+const COLLECTIONS = ['jobs', 'departments', 'employees', 'extraParts', 'fixtures', 'gages', 'poMeta'];
 
 // 32-bit FNV-1a.
 function fnv(str: string): number {

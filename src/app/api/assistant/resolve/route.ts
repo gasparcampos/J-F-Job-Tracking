@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
     const calls = (body.calls ?? []) as { name?: string; args?: Record<string, unknown> }[];
     const lang: AssistantLang = body.lang === 'es' ? 'es' : 'en';
 
-    const { actions, errors } = await resolveToolCalls(
+    const { actions, errors, info } = await resolveToolCalls(
       calls.map((c) => ({ function: { name: c.name, arguments: JSON.stringify(c.args ?? {}) } })),
       lang
     );
-    return NextResponse.json({ actions, errors });
+    return NextResponse.json({ actions, errors, info });
   } catch (error) {
     console.error('Assistant resolve error:', error);
     return NextResponse.json(

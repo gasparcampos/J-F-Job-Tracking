@@ -442,6 +442,8 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
       const data = await res.json();
       const actions: AssistantAction[] = res.ok ? data.actions ?? [] : [];
       const errors: string[] = res.ok ? data.errors ?? [] : [data.error || 'error'];
+      // PO lookups: plain answers, nothing to confirm.
+      const info: string[] = res.ok ? data.info ?? [] : [];
 
       // A new proposal replaces any older one still waiting, so "sí" always
       // applies to what was just read out.
@@ -449,14 +451,15 @@ export function AssistantPanel({ onJobUpdated, onDataChanged }: AssistantPanelPr
         ...prev.map((m) => (m.actionsState === 'pending' ? { ...m, actionsState: 'cancelled' as const } : m)),
         {
           role: 'assistant',
-          content: errors.join('\n'),
+          content: [...info, ...errors].join('\n'),
           ...(actions.length ? { actions, actionsState: 'pending' as const } : {}),
         },
       ]);
 
       const payload = {
-        status: actions.length ? 'awaiting_user_confirmation' : 'nothing_to_apply',
+        status: actions.length ? 'awaiting_user_confirmation' : info.length ? 'answer' : 'nothing_to_apply',
         proposed: actions.map((a) => a.label),
+        ...(info.length ? { answer: info.join('\n') } : {}),
         errors,
       };
       for (const p of proposals) results[p.index] = payload;
