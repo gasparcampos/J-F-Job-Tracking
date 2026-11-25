@@ -118,7 +118,7 @@ export function toSummary(p: PurchaseOrder): PoSummary {
     lineText: p.lines
       .map((l) => [l.prodDescrip, l.spec, l.partNumber, l.rev].filter(Boolean).join(' '))
       .join(' | ')
-      .slice(0, 240),
+      .slice(0, 600),
     hasMtr: p.mtr.length > 0,
   };
 }

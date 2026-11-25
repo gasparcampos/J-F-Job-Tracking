@@ -24,6 +24,16 @@ const EMPTY_LOOKUPS: PoLookups = {
 };
 
 const norm = (s: unknown) => String(s ?? '').toLowerCase();
+/** Letters/digits only, so "HT 12-345" finds "ht12345" and vice versa. */
+const compact = (s: unknown) => norm(s).replace(/[^a-z0-9]/g, '');
+
+/** A search term, ready to match: lower-case and compact form. */
+type Term = { s: string; c: string };
+const toTerm = (q: string): Term => {
+  const s = q.trim().toLowerCase();
+  return { s, c: compact(s) };
+};
+const hit = (v: unknown, t: Term) => norm(v).includes(t.s) || (t.c.length >= 3 && compact(v).includes(t.c));
 
 function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
@@ -55,6 +65,8 @@ interface Props {
   onCountChange?: (activeCount: number) => void;
   /** Leave POs, back to the job tabs. */
   onBack?: () => void;
+  /** Open a board job (from the search results). */
+  onOpenJob?: (job: Job) => void;
 }
 
 /**
@@ -62,7 +74,7 @@ interface Props {
  * (Access startup screen), OLD FILES = every PO (MAIN-VIEW), SUPPLIERS,
  * REPORTS (TONY-ONLY) and SETUP (employees, shipping methods, company).
  */
-export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOpenPoHandled, onCountChange, onBack }: Props) {
+export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOpenPoHandled, onCountChange, onBack, onOpenJob }: Props) {
   const [view, setView] = useState<View>('outside');
   const [pos, setPos] = useState<PoSummary[] | null>(null);
   const [lookups, setLookups] = useState<PoLookups>(EMPTY_LOOKUPS);
@@ -124,22 +136,35 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
     return byWo;
   }, [jobs, departments]);
 
-  const matches = (p: PoSummary, s: string) =>
-    !s ||
-    norm(p.poNumber).includes(s) ||
-    norm(p.supplierName).includes(s) ||
-    norm(p.partDwg).includes(s) ||
-    p.workOrders.some((w) => w.includes(s)) ||
-    norm(p.matType).includes(s) ||
-    norm(p.heatNumber).includes(s) ||
-    norm(p.description).includes(s) ||
-    norm(p.lineText).includes(s);
+  const matches = (p: PoSummary, t: Term) =>
+    !t.s ||
+    hit(p.poNumber, t) ||
+    hit(p.supplierName, t) ||
+    hit(p.partDwg, t) ||
+    p.workOrders.some((w) => hit(w, t)) ||
+    hit(p.matType, t) ||
+    hit(p.heatNumber, t) ||
+    hit(p.description, t) ||
+    hit(p.lineText, t);
 
-  const outsideRows = useMemo(() => active.filter((p) => matches(p, q.trim().toLowerCase())), [active, q]);
+  // Typing in OUTSIDE searches the whole PO database (OLD FILES too), so a
+  // HT#, PO# or DWG# is found whether the PO is still out or long closed.
+  const searching = q.trim().length > 0;
   const allRows = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return (pos ?? []).filter((p) => (!activeOnly || p.active) && matches(p, s));
-  }, [pos, q, activeOnly]);
+    const t = toTerm(q);
+    return (pos ?? []).filter((p) => (view === 'outside' || !activeOnly || p.active) && matches(p, t));
+  }, [pos, q, activeOnly, view]);
+
+  // Board jobs (active and shipped) carrying the same HT#, PO#, material PO,
+  // DWG#, part# or JOB#.
+  const jobRows = useMemo(() => {
+    const t = toTerm(q);
+    if (t.s.length < 2) return [];
+    return jobs
+      .filter((j) => [j.heatNumber, j.materialPo, j.poNumber, j.dwgNumber, j.partNumber, j.jobNumber].some((v) => v && hit(v, t)))
+      .sort((a, b) => Number(!!a.shipped) - Number(!!b.shipped) || (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+      .slice(0, 50);
+  }, [jobs, q]);
 
   const supplierStats = useMemo(() => {
     const m = new Map<string, { count: number; last: string }>();
@@ -187,6 +212,118 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
     </button>
   );
 
+  const jobsTable = jobRows.length > 0 && (
+    <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
+      <div className="px-3 pt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+        Jobs on the board ({jobRows.length}
+        {jobRows.length === 50 ? '+' : ''})
+      </div>
+      <table className="w-full min-w-[900px]">
+        <thead className="bg-muted/50">
+          <tr>
+            <th className={TH}>JOB#</th>
+            <th className={TH}>Customer</th>
+            <th className={TH}>DWG#</th>
+            <th className={TH}>Part#</th>
+            <th className={TH}>Customer PO</th>
+            <th className={TH}>Material PO</th>
+            <th className={TH}>HT#</th>
+            <th className={TH}>Where</th>
+          </tr>
+        </thead>
+        <tbody>
+          {jobRows.map((j) => (
+            <tr key={j.id} className="border-t border-border hover:bg-muted/30">
+              <td className={TD}>
+                {onOpenJob ? (
+                  <button type="button" onClick={() => onOpenJob(j)} className="font-bold text-primary underline underline-offset-2">
+                    {j.jobNumber || j.title}
+                  </button>
+                ) : (
+                  <b>{j.jobNumber || j.title}</b>
+                )}
+              </td>
+              <td className={`${TD} font-medium`}>{j.customer}</td>
+              <td className={TD}>{j.dwgNumber}</td>
+              <td className={TD}>{j.partNumber}</td>
+              <td className={TD}>{j.poNumber}</td>
+              <td className={TD}>{j.materialPo}</td>
+              <td className={TD}>{j.heatNumber}</td>
+              <td className={TD}>
+                {j.shipped ? (
+                  <span className="text-muted-foreground">Shipped</span>
+                ) : (
+                  <span className="text-green-700 font-semibold">{departments.find((d) => d.id === j.departmentId)?.name ?? ''}</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const allPoTable = (
+    <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
+      <table className="w-full min-w-[1100px]">
+        <thead className="bg-muted/50">
+          <tr>
+            <th className={TH}>PO#</th>
+            <th className={TH}>Supplier</th>
+            <th className={TH}>Description</th>
+            <th className={TH}>WO</th>
+            <th className={TH}>Order Date</th>
+            <th className={TH}>ETA</th>
+            <th className={TH}>Received</th>
+            <th className={TH}>Open//Close</th>
+            <th className={TH}>HT#</th>
+            <th className={TH}>DWG# & Part</th>
+            <th className={TH}>MAT-TYPE</th>
+            <th className={`${TH} text-right`}>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allRows.slice(0, limit).map((p) => (
+            <tr key={p.id} className="border-t border-border hover:bg-muted/30">
+              <td className={`${TD} whitespace-nowrap`}>
+                {poLink(p)}
+                {p.active && <span className="ml-1 text-[9px] font-bold text-white bg-green-600 rounded px-1">OUT</span>}
+                {p.hasMtr && <Paperclip size={11} className="inline ml-1 text-muted-foreground" aria-label="Has MTR" />}
+              </td>
+              <td className={`${TD} font-medium`}>{p.supplierName}</td>
+              <td className={TD}>{p.description}</td>
+              <td className={TD}>{woChips(p)}</td>
+              <td className={`${TD} whitespace-nowrap`}>{usDate(p.orderDate)}</td>
+              <td className={`${TD} whitespace-nowrap`}>{usDate(p.eta)}</td>
+              <td className={`${TD} whitespace-nowrap`}>
+                {usDate(p.receivedDate)} {p.employeeReceived && <span className="text-muted-foreground">{p.employeeReceived}</span>}
+              </td>
+              <td className={TD}>{p.status}</td>
+              <td className={TD}>{p.heatNumber}</td>
+              <td className={TD}>{p.partDwg}</td>
+              <td className={TD}>{p.matType}</td>
+              <td className={`${TD} text-right tabular-nums`}>{p.total ? money(p.total) : ''}</td>
+            </tr>
+          ))}
+          {!allRows.length && (
+            <tr>
+              <td colSpan={12} className="p-6 text-center text-sm text-muted-foreground">
+                No PO matches.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      {allRows.length > limit && (
+        <div className="p-3 text-center">
+          <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>
+            Show more ({(allRows.length - limit).toLocaleString()} left)
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="po-access bg-card min-h-full rounded-2xl p-3 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -216,13 +353,22 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
       {pos && view === 'outside' && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <SearchBox value={q} onChange={setQ} placeholder="Search PO#, supplier, DWG/Part, WO, HT#, MAT-TYPE..." />
+            <SearchBox value={q} onChange={setQ} placeholder="Search everything: HT#, PO#, DWG#, WO, supplier..." />
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="rounded-lg bg-muted px-2 py-1">Today: <b>{madeToday}</b> POs made</span>
               <span className="rounded-lg bg-muted px-2 py-1"><b>{receivedToday}</b> received</span>
               <span className={`rounded-lg px-2 py-1 ${overdue ? 'bg-red-600 text-white' : 'bg-muted'}`}><b>{overdue}</b> past ETA</span>
             </div>
           </div>
+          {searching && (
+            <p className="text-xs text-muted-foreground">
+              Searching <b>all {pos.length.toLocaleString()} POs</b> (OUTSIDE + OLD FILES) and the jobs: {allRows.length.toLocaleString()} PO
+              {allRows.length === 1 ? '' : 's'}, {jobRows.length} job{jobRows.length === 1 ? '' : 's'}.
+            </p>
+          )}
+          {searching && jobsTable}
+          {searching && allPoTable}
+          {!searching && (
           <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead className="bg-muted/50">
@@ -239,7 +385,7 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
                 </tr>
               </thead>
               <tbody>
-                {outsideRows.map((p) => {
+                {active.map((p) => {
                   const d = daysOver(p.eta);
                   return (
                     <tr key={p.id} className="border-t border-border hover:bg-muted/30">
@@ -255,79 +401,31 @@ export function PurchaseOrdersView({ jobs, departments, refreshKey, openPo, onOp
                     </tr>
                   );
                 })}
-                {!outsideRows.length && (
+                {!active.length && (
                   <tr>
                     <td colSpan={9} className="p-6 text-center text-sm text-muted-foreground">
-                      {q ? 'No active PO matches.' : 'No POs out right now.'}
+                      No POs out right now.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+          )}
         </>
       )}
 
       {pos && view === 'all' && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <SearchBox value={q} onChange={setQ} placeholder="Search PO#, supplier, DWG/Part, WO, HT#, MAT-TYPE..." />
+            <SearchBox value={q} onChange={setQ} placeholder="Search everything: HT#, PO#, DWG#, WO, supplier..." />
             <label className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
               <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} className="accent-green-600" /> active only
             </label>
             <span className="text-xs text-muted-foreground ml-auto">{allRows.length.toLocaleString()} POs</span>
           </div>
-          <div className="bg-background rounded-2xl border border-border shadow-xl overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className={TH}>PO#</th>
-                  <th className={TH}>Supplier</th>
-                  <th className={TH}>Description</th>
-                  <th className={TH}>WO</th>
-                  <th className={TH}>Order Date</th>
-                  <th className={TH}>ETA</th>
-                  <th className={TH}>Received</th>
-                  <th className={TH}>Open//Close</th>
-                  <th className={TH}>HT#</th>
-                  <th className={TH}>DWG# & Part</th>
-                  <th className={TH}>MAT-TYPE</th>
-                  <th className={`${TH} text-right`}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allRows.slice(0, limit).map((p) => (
-                  <tr key={p.id} className="border-t border-border hover:bg-muted/30">
-                    <td className={`${TD} whitespace-nowrap`}>
-                      {poLink(p)}
-                      {p.active && <span className="ml-1 text-[9px] font-bold text-white bg-green-600 rounded px-1">OUT</span>}
-                      {p.hasMtr && <Paperclip size={11} className="inline ml-1 text-muted-foreground" aria-label="Has MTR" />}
-                    </td>
-                    <td className={`${TD} font-medium`}>{p.supplierName}</td>
-                    <td className={TD}>{p.description}</td>
-                    <td className={TD}>{woChips(p)}</td>
-                    <td className={`${TD} whitespace-nowrap`}>{usDate(p.orderDate)}</td>
-                    <td className={`${TD} whitespace-nowrap`}>{usDate(p.eta)}</td>
-                    <td className={`${TD} whitespace-nowrap`}>
-                      {usDate(p.receivedDate)} {p.employeeReceived && <span className="text-muted-foreground">{p.employeeReceived}</span>}
-                    </td>
-                    <td className={TD}>{p.status}</td>
-                    <td className={TD}>{p.heatNumber}</td>
-                    <td className={TD}>{p.partDwg}</td>
-                    <td className={TD}>{p.matType}</td>
-                    <td className={`${TD} text-right tabular-nums`}>{p.total ? money(p.total) : ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {allRows.length > limit && (
-              <div className="p-3 text-center">
-                <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>
-                  Show more ({(allRows.length - limit).toLocaleString()} left)
-                </Button>
-              </div>
-            )}
-          </div>
+          {jobsTable}
+          {allPoTable}
         </>
       )}
 

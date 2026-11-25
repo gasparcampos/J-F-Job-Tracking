@@ -2023,6 +2023,7 @@ export default function Home() {
                   onOpenPoHandled={() => setOpenPo(null)}
                   onCountChange={setActivePoCount}
                   onBack={() => setTableTab('active')}
+                  onOpenJob={setPdfJob}
                 />
               ) : tableTab === 'access-history' ? (
                 <AccessHistoryView query={historyQuery} />
